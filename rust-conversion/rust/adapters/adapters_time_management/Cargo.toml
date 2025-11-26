@@ -1,0 +1,11 @@
+[package]
+name = "adapters_time_management"
+version = "0.1.0"
+edition = "2021"
+description = "Adapters layer: Time management - timers, time slices"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+

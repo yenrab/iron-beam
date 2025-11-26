@@ -1,0 +1,13 @@
+[package]
+name = "frameworks_system_integration_unix"
+version = "0.1.0"
+edition = "2021"
+description = "Frameworks layer: Unix system integration"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_system_integration_common = { path = "../../entities/entities_system_integration_common" }
+adapters_system_integration_unix = { path = "../../adapters/adapters_system_integration_unix" }
+

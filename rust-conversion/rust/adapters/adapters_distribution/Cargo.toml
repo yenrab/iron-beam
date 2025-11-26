@@ -1,0 +1,12 @@
+[package]
+name = "adapters_distribution"
+version = "0.1.0"
+edition = "2021"
+description = "Adapters layer: Distribution - external terms, UDS"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_io_operations = { path = "../../entities/entities_io_operations" }
+

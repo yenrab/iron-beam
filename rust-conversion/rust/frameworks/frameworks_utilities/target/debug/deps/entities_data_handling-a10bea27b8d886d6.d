@@ -1,0 +1,11 @@
+/Volumes/Files_1/iron-beam/rust-conversion/rust/frameworks/frameworks_utilities/target/debug/deps/entities_data_handling-a10bea27b8d886d6.d: /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/lib.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/term_hashing.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/atom.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/bits.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/binary.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/map.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/atomics.rs
+
+/Volumes/Files_1/iron-beam/rust-conversion/rust/frameworks/frameworks_utilities/target/debug/deps/libentities_data_handling-a10bea27b8d886d6.rmeta: /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/lib.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/term_hashing.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/atom.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/bits.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/binary.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/map.rs /Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/atomics.rs
+
+/Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/lib.rs:
+/Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/term_hashing.rs:
+/Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/atom.rs:
+/Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/bits.rs:
+/Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/binary.rs:
+/Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/map.rs:
+/Volumes/Files_1/iron-beam/rust-conversion/rust/entities/entities_data_handling/src/atomics.rs:

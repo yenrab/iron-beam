@@ -1,0 +1,10 @@
+[package]
+name = "entities_system_integration_common"
+version = "0.1.0"
+edition = "2021"
+description = "Entities layer: Common system integration - memory mapping"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+

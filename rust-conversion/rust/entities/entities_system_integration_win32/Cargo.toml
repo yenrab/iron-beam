@@ -1,0 +1,10 @@
+[package]
+name = "entities_system_integration_win32"
+version = "0.1.0"
+edition = "2021"
+description = "Entities layer: Windows-specific system integration"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+

@@ -1,0 +1,11 @@
+[package]
+name = "infrastructure_data_handling"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Data handling utilities"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+

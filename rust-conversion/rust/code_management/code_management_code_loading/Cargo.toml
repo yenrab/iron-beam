@@ -1,0 +1,14 @@
+[package]
+name = "code_management_code_loading"
+version = "0.1.0"
+edition = "2021"
+description = "Code Management layer: Code loading - module loading, code organization"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_io_operations = { path = "../../entities/entities_io_operations" }
+usecases_bifs = { path = "../../usecases/usecases_bifs" }
+infrastructure_code_loading = { path = "../../infrastructure/infrastructure_code_loading" }
+

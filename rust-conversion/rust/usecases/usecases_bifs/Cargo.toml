@@ -1,0 +1,12 @@
+[package]
+name = "usecases_bifs"
+version = "0.1.0"
+edition = "2021"
+description = "Use Cases layer: Built-in functions - regex, checksum, trace, etc."
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_utilities = { path = "../../entities/entities_utilities" }
+

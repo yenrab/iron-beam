@@ -1,0 +1,13 @@
+[package]
+name = "infrastructure_utilities"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Utilities - common helper functions"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_utilities = { path = "../../entities/entities_utilities" }
+usecases_memory_management = { path = "../../usecases/usecases_memory_management" }
+

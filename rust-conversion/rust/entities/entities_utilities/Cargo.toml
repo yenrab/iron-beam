@@ -1,0 +1,11 @@
+[package]
+name = "entities_utilities"
+version = "0.1.0"
+edition = "2021"
+description = "Entities layer: Utilities - big numbers, registers"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+malachite = "0.7"
+

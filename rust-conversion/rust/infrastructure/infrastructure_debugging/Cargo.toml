@@ -1,0 +1,12 @@
+[package]
+name = "infrastructure_debugging"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Debugging utilities"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+adapters_debugging = { path = "../../adapters/adapters_debugging" }
+

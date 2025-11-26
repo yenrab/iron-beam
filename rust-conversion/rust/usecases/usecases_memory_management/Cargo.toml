@@ -1,0 +1,12 @@
+[package]
+name = "usecases_memory_management"
+version = "0.1.0"
+edition = "2021"
+description = "Use Cases layer: Memory management - allocation strategies"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+# Dependencies on Entities layer
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+

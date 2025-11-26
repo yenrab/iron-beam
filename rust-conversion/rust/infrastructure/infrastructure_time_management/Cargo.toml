@@ -1,0 +1,12 @@
+[package]
+name = "infrastructure_time_management"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Time management"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+adapters_time_management = { path = "../../adapters/adapters_time_management" }
+

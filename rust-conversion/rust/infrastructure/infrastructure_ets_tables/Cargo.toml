@@ -1,0 +1,12 @@
+[package]
+name = "infrastructure_ets_tables"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: ETS tables implementation"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+adapters_ets_tables = { path = "../../adapters/adapters_ets_tables" }
+

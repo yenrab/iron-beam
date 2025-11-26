@@ -1,0 +1,12 @@
+[package]
+name = "infrastructure_bifs"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Built-in functions infrastructure"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+usecases_bifs = { path = "../../usecases/usecases_bifs" }
+
