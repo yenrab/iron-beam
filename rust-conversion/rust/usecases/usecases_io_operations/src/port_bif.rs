@@ -18,7 +18,7 @@
 // Note: Process and Port types are now available from entities_process_port
 // The actual implementation of port operations requires integration with
 // the VM's port management system, which will be implemented in higher layers.
-use entities_process_port::{Port, Process, PortId};
+use entities_process_port::{Port, Process, PortId, PortState, PortStatusFlags};
 
 /*
  * %CopyrightBegin%
@@ -137,20 +137,27 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_call/3`.
     ///
     /// # Arguments
-    /// * `process_id` - The process making the call
-    /// * `port_id` - Port ID or name
+    /// * `process` - The process making the call
+    /// * `port` - Port structure
     /// * `operation` - Operation code
     /// * `data` - Data for the operation
     ///
     /// # Returns
     /// Result value or error
+    ///
+    /// # Note
+    /// This function requires integration with the VM's port driver system
+    /// to actually make the call and wait for the response. The Process and
+    /// Port types are now available.
     pub fn port_call_3(
-        _process_id: u64,
-        _port_id: PortIdentifier,
+        _process: &Process,
+        _port: &Port,
         _operation: u32,
         _data: &[u8],
     ) -> Result<PortCallResult, PortError> {
         // TODO: Implement port call logic
+        // Requires: Driver callback invocation, synchronous waiting for response
+        // These will be implemented in Infrastructure/Adapters layers
         Err(PortError::NotImplemented)
     }
 
@@ -160,20 +167,26 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_control/3`.
     ///
     /// # Arguments
-    /// * `process_id` - The process controlling the port
-    /// * `port_id` - Port ID or name
+    /// * `process` - The process controlling the port
+    /// * `port` - Port structure
     /// * `operation` - Operation code
     /// * `data` - Data for the operation
     ///
     /// # Returns
     /// Result value or error
+    ///
+    /// # Note
+    /// This function requires integration with the VM's port driver system
+    /// to actually send the control message. The Process and Port types are now available.
     pub fn port_control_3(
-        _process_id: u64,
-        _port_id: PortIdentifier,
+        _process: &Process,
+        _port: &Port,
         _operation: u32,
         _data: &[u8],
     ) -> Result<PortCallResult, PortError> {
         // TODO: Implement port control logic
+        // Requires: Driver control callback invocation
+        // These will be implemented in Infrastructure/Adapters layers
         Err(PortError::NotImplemented)
     }
 
@@ -183,17 +196,36 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_close/1`.
     ///
     /// # Arguments
-    /// * `process_id` - The process closing the port
-    /// * `port_id` - Port ID or name
+    /// * `process` - The process closing the port
+    /// * `port` - Port structure
     ///
     /// # Returns
     /// Operation result
+    ///
+    /// # Note
+    /// This function requires integration with the VM's port management system
+    /// to actually close and clean up the port. The Process and Port types are now available.
     pub fn port_close_1(
-        _process_id: u64,
-        _port_id: PortIdentifier,
+        _process: &Process,
+        port: &Port,
     ) -> Result<PortOpResult, PortError> {
+        // Check if port is already closed
+        let state = port.get_state();
+        if state.is_closing() || state.is_exiting() {
+            return Ok(PortOpResult::Done);
+        }
+
         // TODO: Implement port close logic
-        Err(PortError::NotImplemented)
+        // Requires: Signal queue to send close signal, driver cleanup, port table removal
+        // These will be implemented in Infrastructure/Adapters layers
+        
+        // For now, mark port as closing
+        let new_state = PortState::from_bits(
+            state.bits() | PortStatusFlags::CLOSING.bits()
+        );
+        port.set_state(new_state);
+        
+        Ok(PortOpResult::Done)
     }
 
     /// Connect a process to a port (erts_internal_port_connect_2)
@@ -202,19 +234,34 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_connect/2`.
     ///
     /// # Arguments
-    /// * `process_id` - The process connecting
-    /// * `port_id` - Port ID or name
-    /// * `target_process_id` - Process ID to connect
+    /// * `process` - The process connecting
+    /// * `port` - Port structure
+    /// * `target_process` - Target process to connect
     ///
     /// # Returns
     /// Operation result
+    ///
+    /// # Note
+    /// This function uses the Port's connected field to store the connected process.
+    /// The Process and Port types are now available.
     pub fn port_connect_2(
-        _process_id: u64,
-        _port_id: PortIdentifier,
-        _target_process_id: u64,
+        _process: &Process,
+        port: &Port,
+        target_process: &Process,
     ) -> Result<PortOpResult, PortError> {
-        // TODO: Implement port connect logic
-        Err(PortError::NotImplemented)
+        let target_pid = target_process.get_id();
+        
+        // Set the connected process atomically
+        port.set_connected(target_pid);
+        
+        // Update port state to mark as connected
+        let state = port.get_state();
+        let new_state = PortState::from_bits(
+            state.bits() | PortStatusFlags::CONNECTED.bits()
+        );
+        port.set_state(new_state);
+        
+        Ok(PortOpResult::Done)
     }
 
     /// Get port information (erts_internal_port_info_1)
@@ -223,17 +270,47 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_info/1`.
     ///
     /// # Arguments
-    /// * `process_id` - The process requesting info
-    /// * `port_id` - Port ID or name
+    /// * `process` - The process requesting info
+    /// * `port` - Port structure
     ///
     /// # Returns
     /// Port information or error
+    ///
+    /// # Note
+    /// This function extracts information from the Port structure.
+    /// Some information (like links) requires VM integration to get the full list.
     pub fn port_info_1(
-        _process_id: u64,
-        _port_id: PortIdentifier,
+        _process: &Process,
+        port: &Port,
     ) -> Result<PortInfo, PortError> {
-        // TODO: Implement port info logic
-        Err(PortError::NotImplemented)
+        let port_id = port.get_id();
+        let connected_pid = port.get_connected();
+        
+        // Build connected processes list
+        let mut connected = Vec::new();
+        if connected_pid != 0 {
+            connected.push(connected_pid);
+        }
+
+        // Extract port flags from state
+        let state = port.get_state();
+        let flags = PortFlags {
+            binary_io: state.has_binary_io(),
+            linebuf_io: state.has_linebuf_io(),
+            soft_eof: false, // Would need to check SOFT_EOF flag
+        };
+
+        // Links would require VM integration to get the full list
+        // For now, return empty list
+        let links = Vec::new();
+
+        Ok(PortInfo {
+            id: port_id,
+            name: port.name.clone(),
+            connected,
+            links,
+            flags,
+        })
     }
 
     /// Get specific port information (erts_internal_port_info_2)
@@ -242,19 +319,58 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_info/2`.
     ///
     /// # Arguments
-    /// * `process_id` - The process requesting info
-    /// * `port_id` - Port ID or name
+    /// * `process` - The process requesting info
+    /// * `port` - Port structure
     /// * `item` - Information item to retrieve
     ///
     /// # Returns
     /// Port information item or error
     pub fn port_info_2(
-        _process_id: u64,
-        _port_id: PortIdentifier,
-        _item: PortInfoItem,
+        _process: &Process,
+        port: &Port,
+        item: PortInfoItem,
     ) -> Result<PortInfoValue, PortError> {
-        // TODO: Implement port info logic
-        Err(PortError::NotImplemented)
+        match item {
+            PortInfoItem::Id => {
+                Ok(PortInfoValue::Integer(port.get_id()))
+            }
+            PortInfoItem::Name => {
+                match &port.name {
+                    Some(name) => Ok(PortInfoValue::Atom(name.clone())),
+                    None => Ok(PortInfoValue::Undefined),
+                }
+            }
+            PortInfoItem::Connected => {
+                let connected_pid = port.get_connected();
+                if connected_pid != 0 {
+                    Ok(PortInfoValue::List(vec![connected_pid]))
+                } else {
+                    Ok(PortInfoValue::List(Vec::new()))
+                }
+            }
+            PortInfoItem::Links => {
+                // Links require VM integration - return empty for now
+                Ok(PortInfoValue::List(Vec::new()))
+            }
+            PortInfoItem::Input => {
+                Ok(PortInfoValue::Integer(port.bytes_in))
+            }
+            PortInfoItem::Output => {
+                Ok(PortInfoValue::Integer(port.bytes_out))
+            }
+            PortInfoItem::QueueSize => {
+                // Queue size requires VM integration - return undefined for now
+                Ok(PortInfoValue::Undefined)
+            }
+            PortInfoItem::QueueData => {
+                // Queue data requires VM integration - return undefined for now
+                Ok(PortInfoValue::Undefined)
+            }
+            PortInfoItem::ExitStatus => {
+                // Exit status requires VM integration - return undefined for now
+                Ok(PortInfoValue::Undefined)
+            }
+        }
     }
 
     /// Set port data (port_set_data_2)
@@ -263,19 +379,58 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_set_data/2`.
     ///
     /// # Arguments
-    /// * `process_id` - The process setting data
-    /// * `port_id` - Port ID
+    /// * `process` - The process setting data
+    /// * `port` - Port structure
     /// * `data` - Data to set
     ///
     /// # Returns
     /// Success or error
+    ///
+    /// # Note
+    /// This function uses the Port's atomic data field. The data can be
+    /// either an immediate value (small integer/atom) or heap data.
+    /// In the C code, heap data is stored as a pointer to ErtsPortDataHeap.
+    /// For now, we store immediate values directly and heap data as a pointer value.
     pub fn port_set_data_2(
-        _process_id: u64,
-        _port_id: u64,
-        _data: PortData,
+        _process: &Process,
+        port: &Port,
+        data: PortData,
     ) -> Result<(), PortError> {
-        // TODO: Implement port data set logic
-        Err(PortError::NotImplemented)
+        // Convert PortData to u64 for storage
+        let data_value = match data {
+            PortData::Immediate(val) => {
+                // Immediate values must have tag bits set (low 2 bits != 0)
+                if val & 0x3 == 0 {
+                    return Err(PortError::InvalidArgument);
+                }
+                val
+            }
+            PortData::Heap(heap_data) => {
+                // For heap data, we would normally allocate and store a pointer
+                // For now, we'll use a simple encoding: store length in upper bits
+                // This is a placeholder - full implementation requires heap management
+                if heap_data.len() > (u64::MAX as usize >> 16) {
+                    return Err(PortError::SystemLimit);
+                }
+                // Encode: upper 16 bits = length, lower 48 bits = hash of data
+                // This is a simplified representation
+                let len = heap_data.len() as u64;
+                let hash = heap_data.iter().fold(0u64, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u64));
+                (len << 48) | (hash & 0x0000FFFFFFFFFFFF)
+            }
+            PortData::Undefined => {
+                // Setting to undefined means clearing the data
+                0
+            }
+        };
+
+        // Exchange the old data with the new data atomically
+        let _old_data = port.data.swap(data_value, std::sync::atomic::Ordering::AcqRel);
+        
+        // If old_data was 0, the port might have been terminated
+        // In the C code, this would trigger cleanup_old_port_data
+        // For now, we just return success
+        Ok(())
     }
 
     /// Get port data (port_get_data_1)
@@ -284,31 +439,74 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:port_get_data/1`.
     ///
     /// # Arguments
-    /// * `process_id` - The process getting data
-    /// * `port_id` - Port ID
+    /// * `process` - The process getting data
+    /// * `port` - Port structure
     ///
     /// # Returns
     /// Port data or error
+    ///
+    /// # Note
+    /// This function reads the Port's atomic data field. If the data is
+    /// an immediate value (tagged), it returns it directly. If it's heap
+    /// data, it would need to dereference the pointer (requires heap management).
     pub fn port_get_data_1(
-        _process_id: u64,
-        _port_id: u64,
+        _process: &Process,
+        port: &Port,
     ) -> Result<PortData, PortError> {
-        // TODO: Implement port data get logic
-        Err(PortError::NotImplemented)
+        let data = port.get_data();
+        
+        if data == 0 {
+            // Port data is undefined or port was terminated
+            return Err(PortError::PortNotFound);
+        }
+
+        // Check if it's an immediate value (tagged - low 2 bits != 0)
+        if data & 0x3 != 0 {
+            Ok(PortData::Immediate(data))
+        } else {
+            // It's heap data - decode our simplified representation
+            // In full implementation, this would dereference the pointer
+            let len = (data >> 48) as usize;
+            if len == 0 {
+                Ok(PortData::Undefined)
+            } else {
+                // For now, return empty heap data as placeholder
+                // Full implementation would read from heap
+                Ok(PortData::Heap(Vec::new()))
+            }
+        }
     }
 
     /// Read port data (erts_port_data_read)
     ///
     /// Reads data associated with a port (internal function).
+    /// Similar to port_get_data_1 but returns Option instead of Result.
     ///
     /// # Arguments
-    /// * `port_id` - Port ID
+    /// * `port` - Port structure
     ///
     /// # Returns
-    /// Port data or undefined
-    pub fn port_data_read(_port_id: u64) -> Option<PortData> {
-        // TODO: Implement port data read logic
-        None
+    /// Port data or None if undefined/not found
+    pub fn port_data_read(port: &Port) -> Option<PortData> {
+        let data = port.get_data();
+        
+        if data == 0 {
+            return None;
+        }
+
+        // Check if it's an immediate value (tagged - low 2 bits != 0)
+        if data & 0x3 != 0 {
+            Some(PortData::Immediate(data))
+        } else {
+            // It's heap data
+            let len = (data >> 48) as usize;
+            if len == 0 {
+                None
+            } else {
+                // For now, return empty heap data as placeholder
+                Some(PortData::Heap(Vec::new()))
+            }
+        }
     }
 
     /// Decode packet (decode_packet_3)
@@ -317,21 +515,160 @@ impl PortBif {
     /// This corresponds to the Erlang BIF `erlang:decode_packet/3`.
     ///
     /// # Arguments
-    /// * `process_id` - The process decoding the packet
+    /// * `process` - The process decoding the packet
     /// * `packet_type` - Type of packet to decode
     /// * `data` - Binary data to decode
     /// * `options` - Decoding options
     ///
     /// # Returns
     /// Decoded packet result
+    ///
+    /// # Note
+    /// This implements the core packet decoding logic. HTTP/SSL parsing
+    /// requires more complex parsing that would be in Infrastructure layer.
     pub fn decode_packet_3(
-        _process_id: u64,
-        _packet_type: PacketType,
-        _data: &[u8],
-        _options: &PacketOptions,
+        _process: &Process,
+        packet_type: PacketType,
+        data: &[u8],
+        options: &PacketOptions,
     ) -> Result<PacketDecodeResult, PortError> {
-        // TODO: Implement packet decoding logic
-        Err(PortError::NotImplemented)
+        let max_packet_length = options.max_packet_length.unwrap_or(0);
+        let line_length = options.line_length.unwrap_or(0);
+        let delimiter = options.line_delimiter.unwrap_or(b'\n');
+
+        // Get packet length based on type
+        let packet_length = match packet_type {
+            PacketType::Raw => {
+                // Raw: return all available data
+                if data.is_empty() {
+                    return Ok(PacketDecodeResult::More { size: None });
+                }
+                data.len()
+            }
+            PacketType::One => {
+                // 1-byte length prefix
+                if data.len() < 1 {
+                    return Ok(PacketDecodeResult::More { size: Some(1) });
+                }
+                let len = data[0] as usize;
+                if len == 0 {
+                    return Err(PortError::InvalidPacketData);
+                }
+                let total_len = 1 + len; // header + data
+                if data.len() < total_len {
+                    return Ok(PacketDecodeResult::More { size: Some(total_len as u32) });
+                }
+                if max_packet_length > 0 && total_len > max_packet_length as usize {
+                    return Err(PortError::InvalidPacketData);
+                }
+                total_len
+            }
+            PacketType::Two => {
+                // 2-byte length prefix (big-endian)
+                if data.len() < 2 {
+                    return Ok(PacketDecodeResult::More { size: Some(2) });
+                }
+                let len = ((data[0] as usize) << 8) | (data[1] as usize);
+                if len == 0 {
+                    return Err(PortError::InvalidPacketData);
+                }
+                let total_len = 2 + len;
+                if data.len() < total_len {
+                    return Ok(PacketDecodeResult::More { size: Some(total_len as u32) });
+                }
+                if max_packet_length > 0 && total_len > max_packet_length as usize {
+                    return Err(PortError::InvalidPacketData);
+                }
+                total_len
+            }
+            PacketType::Four => {
+                // 4-byte length prefix (big-endian)
+                if data.len() < 4 {
+                    return Ok(PacketDecodeResult::More { size: Some(4) });
+                }
+                let len = ((data[0] as usize) << 24)
+                    | ((data[1] as usize) << 16)
+                    | ((data[2] as usize) << 8)
+                    | (data[3] as usize);
+                if len == 0 {
+                    return Err(PortError::InvalidPacketData);
+                }
+                let total_len = 4 + len;
+                if data.len() < total_len {
+                    return Ok(PacketDecodeResult::More { size: Some(total_len as u32) });
+                }
+                if max_packet_length > 0 && total_len > max_packet_length as usize {
+                    return Err(PortError::InvalidPacketData);
+                }
+                total_len
+            }
+            PacketType::Line => {
+                // Line-delimited (LF by default)
+                if data.is_empty() {
+                    return Ok(PacketDecodeResult::More { size: None });
+                }
+                // Find delimiter
+                match data.iter().position(|&b| b == delimiter) {
+                    Some(pos) => {
+                        let len = pos + 1; // Include delimiter
+                        if max_packet_length > 0 && len > max_packet_length as usize {
+                            return Err(PortError::InvalidPacketData);
+                        }
+                        if line_length > 0 && len > line_length as usize {
+                            // Truncate to line_length
+                            line_length as usize
+                        } else {
+                            len
+                        }
+                    }
+                    None => {
+                        // No delimiter found
+                        if max_packet_length > 0 && data.len() >= max_packet_length as usize {
+                            return Err(PortError::InvalidPacketData);
+                        }
+                        if line_length > 0 && data.len() >= line_length as usize {
+                            // Buffer full, return truncated
+                            return Ok(PacketDecodeResult::Ok {
+                                body: data[..line_length as usize].to_vec(),
+                                rest: data[line_length as usize..].to_vec(),
+                            });
+                        }
+                        return Ok(PacketDecodeResult::More { size: None });
+                    }
+                }
+            }
+            PacketType::Asn1 | PacketType::SunRm | PacketType::Cdr
+            | PacketType::Fcgi | PacketType::Tpkt | PacketType::Http
+            | PacketType::HttpH | PacketType::HttpBin | PacketType::HttpHBin
+            | PacketType::SslTls => {
+                // Complex packet types require more sophisticated parsing
+                // For now, return error indicating not fully implemented
+                // These would be implemented in Infrastructure layer
+                return Err(PortError::NotSupported);
+            }
+        };
+
+        // Extract packet body and remaining data
+        let body_start = match packet_type {
+            PacketType::Raw => 0,
+            PacketType::One => 1,
+            PacketType::Two => 2,
+            PacketType::Four => 4,
+            PacketType::Line => 0, // For line, body includes the delimiter
+            _ => unreachable!(),
+        };
+
+        let body = if packet_type == PacketType::Line {
+            // For line, body is everything up to and including delimiter
+            data[..packet_length].to_vec()
+        } else {
+            // For length-prefixed, body starts after header
+            data[body_start..packet_length].to_vec()
+        };
+
+        let rest = data[packet_length..].to_vec();
+
+        Ok(PacketDecodeResult::Ok { body, rest })
     }
 }
 

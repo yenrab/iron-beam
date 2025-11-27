@@ -28,6 +28,7 @@
  */
 
 use std::sync::atomic::{AtomicU64, Ordering};
+use entities_process_port::Port;
 
 /// Control driver state
 pub struct ControlDriver {
@@ -48,19 +49,20 @@ impl ControlDriver {
     /// Associates a port with this driver.
     ///
     /// # Arguments
-    /// * `port` - Port ID
+    /// * `port` - Port structure
     ///
     /// # Returns
-    /// Port data or error
-    pub fn start(&self, port: u64) -> Result<u64, ControlError> {
+    /// Port ID or error
+    pub fn start(&self, port: &Port) -> Result<u64, ControlError> {
+        let port_id = port.get_id();
         let expected = u64::MAX;
         match self.erlang_port.compare_exchange(
             expected,
-            port,
+            port_id,
             Ordering::Acquire,
             Ordering::Relaxed,
         ) {
-            Ok(_) => Ok(port),
+            Ok(_) => Ok(port_id),
             Err(_) => Err(ControlError::AlreadyStarted),
         }
     }
@@ -70,8 +72,8 @@ impl ControlDriver {
     /// Disassociates the port from this driver.
     ///
     /// # Arguments
-    /// * `port` - Port ID
-    pub fn stop(&self, _port: u64) {
+    /// * `port` - Port structure
+    pub fn stop(&self, _port: &Port) {
         self.erlang_port.store(u64::MAX, Ordering::Release);
     }
 
@@ -80,16 +82,27 @@ impl ControlDriver {
     /// Reads data and outputs it to the Erlang port.
     ///
     /// # Arguments
-    /// * `port` - Port ID
+    /// * `port` - Port structure
     /// * `data` - Data to read
-    pub fn read(&self, _port: u64, _data: &[u8]) -> Result<(), ControlError> {
+    ///
+    /// # Note
+    /// This function requires integration with the VM's port output system
+    /// to actually send data to the port. The Port type is now available.
+    pub fn read(&self, port: &Port, _data: &[u8]) -> Result<(), ControlError> {
         let erlang_port = self.erlang_port.load(Ordering::Acquire);
         if erlang_port == u64::MAX {
             return Err(ControlError::NotStarted);
         }
         
+        // Verify the port ID matches
+        if port.get_id() != erlang_port {
+            return Err(ControlError::NotStarted);
+        }
+        
         // TODO: Output data to erlang_port
         // This requires integration with the VM's port output system
+        // Would call: driver_output(erlang_port, data)
+        // This will be implemented in Infrastructure/Adapters layers
         Ok(())
     }
 
@@ -98,7 +111,7 @@ impl ControlDriver {
     /// Handles control operations for the driver.
     ///
     /// # Arguments
-    /// * `port` - Port ID
+    /// * `port` - Port structure
     /// * `command` - Control command
     /// * `data` - Command data
     /// * `response_size` - Maximum response size
@@ -107,7 +120,7 @@ impl ControlDriver {
     /// Response data and size
     pub fn control(
         &self,
-        _port: u64,
+        port: &Port,
         command: u32,
         data: &[u8],
         response_size: usize,
@@ -133,14 +146,21 @@ impl ControlDriver {
             'b' => {
                 // Set busy port
                 if !data.is_empty() {
-                    let _busy = data[0] != 0;
+                    let busy = data[0] != 0;
                     // TODO: set_busy_port(erlang_port, busy)
+                    // This requires integration with the VM's port busy state management
+                    // Would update port's busy state flags
+                    // This will be implemented in Infrastructure/Adapters layers
+                    let _ = busy; // Suppress unused warning
                 }
                 Ok((Vec::new(), 0))
             }
             'i' => {
                 // Output data to port
                 // TODO: driver_output(erlang_port, data)
+                // This requires integration with the VM's port output system
+                // Would send data to the port's connected process
+                // This will be implemented in Infrastructure/Adapters layers
                 Ok((Vec::new(), 0))
             }
             _ => {
@@ -180,6 +200,7 @@ pub enum ControlError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entities_process_port::Port;
 
     #[test]
     fn test_control_driver_new() {
@@ -191,99 +212,117 @@ mod tests {
     #[test]
     fn test_control_driver_start_stop() {
         let driver = ControlDriver::new();
+        let port1 = Port::new(123);
+        let port2 = Port::new(456);
         
         // Start with port 123
-        let result = driver.start(123);
+        let result = driver.start(&port1);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 123);
         
         // Try to start again (should fail)
-        let result = driver.start(456);
+        let result = driver.start(&port2);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), ControlError::AlreadyStarted);
         
         // Stop
-        driver.stop(123);
+        driver.stop(&port1);
         
         // Can start again after stop
-        let result = driver.start(456);
+        let result = driver.start(&port2);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_control_driver_read_not_started() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        let result = driver.read(123, b"test");
+        let port = Port::new(123);
+        let result = driver.read(&port, b"test");
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), ControlError::NotStarted);
     }
 
     #[test]
     fn test_control_driver_control_echo() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        driver.start(123).unwrap();
+        let port = Port::new(123);
+        driver.start(&port).unwrap();
         
-        let (response, size) = driver.control(123, 'e' as u32, b"hello", 10).unwrap();
+        let (response, size) = driver.control(&port, 'e' as u32, b"hello", 10).unwrap();
         assert_eq!(size, 5);
         assert_eq!(response, b"hello");
     }
 
     #[test]
     fn test_control_driver_control_large_echo() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        driver.start(123).unwrap();
+        let port = Port::new(123);
+        driver.start(&port).unwrap();
         
         let data = b"this is a large string that exceeds the response buffer";
-        let (response, size) = driver.control(123, 'e' as u32, data, 10).unwrap();
+        let (response, size) = driver.control(&port, 'e' as u32, data, 10).unwrap();
         assert_eq!(size, data.len());
         assert_eq!(response, data);
     }
 
     #[test]
     fn test_control_driver_control_busy() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        driver.start(123).unwrap();
+        let port = Port::new(123);
+        driver.start(&port).unwrap();
         
-        let (response, size) = driver.control(123, 'b' as u32, &[1], 10).unwrap();
+        let (response, size) = driver.control(&port, 'b' as u32, &[1], 10).unwrap();
         assert_eq!(size, 0);
         assert!(response.is_empty());
     }
 
     #[test]
     fn test_control_driver_control_output() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        driver.start(123).unwrap();
+        let port = Port::new(123);
+        driver.start(&port).unwrap();
         
-        let (response, size) = driver.control(123, 'i' as u32, b"output", 10).unwrap();
+        let (response, size) = driver.control(&port, 'i' as u32, b"output", 10).unwrap();
         assert_eq!(size, 0);
         assert!(response.is_empty());
     }
 
     #[test]
     fn test_control_driver_control_invalid_single_byte() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        driver.start(123).unwrap();
+        let port = Port::new(123);
+        driver.start(&port).unwrap();
         
-        let result = driver.control(123, 'x' as u32, b"", 10);
+        let result = driver.control(&port, 'x' as u32, b"", 10);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), ControlError::InvalidCommand);
     }
 
     #[test]
     fn test_control_driver_control_large_command() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        driver.start(123).unwrap();
+        let port = Port::new(123);
+        driver.start(&port).unwrap();
         
         let command = 0x12345678u32;
-        let (response, size) = driver.control(123, command, b"", 10).unwrap();
+        let (response, size) = driver.control(&port, command, b"", 10).unwrap();
         assert_eq!(size, 4);
         assert_eq!(response, [0x12, 0x34, 0x56, 0x78]);
     }
 
     #[test]
     fn test_control_driver_control_not_started() {
+        use entities_process_port::Port;
         let driver = ControlDriver::new();
-        let result = driver.control(123, 'e' as u32, b"test", 10);
+        let port = Port::new(123);
+        let result = driver.control(&port, 'e' as u32, b"test", 10);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), ControlError::NotStarted);
     }
