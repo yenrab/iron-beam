@@ -1,0 +1,7 @@
+# Cargo configuration for entities_data_handling
+# 
+# Note: For coverage generation, use the script directly:
+#   ./generate_coverage.sh
+#
+# Cargo aliases don't work well with shell scripts, so we use the script directly.
+
