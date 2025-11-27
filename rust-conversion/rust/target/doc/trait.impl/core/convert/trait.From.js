@@ -1,9 +1,0 @@
-(function() {
-    var implementors = Object.fromEntries([["entities_utilities",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.91.1/std/primitive.i32.html\">i32</a>&gt; for <a class=\"struct\" href=\"entities_utilities/big/struct.BigNumber.html\" title=\"struct entities_utilities::big::BigNumber\">BigNumber</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.91.1/std/primitive.i64.html\">i64</a>&gt; for <a class=\"struct\" href=\"entities_utilities/big/struct.BigNumber.html\" title=\"struct entities_utilities::big::BigNumber\">BigNumber</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.91.1/std/primitive.u32.html\">u32</a>&gt; for <a class=\"struct\" href=\"entities_utilities/big/struct.BigNumber.html\" title=\"struct entities_utilities::big::BigNumber\">BigNumber</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.91.1/std/primitive.u64.html\">u64</a>&gt; for <a class=\"struct\" href=\"entities_utilities/big/struct.BigNumber.html\" title=\"struct entities_utilities::big::BigNumber\">BigNumber</a>"]]]]);
-    if (window.register_implementors) {
-        window.register_implementors(implementors);
-    } else {
-        window.pending_implementors = implementors;
-    }
-})()
-//{"start":57,"fragment_lengths":[1588]}

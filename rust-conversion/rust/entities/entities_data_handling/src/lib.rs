@@ -20,4 +20,5 @@ pub mod atomics;
 // Re-export main types for convenience
 pub use term_hashing::HashValue;
 pub use atom::{AtomTable, AtomEncoding};
+pub use map::{Map, MapError};
 
