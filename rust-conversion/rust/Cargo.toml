@@ -48,7 +48,7 @@ members = [
     "code_management/code_management_code_loading",
     
     # API Facades layer
-    "api_facades",
+    "api_facades", "entities/entities_process_port",
 ]
 
 [workspace.package]

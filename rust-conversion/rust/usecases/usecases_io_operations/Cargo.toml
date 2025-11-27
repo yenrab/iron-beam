@@ -9,4 +9,9 @@ authors = ["Erlang/OTP Rust Conversion"]
 [dependencies]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_io_operations = { path = "../../entities/entities_io_operations" }
+entities_utilities = { path = "../../entities/entities_utilities" }
+entities_process_port = { path = "../../entities/entities_process_port" }
+
+[dev-dependencies]
+cargo-tarpaulin = "0.27"
 

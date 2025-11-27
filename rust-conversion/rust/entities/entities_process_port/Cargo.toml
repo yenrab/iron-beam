@@ -1,0 +1,11 @@
+[package]
+name = "entities_process_port"
+version = "0.1.0"
+edition = "2021"
+description = "Entities layer: Process and Port core data structures"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+
+[dev-dependencies]
