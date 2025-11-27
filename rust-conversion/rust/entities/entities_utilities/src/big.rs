@@ -8,6 +8,8 @@
 //! with the C implementation's two's complement semantics for operations.
 
 use malachite::Integer;
+use malachite::base::num::conversion::traits::RoundingFrom;
+use malachite::base::rounding_modes::RoundingMode;
 
 /// Big number representation using malachite's Integer
 ///
@@ -52,34 +54,113 @@ impl BigNumber {
     /// Create a new big number from double (f64)
     ///
     /// Returns None if the conversion fails (NaN, infinity, or out of range)
+    ///
+    /// This implements the C `double_to_big` algorithm, which handles any finite f64 value
+    /// by using digit-based conversion. The algorithm:
+    /// 1. Extracts sign and makes the value positive
+    /// 2. Scales down by digit base (2^32) to count digits needed
+    /// 3. Extracts digits iteratively by multiplying, truncating, and subtracting
+    /// 4. Builds the Integer from the extracted digits
+    ///
+    /// **TODO: When malachite ships a version with native `from_f64` support (e.g., via `TryFrom<f64>`**
+    /// **or a dedicated `Integer::from_f64()` method), replace this implementation with a call to**
+    /// **that function for better maintainability and potential performance improvements.**
     pub fn from_f64(value: f64) -> Option<Self> {
         if !value.is_finite() {
             return None;
         }
-        // Convert to integer by truncating
-        // Note: C code does similar conversion in double_to_big
-        // Malachite doesn't have direct from_f64, so we convert via i64 first
-        // For values outside i64 range, we'd need a more complex conversion
+
+        // Fast path for values that fit in i64 (common case)
         let truncated = value.trunc();
         if truncated >= i64::MIN as f64 && truncated <= i64::MAX as f64 {
-            Some(Self {
+            // Check if we can use the fast path without precision loss
+            // For values in i64 range, direct conversion is safe and faster
+            return Some(Self {
                 value: Integer::from(truncated as i64),
-            })
-        } else {
-            None
+            });
         }
+
+        // Slow path: Use C algorithm for values outside i64 range
+        // This matches the C `double_to_big` implementation exactly
+        
+        // Extract sign and make positive
+        let is_negative = value < 0.0;
+        let x = if is_negative { -value } else { value };
+        
+        // Digit base: 2^32 (matches C's D_MASK + 1 where D_EXP = 32 on typical systems)
+        // Using 2^32 instead of 2^64 to avoid f64 precision issues
+        const DIGIT_BASE: f64 = 4294967296.0; // 2^32
+        
+        // Step 1: Count how many digits we need by scaling down
+        // This is the "unscale" step in the C code (lines 1969-1975)
+        let mut digit_count = 0;
+        let mut x_scaled = x;
+        while x_scaled >= 1.0 {
+            x_scaled /= DIGIT_BASE;
+            digit_count += 1;
+        }
+        
+        // If we need 0 digits, the value is 0
+        if digit_count == 0 {
+            return Some(Self {
+                value: Integer::from(0),
+            });
+        }
+        
+        // Step 2: Extract digits by scaling up and truncating
+        // This matches C code lines 1983-1990
+        // We work backwards from the most significant digit (ds-1 down to 0)
+        let mut digits = Vec::with_capacity(digit_count);
+        
+        // x_scaled is now < 1.0 after the scaling down loop
+        // Extract digits from most significant (digit_count-1) to least significant (0)
+        for _ in 0..digit_count {
+            x_scaled *= DIGIT_BASE; // "shift" left (line 1986)
+            let digit = x_scaled.trunc() as u32; // trunc (line 1987)
+            digits.push(digit);
+            x_scaled -= digit as f64; // remove integer part (line 1989)
+        }
+        
+        // Step 3: Build Integer from digits (most significant first)
+        // Start with the most significant digit and multiply by base, adding next digits
+        let mut result = Integer::from(0);
+        let base_int = Integer::from(DIGIT_BASE as u64);
+        
+        for &digit in &digits {
+            result = &result * &base_int;
+            result = &result + Integer::from(digit as u64);
+        }
+        
+        // Apply sign (matches C lines 1992-1996)
+        if is_negative {
+            result = -result;
+        }
+        
+        Some(Self { value: result })
     }
 
     /// Convert to f64
     ///
-    /// Returns None if the value is too large to represent as f64
-    /// Note: This is a simplified conversion - for full precision,
-    /// a more complex implementation would be needed
+    /// Returns None if the value is too large to represent as f64 (overflow/infinity)
+    ///
+    /// This uses malachite's `RoundingFrom` trait to convert the Integer to f64.
+    /// The conversion uses `Exact` rounding mode, which ensures precision when possible.
+    /// If the value is too large to fit in f64, the result will be infinity, which
+    /// we detect and return None.
+    ///
+    /// This matches the C `big_to_double` behavior, which returns -1 (error) if
+    /// the result is not finite.
     pub fn to_f64(&self) -> Option<f64> {
-        // For now, convert via string representation for very large numbers
-        // This is a limitation - proper implementation would need more work
-        let s = self.value.to_string();
-        s.parse::<f64>().ok()
+        // Use malachite's RoundingFrom trait for efficient conversion
+        // This is more efficient than string conversion and handles overflow correctly
+        let (result, _ordering) = f64::rounding_from(&self.value, RoundingMode::Exact);
+        
+        // Check if result is finite (C's big_to_double returns -1 if not finite)
+        if result.is_finite() {
+            Some(result)
+        } else {
+            None  // Overflow case - value too large for f64
+        }
     }
 
     /// Convert to u32
@@ -573,6 +654,18 @@ mod tests {
         assert_eq!(zero.to_u32(), Some(0));
         assert_eq!(zero.to_i64(), Some(0));
         assert_eq!(zero.to_f64(), Some(0.0));
+        
+        // Test to_f64 with negative
+        let neg_f64 = BigNumber::from_i64(-12345);
+        assert_eq!(neg_f64.to_f64(), Some(-12345.0));
+        
+        // Test to_f64 with very large number (should still work if within f64 range)
+        let large = BigNumber::from_f64(1e20);
+        assert!(large.is_some());
+        let large_f64 = large.unwrap().to_f64();
+        assert!(large_f64.is_some());
+        // Verify it's approximately correct (within f64 precision)
+        assert!((large_f64.unwrap() - 1e20).abs() < 1e10); // Allow some precision loss
     }
 
     #[test]
@@ -674,8 +767,20 @@ mod tests {
         assert!(f64_min_int.is_some());
         
         // Test from_f64 with values outside i64 range
+        // Now that we implement the C algorithm, we can handle these!
         let too_large = BigNumber::from_f64(1e20);
-        assert!(too_large.is_none()); // Outside i64 range
+        assert!(too_large.is_some()); // Should now work with C algorithm
+        // Verify it's correct: 1e20 = 100000000000000000000
+        // Convert back to string to verify
+        let result = too_large.as_ref().unwrap();
+        let result_str = result.to_string_base(10);
+        assert!(result_str.starts_with("10000000000000000000")); // Should start with 1e20
+        assert!(result.is_positive());
+        
+        // Test even larger value
+        let very_large = BigNumber::from_f64(1e30);
+        assert!(very_large.is_some());
+        assert!(very_large.as_ref().unwrap().is_positive());
         
         // Test Clone, Debug, PartialEq, Eq, Hash
         let a = BigNumber::from_i64(100);
