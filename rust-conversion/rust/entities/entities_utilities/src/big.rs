@@ -1,8 +1,7 @@
 //! Big Number Operations Module
 //!
 //! This module provides arbitrary precision integer operations for the Erlang/OTP
-//! runtime system. It implements the functionality found in the C `big.c` file,
-//! providing support for integers of any size beyond the limits of standard
+//! runtime system, providing support for integers of any size beyond the limits of standard
 //! machine word types.
 //!
 //! # Purpose
@@ -13,8 +12,7 @@
 //!
 //! - **Creation and Conversion**: Convert between big numbers and standard
 //!   integer types (i32, i64, u32, u64) as well as floating-point numbers (f64).
-//!   The conversion from f64 implements the C `double_to_big` algorithm, which
-//!   handles any finite f64 value by using digit-based conversion, allowing
+//!   The conversion from f64 handles any finite f64 value by using digit-based conversion, allowing
 //!   conversion of very large floating-point values that exceed i64 range.
 //!
 //! - **Arithmetic Operations**: Addition, subtraction, multiplication, division,
@@ -42,10 +40,9 @@
 //! This module uses the `malachite` crate for high-performance arbitrary-precision
 //! arithmetic. Malachite uses two's complement representation internally, which
 //! matches the C code's bitwise operation semantics exactly. This ensures that
-//! operations produce the same results as the original C implementation.
+//! operations produce the same results as the original implementation.
 //!
-//! The conversion from f64 to big number implements the C `double_to_big` algorithm,
-//! which handles any finite f64 value by using digit-based conversion. This allows
+//! The conversion from f64 to big number handles any finite f64 value by using digit-based conversion. This allows
 //! conversion of very large floating-point values that exceed i64 range. The algorithm
 //! works by:
 //!
@@ -93,10 +90,6 @@
 //! assert_eq!(num.to_string_base(2), "11111111");
 //! assert_eq!(num.to_string_base(10), "255");
 //! ```
-//!
-//! # Based on
-//!
-//! - `big.c` - Big number operations in the Erlang/OTP runtime
 
 /*
  * %CopyrightBegin%
@@ -104,6 +97,8 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -126,10 +121,9 @@ use malachite::base::rounding_modes::RoundingMode;
 
 /// Big number representation using malachite's Integer.
 ///
-/// This struct wraps malachite's `Integer` type to provide the same API
-/// as the C `big.c` implementation. Malachite uses two's complement
-/// representation internally, which matches the C code's bitwise
-/// operation semantics exactly.
+/// This struct wraps malachite's `Integer` type to provide arbitrary precision
+/// integer operations. Malachite uses two's complement representation internally,
+/// which ensures correct bitwise operation semantics.
 ///
 /// # Purpose
 ///
@@ -419,7 +413,7 @@ impl BigNumber {
     /// This function enables conversion from floating-point numbers to big
     /// integers, which is essential for Erlang's type system where numbers
     /// can be represented as either floats or integers. The implementation
-    /// uses the C `double_to_big` algorithm, which handles very large
+    /// handles very large
     /// floating-point values that exceed `i64` range by using digit-based
     /// conversion.
     ///
@@ -490,8 +484,7 @@ impl BigNumber {
             });
         }
 
-        // Slow path: Use C algorithm for values outside i64 range
-        // This matches the C `double_to_big` implementation exactly
+        // Slow path: Use algorithm for values outside i64 range
         
         // Extract sign and make positive
         let is_negative = value < 0.0;
@@ -599,14 +592,14 @@ impl BigNumber {
     /// let result = huge.to_f64();
     /// ```
     ///
-    /// This matches the C `big_to_double` behavior, which returns -1 (error) if
+    /// Returns -1 (error) if
     /// the result is not finite.
     pub fn to_f64(&self) -> Option<f64> {
         // Use malachite's RoundingFrom trait for efficient conversion
         // This is more efficient than string conversion and handles overflow correctly
         let (result, _ordering) = f64::rounding_from(&self.value, RoundingMode::Exact);
         
-        // Check if result is finite (C's big_to_double returns -1 if not finite)
+        // Check if result is finite (returns -1 if not finite)
         if result.is_finite() {
             Some(result)
         } else {

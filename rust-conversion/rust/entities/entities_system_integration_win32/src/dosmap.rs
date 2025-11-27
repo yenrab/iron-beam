@@ -2,7 +2,30 @@
 //!
 //! Provides Windows-specific DOS mapping functionality.
 //! Maps Windows OS errors to Unix System V errno values.
-//! Based on dosmap.c
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ */
 
 /// POSIX errno values (Unix System V errno)
 /// These correspond to standard POSIX error codes
@@ -56,7 +79,6 @@ pub mod win_error {
 
 /// Error mapping table: Windows OS error -> POSIX errno
 /// Position in table = Windows OS error code
-/// This matches the errMapTable from dosmap.c
 const ERR_MAP_TABLE: &[PosixErrno] = &[
     PosixErrno::EINVAL,  /* ERROR_SUCCESS                      0  */
     PosixErrno::EINVAL,  /* ERROR_INVALID_FUNCTION             1  */
@@ -286,7 +308,6 @@ impl DosMap {
     /// Map a Windows error code to a POSIX errno value
     ///
     /// Takes a Windows error number and maps it to a Unix System V errno.
-    /// This matches the behavior of `_dosmaperr` in dosmap.c.
     ///
     /// # Arguments
     /// * `winerrno` - Windows error code

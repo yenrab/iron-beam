@@ -1,13 +1,36 @@
 //! Bit Manipulation Module
 //!
 //! Provides bit-level operations for Erlang terms.
-//! Based on erl_bits.c
 //!
 //! This module provides low-level bit manipulation functions for:
 //! - Copying bits between buffers (forward and reverse)
 //! - Comparing bit sequences
 //! - Bit offset and mask calculations
 //! - Bit-level utilities
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ */
 
 /// Calculate the number of bytes needed to store `bits` bits
 ///
@@ -102,8 +125,7 @@ pub fn mask_bits(src: u8, dst: u8, mask: u8) -> u8 {
 /// # Returns
 /// The bit value (0 or 1)
 ///
-/// This matches the C `get_bit` function behavior which uses MSB-first numbering.
-/// Bit 0 is the most significant bit (MSB), bit 7 is the least significant bit (LSB).
+/// Uses MSB-first numbering. Bit 0 is the most significant bit (MSB), bit 7 is the least significant bit (LSB).
 pub fn get_bit(byte: u8, bit_pos: usize) -> u8 {
     if bit_pos > 7 {
         0
@@ -138,7 +160,6 @@ pub fn set_bit(byte: u8, bit_pos: usize, value: u8) -> u8 {
 /// Copy bits forward from source to destination
 ///
 /// Copies `n` bits from the source buffer to the destination buffer.
-/// This is a simplified version of `erts_copy_bits_fwd` from the C code.
 ///
 /// # Arguments
 /// * `src` - Source buffer
@@ -311,8 +332,6 @@ pub fn copy_bits_forward(
 /// * `-1` if a < b
 /// * `0` if a == b
 /// * `1` if a > b
-///
-/// Simplified version of `erts_cmp_bits` from the C code
 pub fn cmp_bits(
     a: &[u8],
     a_offset: usize,

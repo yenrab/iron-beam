@@ -85,17 +85,14 @@
 //! }
 //! ```
 //!
-//! # Based on
-//!
-//! - `big.c` - Big number operations in the Erlang/OTP runtime
-//! - `register.c` - Register handling in the Erlang/OTP runtime
-
 /*
  * %CopyrightBegin%
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

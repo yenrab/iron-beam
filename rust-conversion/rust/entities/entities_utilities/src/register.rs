@@ -1,8 +1,7 @@
 //! Register Operations Module
 //!
 //! This module provides register handling functionality for processes and ports
-//! in the Erlang/OTP runtime system. It implements the functionality found in
-//! the C `register.c` file, providing a table that maps atom names to process/port
+//! in the Erlang/OTP runtime system, providing a table that maps atom names to process/port
 //! identifiers.
 //!
 //! # Purpose
@@ -82,10 +81,6 @@
 //!     RegisterResult::AlreadyRegistered
 //! );
 //! ```
-//!
-//! # Based on
-//!
-//! - `register.c` - Register handling in the Erlang/OTP runtime
 
 /*
  * %CopyrightBegin%
@@ -93,6 +88,8 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -454,7 +451,6 @@ impl Register {
     /// assert_eq!(reg.whereis_name("process3"), None);
     /// ```
     //
-    /// This corresponds to `erts_whereis_name_to_id` in the C code.
     pub fn whereis_name(&self, name: &str) -> Option<u64> {
         self.table.get(name).copied()
     }
@@ -661,7 +657,6 @@ impl Register {
     /// assert_eq!(reg.whereis_name("process"), Some(200));
     /// ```
     //
-    /// This corresponds to `erts_unregister_name` in the C code.
     pub fn unregister_name(&mut self, name: &str) -> bool {
         self.table.remove(name).is_some()
     }

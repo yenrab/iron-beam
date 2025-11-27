@@ -4,8 +4,30 @@
 //! - Atom creation and lookup
 //! - Atom table management
 //! - Encoding support (7-bit ASCII, Latin1, UTF-8)
-//!
-//! Based on atom.c
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ */
 
 use std::sync::RwLock;
 use std::collections::HashMap;
@@ -204,7 +226,6 @@ fn latin1_to_utf8(latin1: &[u8]) -> Vec<u8> {
 
 fn validate_utf8(bytes: &[u8], truncate: bool) -> Result<(Vec<u8>, usize), AtomError> {
     // Validate UTF-8 encoding and count characters
-    // This matches the behavior of erts_analyze_utf8_x in erl_unicode.c
     
     let mut pos = 0;
     let mut num_chars = 0;

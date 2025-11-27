@@ -5,8 +5,30 @@
 //! - `make_hash2`: Faster hash function with better distribution
 //! - `erts_internal_hash`: Internal hash for VM use
 //! - `erts_map_hash`: Hash function specifically for maps
-//!
-//! Based on erl_term_hashing.c
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ */
 
 /// Hash value type (32-bit or 64-bit depending on platform)
 pub type HashValue = u64;
@@ -134,7 +156,6 @@ fn hash_binary_bytes(hash: u32, data: &[u8], bit_offset: usize, bit_size: usize)
 
 /// Compute atom hash value using hashpjw algorithm
 ///
-/// This matches the C `atom_hash` function from atom.c.
 /// Uses the hashpjw algorithm from the Dragon Book.
 ///
 /// This function is available for use when atom names are available.
@@ -1546,8 +1567,6 @@ pub fn erts_internal_salted_hash(term: Term, salt: HashValue) -> HashValue {
 ///
 /// # Returns
 /// A weakened hash value with high collision rate (1/256)
-///
-/// This matches C's `erts_dbg_hashmap_collision_bonanza` function exactly.
 #[cfg(debug_assertions)]
 fn erts_dbg_hashmap_collision_bonanza(hash: HashValue, _key: Term) -> HashValue {
     // Keep only 8 bits to ensure a high collision rate (1/256)
