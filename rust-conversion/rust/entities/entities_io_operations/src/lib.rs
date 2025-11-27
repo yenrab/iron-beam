@@ -7,5 +7,6 @@
 
 pub mod export;
 
-pub use export::Export;
+pub use export::{Export, ExportTable, Mfa};
+pub use export::export_ops;
 
