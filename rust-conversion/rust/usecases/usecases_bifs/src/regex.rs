@@ -219,7 +219,7 @@ impl std::fmt::Display for RegexError {
         match self {
             RegexError::InvalidPattern(msg) => write!(f, "Invalid pattern: {}", msg),
             RegexError::InvalidOffset => write!(f, "Invalid offset"),
-        }
+}
     }
 }
 
