@@ -7,6 +7,8 @@
 
 use usecases_bifs::dynamic_library::*;
 use usecases_bifs::os::{OsBif, OsError};
+use usecases_bifs::counters::{CountersBif, CounterRef, CountersError};
+use usecases_bifs::unique::{UniqueBif, Reference, UniqueIntegerOption};
 use usecases_nif_compilation::{NifCompiler, CompileOptions};
 use std::fs;
 use std::io::Write;
@@ -698,5 +700,369 @@ fn test_os_bif_error_types() {
     assert!(err1.source().is_none());
     assert!(err2.source().is_none());
     assert!(err3.source().is_none());
+}
+
+// ============================================================================
+// Counters BIF Integration Tests
+// ============================================================================
+
+#[test]
+fn test_counters_bif_full_workflow() {
+    // Test complete counter workflow: create -> add -> get -> put -> info
+    let counters = CountersBif::new(5).unwrap();
+    
+    // Initial values should be 0
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), 0);
+    
+    // Add values
+    CountersBif::add(&counters, 1, 10).unwrap();
+    CountersBif::add(&counters, 2, 20).unwrap();
+    CountersBif::add(&counters, 3, 30).unwrap();
+    
+    // Verify values
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), 10);
+    assert_eq!(CountersBif::get(&counters, 2).unwrap(), 20);
+    assert_eq!(CountersBif::get(&counters, 3).unwrap(), 30);
+    
+    // Put new values
+    CountersBif::put(&counters, 1, 100).unwrap();
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), 100);
+    
+    // Get info
+    let info = CountersBif::info(&counters);
+    assert_eq!(info.size, 5);
+    assert!(info.memory > 0);
+}
+
+#[test]
+fn test_counters_bif_concurrent_access() {
+    use std::thread;
+    
+    // Test concurrent access to counters
+    let counters = CountersBif::new(3).unwrap();
+    let counters_clone = counters.clone();
+    
+    // Spawn threads that modify different counters
+    let handle1 = {
+        let c = counters_clone.clone();
+        thread::spawn(move || {
+            for _ in 0..100 {
+                CountersBif::add(&c, 1, 1).unwrap();
+            }
+        })
+    };
+    
+    let handle2 = {
+        let c = counters_clone.clone();
+        thread::spawn(move || {
+            for _ in 0..100 {
+                CountersBif::add(&c, 2, 2).unwrap();
+            }
+        })
+    };
+    
+    let handle3 = {
+        let c = counters_clone;
+        thread::spawn(move || {
+            for _ in 0..100 {
+                CountersBif::add(&c, 3, 3).unwrap();
+            }
+        })
+    };
+    
+    // Wait for all threads
+    handle1.join().unwrap();
+    handle2.join().unwrap();
+    handle3.join().unwrap();
+    
+    // Verify final values
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), 100);
+    assert_eq!(CountersBif::get(&counters, 2).unwrap(), 200);
+    assert_eq!(CountersBif::get(&counters, 3).unwrap(), 300);
+}
+
+#[test]
+fn test_counters_bif_error_handling() {
+    // Test error handling for invalid operations
+    let counters = CountersBif::new(5).unwrap();
+    
+    // Invalid index (0)
+    assert!(matches!(
+        CountersBif::get(&counters, 0),
+        Err(CountersError::InvalidArgument(_))
+    ));
+    
+    // Invalid index (too large)
+    assert!(matches!(
+        CountersBif::get(&counters, 6),
+        Err(CountersError::InvalidArgument(_))
+    ));
+    
+    // Invalid add
+    assert!(matches!(
+        CountersBif::add(&counters, 0, 10),
+        Err(CountersError::InvalidArgument(_))
+    ));
+    
+    // Invalid put
+    assert!(matches!(
+        CountersBif::put(&counters, 10, 10),
+        Err(CountersError::InvalidArgument(_))
+    ));
+}
+
+#[test]
+fn test_counters_bif_negative_values() {
+    // Test handling of negative values
+    let counters = CountersBif::new(3).unwrap();
+    
+    // Start with positive
+    CountersBif::put(&counters, 1, 100).unwrap();
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), 100);
+    
+    // Add negative
+    CountersBif::add(&counters, 1, -50).unwrap();
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), 50);
+    
+    // Put negative
+    CountersBif::put(&counters, 1, -10).unwrap();
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), -10);
+    
+    // Add to negative
+    CountersBif::add(&counters, 1, 5).unwrap();
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), -5);
+}
+
+#[test]
+fn test_counters_bif_info_consistency() {
+    // Test that info is consistent across operations
+    let counters1 = CountersBif::new(10).unwrap();
+    let info1 = CountersBif::info(&counters1);
+    
+    // Perform operations
+    CountersBif::add(&counters1, 1, 100).unwrap();
+    CountersBif::put(&counters1, 5, 50).unwrap();
+    
+    // Info should remain the same
+    let info2 = CountersBif::info(&counters1);
+    assert_eq!(info1.size, info2.size);
+    assert_eq!(info1.memory, info2.memory);
+}
+
+#[test]
+fn test_counters_bif_large_array() {
+    // Test with large counter array
+    let counters = CountersBif::new(1000).unwrap();
+    let info = CountersBif::info(&counters);
+    assert_eq!(info.size, 1000);
+    
+    // Test first and last
+    CountersBif::put(&counters, 1, 1).unwrap();
+    CountersBif::put(&counters, 1000, 1000).unwrap();
+    
+    assert_eq!(CountersBif::get(&counters, 1).unwrap(), 1);
+    assert_eq!(CountersBif::get(&counters, 1000).unwrap(), 1000);
+    
+    // Test middle
+    CountersBif::put(&counters, 500, 500).unwrap();
+    assert_eq!(CountersBif::get(&counters, 500).unwrap(), 500);
+}
+
+#[test]
+fn test_counters_bif_div_ceil_integration() {
+    // Test div_ceil helper function
+    assert_eq!(CountersBif::div_ceil(10, 3), 4);
+    assert_eq!(CountersBif::div_ceil(10, 5), 2);
+    assert_eq!(CountersBif::div_ceil(1, 1), 1);
+    assert_eq!(CountersBif::div_ceil(0, 5), 0);
+}
+
+#[test]
+fn test_counters_bif_clone_sharing() {
+    // Test that cloned counters share the same underlying data
+    let counters1 = CountersBif::new(5).unwrap();
+    let counters2 = counters1.clone();
+    
+    // Modify via counters1
+    CountersBif::put(&counters1, 1, 100).unwrap();
+    
+    // Should see change via counters2
+    assert_eq!(CountersBif::get(&counters2, 1).unwrap(), 100);
+    
+    // Modify via counters2
+    CountersBif::add(&counters2, 1, 50).unwrap();
+    
+    // Should see change via counters1
+    assert_eq!(CountersBif::get(&counters1, 1).unwrap(), 150);
+}
+
+// ============================================================================
+// Unique BIF Integration Tests
+// ============================================================================
+
+#[test]
+fn test_unique_bif_make_ref_workflow() {
+    // Test reference creation workflow
+    let ref1 = UniqueBif::make_ref();
+    let ref2 = UniqueBif::make_ref();
+    let ref3 = UniqueBif::make_ref();
+    
+    // All should be unique
+    assert_ne!(ref1, ref2);
+    assert_ne!(ref2, ref3);
+    assert_ne!(ref1, ref3);
+    
+    // Should have valid values
+    assert!(ref1.value() > 0);
+    assert!(ref2.value() > 0);
+    assert!(ref3.value() > 0);
+}
+
+#[test]
+fn test_unique_bif_unique_integer_workflow() {
+    // Test unique integer generation workflow
+    let int1 = UniqueBif::unique_integer();
+    let int2 = UniqueBif::unique_integer();
+    let int3 = UniqueBif::unique_integer();
+    
+    // All should be unique
+    assert_ne!(int1, int2);
+    assert_ne!(int2, int3);
+    assert_ne!(int1, int3);
+}
+
+#[test]
+fn test_unique_bif_unique_integer_with_options() {
+    // Test unique integer with various option combinations
+    let int1 = UniqueBif::unique_integer_with_options(&[]).unwrap();
+    let int2 = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Positive]).unwrap();
+    let int3 = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Monotonic]).unwrap();
+    let int4 = UniqueBif::unique_integer_with_options(&[
+        UniqueIntegerOption::Monotonic,
+        UniqueIntegerOption::Positive,
+    ]).unwrap();
+    
+    // All should be unique
+    assert_ne!(int1, int2);
+    assert_ne!(int2, int3);
+    assert_ne!(int3, int4);
+    
+    // Positive option should generate positive values
+    assert!(int2 > 0);
+    assert!(int4 > 0);
+}
+
+#[test]
+fn test_unique_bif_monotonic_ordering() {
+    // Test that monotonic integers maintain strict ordering
+    let mut prev = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Monotonic]).unwrap();
+    
+    for _ in 0..50 {
+        let current = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Monotonic]).unwrap();
+        assert!(current > prev, "Monotonic integers must be strictly increasing");
+        prev = current;
+    }
+}
+
+#[test]
+fn test_unique_bif_concurrent_references() {
+    use std::thread;
+    
+    // Test concurrent reference creation
+    let mut handles = Vec::new();
+    for _ in 0..10 {
+        handles.push(thread::spawn(|| {
+            let mut refs = Vec::new();
+            for _ in 0..10 {
+                refs.push(UniqueBif::make_ref());
+            }
+            refs
+        }));
+    }
+    
+    let mut all_refs = Vec::new();
+    for handle in handles {
+        all_refs.extend(handle.join().unwrap());
+    }
+    
+    // All references should be unique
+    for i in 0..all_refs.len() {
+        for j in (i + 1)..all_refs.len() {
+            assert_ne!(all_refs[i], all_refs[j], "All references must be unique");
+        }
+    }
+}
+
+#[test]
+fn test_unique_bif_concurrent_unique_integers() {
+    use std::thread;
+    
+    // Test concurrent unique integer generation
+    let mut handles = Vec::new();
+    for _ in 0..10 {
+        handles.push(thread::spawn(|| {
+            let mut ints = Vec::new();
+            for _ in 0..10 {
+                ints.push(UniqueBif::unique_integer());
+            }
+            ints
+        }));
+    }
+    
+    let mut all_ints = Vec::new();
+    for handle in handles {
+        all_ints.extend(handle.join().unwrap());
+    }
+    
+    // All integers should be unique
+    for i in 0..all_ints.len() {
+        for j in (i + 1)..all_ints.len() {
+            assert_ne!(all_ints[i], all_ints[j], "All unique integers must be unique");
+        }
+    }
+}
+
+#[test]
+fn test_unique_bif_reference_fields() {
+    // Test that reference fields are accessible and meaningful
+    let reference = UniqueBif::make_ref();
+    
+    let thread_id = reference.thread_id();
+    let value = reference.value();
+    let ref_number = reference.ref_number();
+    
+    // Thread ID should be positive
+    assert!(thread_id > 0);
+    
+    // Value should be positive
+    assert!(value > 0);
+    
+    // Ref number should be valid
+    assert!(ref_number > 0 || value > 0);
+}
+
+#[test]
+fn test_unique_bif_positive_option_consistency() {
+    // Test that positive option consistently generates positive values
+    for _ in 0..100 {
+        let value = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Positive]).unwrap();
+        assert!(value > 0, "Positive option must always generate positive integers");
+    }
+}
+
+#[test]
+fn test_unique_bif_monotonic_positive_combination() {
+    // Test monotonic + positive combination
+    let mut prev = 0;
+    for _ in 0..50 {
+        let current = UniqueBif::unique_integer_with_options(&[
+            UniqueIntegerOption::Monotonic,
+            UniqueIntegerOption::Positive,
+        ]).unwrap();
+        
+        assert!(current > 0, "Must be positive");
+        assert!(current > prev, "Must be monotonic (strictly increasing)");
+        prev = current;
+    }
 }
 
