@@ -13,7 +13,7 @@ pub mod regex;
 pub mod checksum;
 pub mod trace;
 
-pub use regex::RegexBif;
+pub use regex::{RegexBif, CompiledRegex, MatchResult, Capture, RegexError as RegexErr};
 pub use checksum::ChecksumBif;
 pub use trace::TraceBif;
 

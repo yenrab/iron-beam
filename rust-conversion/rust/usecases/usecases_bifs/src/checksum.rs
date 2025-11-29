@@ -66,7 +66,7 @@ impl ChecksumBif {
     /// 
     /// This is the core operation for crc32_combine.
     /// Implements zlib's multmodp function in pure Rust.
-    fn multmodp(mut a: u32, mut b: u32) -> u32 {
+    fn multmodp(a: u32, mut b: u32) -> u32 {
         const POLY: u32 = 0xedb88320; // CRC-32 polynomial, reflected, with x^32 implied
         
         let mut m = 1u32 << 31;
@@ -333,6 +333,245 @@ mod tests {
         let adler2 = ChecksumBif::adler32(b"data");
         let combined = ChecksumBif::adler32_combine(adler1, adler2, 0);
         assert_eq!(combined, adler1);
+    }
+
+    #[test]
+    fn test_crc32_combine_non_zero() {
+        // Test crc32_combine with non-zero length to cover the actual combine operation
+        let data1 = b"Hello";
+        let data2 = b", world!";
+        let crc1 = ChecksumBif::crc32(data1);
+        let crc2 = ChecksumBif::crc32(data2);
+        let combined = ChecksumBif::crc32_combine(crc1, crc2, data2.len() as u64);
+        // The combined CRC should be different from both inputs
+        assert_ne!(combined, crc1);
+        assert_ne!(combined, crc2);
+        assert_ne!(combined, 0);
+    }
+
+    #[test]
+    fn test_crc32_combine_various_lengths() {
+        // Test crc32_combine with various length values to exercise x2nmodp
+        let crc1 = ChecksumBif::crc32(b"test1");
+        let crc2 = ChecksumBif::crc32(b"test2");
+        
+        // Test with different length values to cover different bit patterns in x2nmodp
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 1);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 2);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 3);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 4);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 5);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 10);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 100);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 1000);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 0xFFFFFFFF);
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 0x100000000);
+    }
+
+    #[test]
+    fn test_adler32_combine_non_zero() {
+        // Test adler32_combine with non-zero length to cover the actual combine logic
+        let data1 = b"Hello";
+        let data2 = b", world!";
+        let adler1 = ChecksumBif::adler32(data1);
+        let adler2 = ChecksumBif::adler32(data2);
+        let combined = ChecksumBif::adler32_combine(adler1, adler2, data2.len() as u64);
+        // The combined value should be different from inputs
+        assert_ne!(combined, 0);
+    }
+
+    #[test]
+    fn test_adler32_combine_various_lengths() {
+        // Test adler32_combine with various length values
+        let adler1 = ChecksumBif::adler32(b"test1");
+        let adler2 = ChecksumBif::adler32(b"test2");
+        
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 1);
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 10);
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 100);
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 1000);
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 65520); // Close to base
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 65521); // Equal to base
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 65522); // Greater than base
+    }
+
+    #[test]
+    fn test_crc32_large_data() {
+        // Test with larger data to ensure all code paths work
+        let large_data = vec![0u8; 1000];
+        let checksum = ChecksumBif::crc32(&large_data);
+        assert_ne!(checksum, 0);
+    }
+
+    #[test]
+    fn test_crc32_with_initial_large() {
+        // Test crc32_with_initial with larger data
+        let data1 = vec![0u8; 500];
+        let data2 = vec![1u8; 500];
+        let crc1 = ChecksumBif::crc32(&data1);
+        let crc2 = ChecksumBif::crc32_with_initial(crc1, &data2);
+        assert_ne!(crc2, 0);
+        assert_ne!(crc2, crc1);
+    }
+
+    #[test]
+    fn test_adler32_large_data() {
+        // Test with larger data
+        let large_data = vec![0u8; 1000];
+        let checksum = ChecksumBif::adler32(&large_data);
+        assert_ne!(checksum, 0);
+        assert_ne!(checksum, 1); // Not the empty value
+    }
+
+    #[test]
+    fn test_adler32_with_initial_large() {
+        // Test adler32_with_initial with larger data
+        let data1 = vec![0u8; 500];
+        let data2 = vec![1u8; 500];
+        let adler1 = ChecksumBif::adler32(&data1);
+        let adler2 = ChecksumBif::adler32_with_initial(adler1, &data2);
+        assert_ne!(adler2, 0);
+    }
+
+    #[test]
+    fn test_md5_large_data() {
+        // Test MD5 with larger data
+        let large_data = vec![0u8; 1000];
+        let hash = ChecksumBif::md5(&large_data);
+        assert_ne!(hash, [0; 16]);
+    }
+
+    #[test]
+    fn test_md5_context_multiple_updates() {
+        // Test Md5Context with multiple updates
+        let mut ctx = ChecksumBif::md5_new();
+        ctx.update(b"Hello");
+        ctx.update(b", ");
+        ctx.update(b"world");
+        ctx.update(b"!");
+        let hash_incremental = ctx.finalize();
+        let hash_direct = ChecksumBif::md5(b"Hello, world!");
+        assert_eq!(hash_incremental, hash_direct);
+    }
+
+    #[test]
+    fn test_md5_context_empty() {
+        // Test Md5Context with no updates
+        let ctx = ChecksumBif::md5_new();
+        let hash = ctx.finalize();
+        // Should be MD5 of empty string
+        let expected = [
+            0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+            0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
+        ];
+        assert_eq!(hash, expected);
+    }
+
+    #[test]
+    fn test_crc32_combine_edge_cases() {
+        // Test edge cases for crc32_combine
+        let crc1 = 0xFFFFFFFF;
+        let crc2 = 0x00000000;
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 1);
+        
+        let crc1 = 0x00000000;
+        let crc2 = 0xFFFFFFFF;
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 1);
+        
+        let crc1 = 0x12345678;
+        let crc2 = 0x9ABCDEF0;
+        let _ = ChecksumBif::crc32_combine(crc1, crc2, 1);
+    }
+
+    #[test]
+    fn test_adler32_combine_edge_cases() {
+        // Test edge cases for adler32_combine
+        let adler1 = 0xFFFFFFFF;
+        let adler2 = 0x00000000;
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 1);
+        
+        let adler1 = 0x00000000;
+        let adler2 = 0xFFFFFFFF;
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 1);
+        
+        // Test with values that will cause modulo operations
+        let adler1 = ChecksumBif::adler32(b"test");
+        let adler2 = ChecksumBif::adler32(b"data");
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 65521); // Equal to base
+        let _ = ChecksumBif::adler32_combine(adler1, adler2, 65522); // Greater than base
+    }
+
+    #[test]
+    fn test_crc32_single_byte() {
+        // Test with single byte
+        let checksum = ChecksumBif::crc32(b"a");
+        assert_ne!(checksum, 0);
+    }
+
+    #[test]
+    fn test_adler32_single_byte() {
+        // Test with single byte
+        let checksum = ChecksumBif::adler32(b"a");
+        assert_ne!(checksum, 0);
+        assert_ne!(checksum, 1);
+    }
+
+    #[test]
+    fn test_md5_single_byte() {
+        // Test with single byte
+        let hash = ChecksumBif::md5(b"a");
+        assert_ne!(hash, [0; 16]);
+    }
+
+    #[test]
+    fn test_crc32_consistency() {
+        // Test that same input produces same output
+        let data = b"test data";
+        let crc1 = ChecksumBif::crc32(data);
+        let crc2 = ChecksumBif::crc32(data);
+        assert_eq!(crc1, crc2);
+    }
+
+    #[test]
+    fn test_adler32_consistency() {
+        // Test that same input produces same output
+        let data = b"test data";
+        let adler1 = ChecksumBif::adler32(data);
+        let adler2 = ChecksumBif::adler32(data);
+        assert_eq!(adler1, adler2);
+    }
+
+    #[test]
+    fn test_md5_consistency() {
+        // Test that same input produces same output
+        let data = b"test data";
+        let hash1 = ChecksumBif::md5(data);
+        let hash2 = ChecksumBif::md5(data);
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_crc32_different_inputs() {
+        // Test that different inputs produce different outputs
+        let crc1 = ChecksumBif::crc32(b"test1");
+        let crc2 = ChecksumBif::crc32(b"test2");
+        assert_ne!(crc1, crc2);
+    }
+
+    #[test]
+    fn test_adler32_different_inputs() {
+        // Test that different inputs produce different outputs
+        let adler1 = ChecksumBif::adler32(b"test1");
+        let adler2 = ChecksumBif::adler32(b"test2");
+        assert_ne!(adler1, adler2);
+    }
+
+    #[test]
+    fn test_md5_different_inputs() {
+        // Test that different inputs produce different outputs
+        let hash1 = ChecksumBif::md5(b"test1");
+        let hash2 = ChecksumBif::md5(b"test2");
+        assert_ne!(hash1, hash2);
     }
 }
 

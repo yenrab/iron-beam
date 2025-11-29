@@ -2330,6 +2330,7 @@ dependencies = [
  "entities_io_operations",
  "entities_utilities",
  "md5",
+ "regex",
 ]
 
 [[package]]
