@@ -2,7 +2,7 @@
 name = "usecases_io_operations"
 version = "0.1.0"
 edition = "2021"
-description = "Use Cases layer: I/O operations - port BIFs"
+description = "Use Cases layer: I/O operations - helper functions for environment and argument handling"
 license = "Apache-2.0"
 authors = ["Erlang/OTP Rust Conversion"]
 
@@ -10,7 +10,6 @@ authors = ["Erlang/OTP Rust Conversion"]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_io_operations = { path = "../../entities/entities_io_operations" }
 entities_utilities = { path = "../../entities/entities_utilities" }
-entities_process_port = { path = "../../entities/entities_process_port" }
 
 [dev-dependencies]
 cargo-tarpaulin = "0.27"

@@ -10984,27 +10984,6 @@
       "line_start": 18,
       "is_static": true
     },
-    "erts/emulator/test/port_bif_SUITE_data/control_drv.c:control_start": {
-      "name": "control_start",
-      "return_type": "static ErlDrvData",
-      "file_path": "erts/emulator/test/port_bif_SUITE_data/control_drv.c",
-      "line_start": 47,
-      "is_static": true
-    },
-    "erts/emulator/test/port_bif_SUITE_data/control_drv.c:control_read": {
-      "name": "control_read",
-      "return_type": "static void",
-      "file_path": "erts/emulator/test/port_bif_SUITE_data/control_drv.c",
-      "line_start": 56,
-      "is_static": true
-    },
-    "erts/emulator/test/port_bif_SUITE_data/control_drv.c:control_stop": {
-      "name": "control_stop",
-      "return_type": "static void",
-      "file_path": "erts/emulator/test/port_bif_SUITE_data/control_drv.c",
-      "line_start": 61,
-      "is_static": true
-    },
     "erts/emulator/test/nif_SUITE_data/nif_mod.c:check_abort": {
       "name": "check_abort",
       "return_type": "static void",
@@ -25922,90 +25901,6 @@
       "line_start": 556,
       "is_static": false
     },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_open_port_2": {
-      "name": "erts_internal_open_port_2",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 60,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:if": {
-      "name": "if",
-      "return_type": "else",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 916,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_port_command_3": {
-      "name": "erts_internal_port_command_3",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 168,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_port_call_3": {
-      "name": "erts_internal_port_call_3",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 263,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_port_control_3": {
-      "name": "erts_internal_port_control_3",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 322,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_port_close_1": {
-      "name": "erts_internal_port_close_1",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 384,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_port_connect_2": {
-      "name": "erts_internal_port_connect_2",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 438,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_port_info_1": {
-      "name": "erts_internal_port_info_1",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 486,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_internal_port_info_2": {
-      "name": "erts_internal_port_info_2",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 543,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:port_set_data_2": {
-      "name": "port_set_data_2",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 687,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:port_get_data_1": {
-      "name": "port_get_data_1",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 734,
-      "is_static": false
-    },
-    "erts/emulator/beam/erl_bif_port.c:erts_port_data_read": {
-      "name": "erts_port_data_read",
-      "return_type": "Eterm",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 764,
-      "is_static": false
-    },
     "erts/emulator/beam/erl_bif_port.c:merge_global_environment": {
       "name": "merge_global_environment",
       "return_type": "static int",
@@ -26040,13 +25935,6 @@
       "file_path": "erts/emulator/beam/erl_bif_port.c",
       "line_start": 1420,
       "is_static": true
-    },
-    "erts/emulator/beam/erl_bif_port.c:decode_packet_3": {
-      "name": "decode_packet_3",
-      "return_type": "BIF_RETTYPE",
-      "file_path": "erts/emulator/beam/erl_bif_port.c",
-      "line_start": 1476,
-      "is_static": false
     },
     "erts/emulator/beam/erl_ao_firstfit_alloc.c:node_max_size": {
       "name": "node_max_size",

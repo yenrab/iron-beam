@@ -13,6 +13,7 @@ members = [
     "usecases/usecases_process_management",
     "usecases/usecases_io_operations",
     "usecases/usecases_bifs",
+    "usecases/usecases_nif_compilation",
     
     # Adapters layer
     "adapters/adapters_nifs",

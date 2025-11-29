@@ -1,11 +1,8 @@
 //! Use Cases Layer: I/O Operations
 //!
 //! Provides I/O operations:
-//! - Port BIFs
-//! - Port control operations
 //! - Helper functions for environment and argument handling
 //!
-//! Based on erl_bif_port.c and control_drv.c
 //! Depends on Entities layer (entities_data_handling, entities_io_operations, entities_utilities).
 
 /*
@@ -32,16 +29,8 @@
  * %CopyrightEnd%
  */
 
-pub mod port_bif;
-pub mod port_control;
 pub mod helpers;
 
-pub use port_bif::{
-    PortBif, PortError, PortIdentifier, PortName, PortSettings, PortCommandFlags,
-    PortOpResult, PortCallResult, PortInfo, PortInfoItem, PortInfoValue,
-    PortFlags, PortData, PacketType, PacketOptions, PacketDecodeResult,
-};
-pub use port_control::{ControlDriver, ControlError};
 pub use helpers::{
     Environment, merge_global_environment, convert_args, free_args,
     PacketCallbackArgs, PacketResult, HttpUri, http_bld_string, http_bld_uri,

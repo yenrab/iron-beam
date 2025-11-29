@@ -17,4 +17,12 @@ md5 = "0.7"
 digest = "0.10"
 # Regular expressions
 regex = "1.12"
+# Dynamic library loading (for Rust cdylib libraries)
+libloading = "0.8"
+# NIF compilation (for compiling Rust source files on-the-fly)
+usecases_nif_compilation = { path = "../usecases_nif_compilation" }
+
+[dev-dependencies]
+# For integration tests
+tempfile = "3.8"
 

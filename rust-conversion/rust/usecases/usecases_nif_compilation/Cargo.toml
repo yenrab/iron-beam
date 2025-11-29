@@ -1,0 +1,18 @@
+[package]
+name = "usecases_nif_compilation"
+version = "0.1.0"
+edition = "2021"
+description = "Use Cases layer: Rust NIF compilation and safe loading"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+# For parsing Rust code to detect unsafe blocks
+syn = { version = "2.0", features = ["full", "parsing"] }
+# For creating temporary directories
+tempfile = "3.8"
+
+[dev-dependencies]
+# For integration tests (already in dependencies, but explicit for clarity)
+tempfile = "3.8"
+

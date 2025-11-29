@@ -1,6 +1,6 @@
-//! Helper functions for port operations
+//! Helper functions for I/O operations
 //!
-//! Provides utility functions used by port BIFs:
+//! Provides utility functions for I/O operations:
 //! - Environment variable merging
 //! - Argument conversion
 //! - HTTP packet parsing helpers
