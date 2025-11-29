@@ -14,6 +14,7 @@ pub mod regex;
 pub mod checksum;
 pub mod trace;
 pub mod dynamic_library;
+pub mod os;
 
 pub use regex::{RegexBif, CompiledRegex, MatchResult, Capture, RegexError as RegexErr};
 pub use checksum::ChecksumBif;
@@ -22,4 +23,5 @@ pub use dynamic_library::{
     DynamicLibraryLoader, LibraryId, ProcessId, LibraryStatus, LoadOptions,
     MonitorOption, ReloadOption, LoadResult, UnloadResult, LibraryInfo, LibraryError
 };
+pub use os::{OsBif, OsError};
 

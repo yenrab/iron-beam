@@ -17976,6 +17976,22 @@
       }
     },
     {
+      "@id": "ex:BehaviorGroup_usecases_nif_compilation",
+      "@type": "BehaviorGroup",
+      "name": "usecases_nif_compilation",
+      "cleanLayer": "usecases",
+      "solidResponsibility": "nif_compilation",
+      "files": [],
+      "functions": [],
+      "dependencies": ["ex:BehaviorGroup_entities_data_handling"],
+      "rationale": {
+        "codeRationale": "Rust NIF compilation and safe loading functionality - provides use case for compiling and loading Rust NIFs safely",
+        "solidRationale": "Single Responsibility: Handles NIF compilation and safe Rust verification",
+        "cleanRationale": "CLEAN Architecture usecases layer: Business logic for NIF compilation workflow",
+        "rustRationale": "Rust module: usecases_nif_compilation as separate module with clear dependency boundaries. Provides safe Rust verification and on-the-fly compilation of Rust NIFs using cargo."
+      }
+    },
+    {
       "@id": "ex:CFunction_erts_emulator_beam_beam_bif_load.c_read_iff_list",
       "@type": "ex:CFunction",
       "name": "read_iff_list",

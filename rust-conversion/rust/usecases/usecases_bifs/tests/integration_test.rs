@@ -2,8 +2,11 @@
 //!
 //! Tests the integration between dynamic library loading and NIF compilation.
 //! These tests verify the full pipeline: source file -> compilation -> verification -> loading.
+//!
+//! Also includes integration tests for OS BIFs.
 
 use usecases_bifs::dynamic_library::*;
+use usecases_bifs::os::{OsBif, OsError};
 use usecases_nif_compilation::{NifCompiler, CompileOptions};
 use std::fs;
 use std::io::Write;
@@ -509,5 +512,191 @@ fn test_load_options_combinations() {
         reload: Some(ReloadOption::PendingDriver),
     };
     let _ = DynamicLibraryLoader::try_load(path, "test3", options3, process_id);
+}
+
+// ============================================================================
+// OS BIF Integration Tests
+// ============================================================================
+
+#[test]
+fn test_os_bif_environment_variable_operations() {
+    // Test full environment variable workflow
+    let test_key = "TEST_OS_BIF_INTEGRATION";
+    let test_value = "integration_test_value";
+    
+    // Initially should not exist
+    let initial = OsBif::getenv(test_key);
+    assert_eq!(initial, None);
+    
+    // Set the variable
+    OsBif::putenv(test_key, test_value).unwrap();
+    
+    // Should now exist
+    let retrieved = OsBif::getenv(test_key);
+    assert_eq!(retrieved, Some(test_value.to_string()));
+    
+    // Update the value
+    let new_value = "updated_value";
+    OsBif::putenv(test_key, new_value).unwrap();
+    let updated = OsBif::getenv(test_key);
+    assert_eq!(updated, Some(new_value.to_string()));
+    
+    // Unset the variable
+    OsBif::unsetenv(test_key).unwrap();
+    
+    // Should no longer exist
+    let after_unset = OsBif::getenv(test_key);
+    assert_eq!(after_unset, None);
+}
+
+#[test]
+fn test_os_bif_env_completeness() {
+    // Test that os::env() returns all environment variables
+    let all_env = OsBif::env();
+    
+    // Should have at least some environment variables
+    assert!(!all_env.is_empty());
+    
+    // Verify structure: all entries should be (key, value) tuples
+    for (key, _value) in &all_env {
+        assert!(!key.is_empty());
+        // Value can be empty, but key cannot
+    }
+    
+    // Verify that getenv works for variables returned by env()
+    if let Some((test_key, _)) = all_env.first() {
+        let retrieved = OsBif::getenv(test_key);
+        // Should match (or at least be Some)
+        assert!(retrieved.is_some());
+    }
+}
+
+#[test]
+fn test_os_bif_getpid_consistency() {
+    // Test that getpid returns consistent results
+    let pid1 = OsBif::getpid();
+    let pid2 = OsBif::getpid();
+    
+    // Should be the same (same process)
+    assert_eq!(pid1, pid2);
+    
+    // Should be non-empty
+    assert!(!pid1.is_empty());
+    
+    // Should be valid digits
+    for &digit in &pid1 {
+        assert!(digit < 10);
+    }
+}
+
+#[test]
+fn test_os_bif_timestamp_ordering() {
+    // Test that timestamps are monotonically increasing
+    let (m1, s1, u1) = OsBif::timestamp();
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let (m2, s2, u2) = OsBif::timestamp();
+    
+    // Second timestamp should be >= first
+    let time1_total = m1 * 1_000_000 + s1;
+    let time2_total = m2 * 1_000_000 + s2;
+    
+    if time2_total == time1_total {
+        // Same second, microseconds should be >=
+        assert!(u2 >= u1);
+    } else {
+        // Different second, total should be >
+        assert!(time2_total > time1_total);
+    }
+}
+
+#[test]
+fn test_os_bif_signal_handling_validation() {
+    // Test signal handling validation
+    let valid_signals = ["SIGINT", "SIGTERM", "SIGHUP", "SIGUSR1", "SIGUSR2"];
+    let valid_actions = ["ignore", "default", "handle"];
+    
+    // All combinations should be valid
+    for signal in &valid_signals {
+        for action in &valid_actions {
+            let result = OsBif::set_signal(signal, action);
+            assert!(result.is_ok(), "Signal {} with action {} should be valid", signal, action);
+        }
+    }
+    
+    // Invalid actions should fail
+    let invalid_actions = ["invalid", "bad", "wrong", ""];
+    for action in &invalid_actions {
+        let result = OsBif::set_signal("SIGINT", action);
+        assert!(result.is_err(), "Action '{}' should be invalid", action);
+        match result {
+            Err(OsError::InvalidArgument(_)) => {
+                // Expected
+            }
+            _ => panic!("Expected InvalidArgument error"),
+        }
+    }
+    
+    // Empty signal should fail
+    let result = OsBif::set_signal("", "ignore");
+    assert!(result.is_err());
+    match result {
+        Err(OsError::InvalidArgument(_)) => {
+            // Expected
+        }
+        _ => panic!("Expected InvalidArgument error for empty signal"),
+    }
+}
+
+#[test]
+fn test_os_bif_multiple_environment_operations() {
+    // Test multiple environment variable operations in sequence
+    let keys = ["TEST_OS_1", "TEST_OS_2", "TEST_OS_3"];
+    let values = ["value1", "value2", "value3"];
+    
+    // Set multiple variables
+    for (key, value) in keys.iter().zip(values.iter()) {
+        OsBif::putenv(key, value).unwrap();
+    }
+    
+    // Verify all are set
+    for (key, expected_value) in keys.iter().zip(values.iter()) {
+        let retrieved = OsBif::getenv(key);
+        assert_eq!(retrieved, Some(expected_value.to_string()));
+    }
+    
+    // Unset all
+    for key in &keys {
+        OsBif::unsetenv(key).unwrap();
+    }
+    
+    // Verify all are unset
+    for key in &keys {
+        let retrieved = OsBif::getenv(key);
+        assert_eq!(retrieved, None);
+    }
+}
+
+#[test]
+fn test_os_bif_error_types() {
+    // Test that error types work correctly
+    let err1 = OsError::InvalidArgument("test".to_string());
+    let err2 = OsError::NotSupported("feature".to_string());
+    let err3 = OsError::SystemError("error".to_string());
+    
+    // Test Display implementation
+    let display1 = format!("{}", err1);
+    assert!(display1.contains("Invalid argument"));
+    
+    let display2 = format!("{}", err2);
+    assert!(display2.contains("Not supported"));
+    
+    let display3 = format!("{}", err3);
+    assert!(display3.contains("System error"));
+    
+    // Test Error trait (errors implement Error but source() returns None by default)
+    use std::error::Error;
+    assert!(err1.source().is_none());
+    assert!(err2.source().is_none());
+    assert!(err3.source().is_none());
 }
 
