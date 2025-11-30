@@ -58,17 +58,17 @@
   - ✅ usecases_memory_management (15 files, 107 functions)
   - ✅ usecases_process_management (6 files, 50 functions)
   - ✅ usecases_io_operations (2 files, 21 functions)
-  - ⚠️ usecases_bifs (13 files, 282 functions) - **7/13 files implemented (54%)**
+  - ⚠️ usecases_bifs (13 files, 282 functions) - **8/13 files implemented (62%)**
     - ✅ regex.rs (from erl_bif_re.c)
     - ✅ checksum.rs (from erl_bif_chksum.c)
     - ✅ trace.rs (from erl_bif_trace.c)
     - ✅ dynamic_library.rs (from erl_bif_ddll.c)
     - ✅ os.rs (from erl_bif_os.c)
     - ✅ counters.rs (from erl_bif_counters.c)
-    - ✅ unique.rs (from erl_bif_unique.c) - **NEW: 3 BIFs implemented (make_ref/0, unique_integer/0, unique_integer/1)**
+    - ✅ unique.rs (from erl_bif_unique.c)
+    - ✅ op.rs (from erl_bif_op.c) - **NEW: 30 BIFs implemented (logical, comparison, type-checking operations)**
     - ❌ Missing: persistent.rs (from erl_bif_persistent.c)
     - ❌ Missing: guard.rs (from erl_bif_guard.c)
-    - ❌ Missing: op.rs (from erl_bif_op.c)
     - ❌ Missing: info.rs (from erl_bif_info.c)
     - ❌ Missing: lists.rs (from erl_bif_lists.c)
     - ❌ Missing: load.rs (from beam_bif_load.c)
@@ -80,7 +80,7 @@
   - usecases_memory_management
   - usecases_process_management
   - usecases_io_operations
-  - usecases_bifs (partial - 7/13 modules)
+  - usecases_bifs (partial - 8/13 modules)
   - usecases_nif_compilation
 - Compilation status: All crates compile successfully (warnings only)
 - **Note**: See USECASES_ANALYSIS.md for detailed missing functions analysis

@@ -9,6 +9,7 @@ use usecases_bifs::dynamic_library::*;
 use usecases_bifs::os::{OsBif, OsError};
 use usecases_bifs::counters::{CountersBif, CounterRef, CountersError};
 use usecases_bifs::unique::{UniqueBif, Reference, UniqueIntegerOption};
+use usecases_bifs::op::{OpBif, OpError, ErlangTerm};
 use usecases_nif_compilation::{NifCompiler, CompileOptions};
 use std::fs;
 use std::io::Write;
@@ -1064,5 +1065,267 @@ fn test_unique_bif_monotonic_positive_combination() {
         assert!(current > prev, "Must be monotonic (strictly increasing)");
         prev = current;
     }
+}
+
+// ============================================================================
+// Op BIF Integration Tests
+// ============================================================================
+
+#[test]
+fn test_op_bif_logical_operations() {
+    let true_atom = ErlangTerm::Atom("true".to_string());
+    let false_atom = ErlangTerm::Atom("false".to_string());
+
+    // Test AND
+    assert_eq!(
+        OpBif::and(&true_atom, &true_atom).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::and(&true_atom, &false_atom).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test OR
+    assert_eq!(
+        OpBif::or(&false_atom, &true_atom).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::or(&false_atom, &false_atom).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test XOR
+    assert_eq!(
+        OpBif::xor(&true_atom, &false_atom).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::xor(&true_atom, &true_atom).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test NOT
+    assert_eq!(
+        OpBif::not(&true_atom).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+    assert_eq!(
+        OpBif::not(&false_atom).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+}
+
+#[test]
+fn test_op_bif_comparison_operations() {
+    let int1 = ErlangTerm::Integer(5);
+    let int2 = ErlangTerm::Integer(10);
+    let int3 = ErlangTerm::Integer(5);
+
+    // Test greater than
+    assert_eq!(
+        OpBif::sgt(&int2, &int1),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::sgt(&int1, &int2),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test less than
+    assert_eq!(
+        OpBif::slt(&int1, &int2),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    // Test equality
+    assert_eq!(
+        OpBif::seq(&int1, &int3),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::seq(&int1, &int2),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test not equal
+    assert_eq!(
+        OpBif::sneq(&int1, &int2),
+        ErlangTerm::Atom("true".to_string())
+    );
+}
+
+#[test]
+fn test_op_bif_type_checks() {
+    // Test is_atom
+    assert_eq!(
+        OpBif::is_atom(&ErlangTerm::Atom("test".to_string())),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::is_atom(&ErlangTerm::Integer(5)),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test is_integer
+    assert_eq!(
+        OpBif::is_integer(&ErlangTerm::Integer(42)),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::is_integer(&ErlangTerm::Float(3.14)),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test is_number
+    assert_eq!(
+        OpBif::is_number(&ErlangTerm::Integer(42)),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::is_number(&ErlangTerm::Float(3.14)),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::is_number(&ErlangTerm::Atom("test".to_string())),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    // Test is_list
+    assert_eq!(
+        OpBif::is_list(&ErlangTerm::List(vec![])),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::is_list(&ErlangTerm::Nil),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    // Test is_tuple
+    assert_eq!(
+        OpBif::is_tuple(&ErlangTerm::Tuple(vec![ErlangTerm::Integer(1)])),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    // Test is_binary
+    assert_eq!(
+        OpBif::is_binary(&ErlangTerm::Binary(vec![1, 2, 3])),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    // Test is_boolean
+    assert_eq!(
+        OpBif::is_boolean(&ErlangTerm::Atom("true".to_string())),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::is_boolean(&ErlangTerm::Atom("false".to_string())),
+        ErlangTerm::Atom("true".to_string())
+    );
+}
+
+#[test]
+fn test_op_bif_is_function_with_arity() {
+    let func = ErlangTerm::Function { arity: 2 };
+    let arity2 = ErlangTerm::Integer(2);
+    let arity3 = ErlangTerm::Integer(3);
+
+    assert_eq!(
+        OpBif::is_function_with_arity(&func, &arity2).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+    assert_eq!(
+        OpBif::is_function_with_arity(&func, &arity3).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+}
+
+#[test]
+fn test_op_bif_is_record() {
+    let record_tag = ErlangTerm::Atom("person".to_string());
+    let tuple = ErlangTerm::Tuple(vec![
+        ErlangTerm::Atom("person".to_string()),
+        ErlangTerm::Atom("John".to_string()),
+        ErlangTerm::Integer(30),
+    ]);
+
+    assert_eq!(
+        OpBif::is_record(&tuple, &record_tag).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    let wrong_tag = ErlangTerm::Atom("animal".to_string());
+    assert_eq!(
+        OpBif::is_record(&tuple, &wrong_tag).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+}
+
+#[test]
+fn test_op_bif_is_record_with_size() {
+    let record_tag = ErlangTerm::Atom("point".to_string());
+    let size3 = ErlangTerm::Integer(3);
+    let tuple = ErlangTerm::Tuple(vec![
+        ErlangTerm::Atom("point".to_string()),
+        ErlangTerm::Integer(10),
+        ErlangTerm::Integer(20),
+    ]);
+
+    assert_eq!(
+        OpBif::is_record_with_size(&tuple, &record_tag, &size3).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    let wrong_size = ErlangTerm::Integer(2);
+    assert_eq!(
+        OpBif::is_record_with_size(&tuple, &record_tag, &wrong_size).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+}
+
+#[test]
+fn test_op_bif_error_handling() {
+    // Test invalid boolean arguments
+    let non_bool = ErlangTerm::Integer(5);
+    let true_atom = ErlangTerm::Atom("true".to_string());
+
+    assert!(OpBif::and(&non_bool, &true_atom).is_err());
+    assert!(OpBif::or(&non_bool, &true_atom).is_err());
+    assert!(OpBif::not(&non_bool).is_err());
+
+    // Test invalid arity argument
+    let negative = ErlangTerm::Integer(-1);
+    assert!(OpBif::is_function_with_arity(&ErlangTerm::Function { arity: 2 }, &negative).is_err());
+
+    // Test invalid record arguments
+    let non_atom = ErlangTerm::Integer(5);
+    assert!(OpBif::is_record(&ErlangTerm::Tuple(vec![]), &non_atom).is_err());
+    assert!(OpBif::is_record_with_size(
+        &ErlangTerm::Tuple(vec![]),
+        &non_atom,
+        &ErlangTerm::Integer(1)
+    ).is_err());
+}
+
+#[test]
+fn test_op_bif_mixed_type_comparisons() {
+    let int = ErlangTerm::Integer(5);
+    let float = ErlangTerm::Float(5.0);
+    let atom = ErlangTerm::Atom("test".to_string());
+
+    // Integer and float comparisons
+    assert_eq!(
+        OpBif::slt(&int, &ErlangTerm::Float(10.0)),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    // Atom comparisons
+    let atom_a = ErlangTerm::Atom("a".to_string());
+    let atom_b = ErlangTerm::Atom("b".to_string());
+    assert_eq!(
+        OpBif::slt(&atom_a, &atom_b),
+        ErlangTerm::Atom("true".to_string())
+    );
 }
 
