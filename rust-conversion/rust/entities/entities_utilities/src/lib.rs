@@ -110,7 +110,9 @@
  */
 
 pub mod big;
+pub mod rational;
 pub mod register;
 
 pub use big::BigNumber;
+pub use rational::BigRational;
 pub use register::{Register, RegisterResult};

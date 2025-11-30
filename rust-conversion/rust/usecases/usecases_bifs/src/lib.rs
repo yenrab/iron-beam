@@ -18,6 +18,7 @@ pub mod os;
 pub mod counters;
 pub mod unique;
 pub mod op;
+pub mod guard;
 
 pub use regex::{RegexBif, CompiledRegex, MatchResult, Capture, RegexError as RegexErr};
 pub use checksum::ChecksumBif;
@@ -30,4 +31,5 @@ pub use os::{OsBif, OsError};
 pub use counters::{CountersBif, CounterRef, CounterInfo, CountersError};
 pub use unique::{UniqueBif, Reference, UniqueIntegerOption, UniqueError};
 pub use op::{OpBif, OpError};
+pub use guard::{GuardBif, GuardError};
 

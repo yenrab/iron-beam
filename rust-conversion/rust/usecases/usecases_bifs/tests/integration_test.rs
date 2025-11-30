@@ -10,6 +10,7 @@ use usecases_bifs::os::{OsBif, OsError};
 use usecases_bifs::counters::{CountersBif, CounterRef, CountersError};
 use usecases_bifs::unique::{UniqueBif, Reference, UniqueIntegerOption};
 use usecases_bifs::op::{OpBif, OpError, ErlangTerm};
+use usecases_bifs::guard::{GuardBif, GuardError};
 use usecases_nif_compilation::{NifCompiler, CompileOptions};
 use std::fs;
 use std::io::Write;
@@ -1326,6 +1327,630 @@ fn test_op_bif_mixed_type_comparisons() {
     assert_eq!(
         OpBif::slt(&atom_a, &atom_b),
         ErlangTerm::Atom("true".to_string())
+    );
+}
+
+#[test]
+fn test_guard_bif_math_operations() {
+    // Test abs
+    assert_eq!(
+        GuardBif::abs(&ErlangTerm::Integer(-5)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+    assert_eq!(
+        GuardBif::abs(&ErlangTerm::Float(-5.5)).unwrap(),
+        ErlangTerm::Float(5.5)
+    );
+
+    // Test float conversion
+    assert_eq!(
+        GuardBif::float(&ErlangTerm::Integer(5)).unwrap(),
+        ErlangTerm::Float(5.0)
+    );
+
+    // Test trunc
+    assert_eq!(
+        GuardBif::trunc(&ErlangTerm::Float(5.7)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+    assert_eq!(
+        GuardBif::trunc(&ErlangTerm::Float(-5.7)).unwrap(),
+        ErlangTerm::Integer(-5)
+    );
+
+    // Test floor
+    assert_eq!(
+        GuardBif::floor(&ErlangTerm::Float(5.7)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+    assert_eq!(
+        GuardBif::floor(&ErlangTerm::Float(-5.7)).unwrap(),
+        ErlangTerm::Integer(-6)
+    );
+
+    // Test ceil
+    assert_eq!(
+        GuardBif::ceil(&ErlangTerm::Float(5.3)).unwrap(),
+        ErlangTerm::Integer(6)
+    );
+    assert_eq!(
+        GuardBif::ceil(&ErlangTerm::Float(-5.3)).unwrap(),
+        ErlangTerm::Integer(-5)
+    );
+
+    // Test round
+    assert_eq!(
+        GuardBif::round(&ErlangTerm::Float(5.7)).unwrap(),
+        ErlangTerm::Integer(6)
+    );
+    assert_eq!(
+        GuardBif::round(&ErlangTerm::Float(5.3)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+}
+
+#[test]
+fn test_guard_bif_size_operations() {
+    // Test length
+    assert_eq!(
+        GuardBif::length(&ErlangTerm::List(vec![
+            ErlangTerm::Integer(1),
+            ErlangTerm::Integer(2),
+            ErlangTerm::Integer(3),
+        ]))
+        .unwrap(),
+        ErlangTerm::Integer(3)
+    );
+    assert_eq!(
+        GuardBif::length(&ErlangTerm::Nil).unwrap(),
+        ErlangTerm::Integer(0)
+    );
+
+    // Test size
+    assert_eq!(
+        GuardBif::size(&ErlangTerm::Tuple(vec![
+            ErlangTerm::Integer(1),
+            ErlangTerm::Integer(2),
+        ]))
+        .unwrap(),
+        ErlangTerm::Integer(2)
+    );
+    assert_eq!(
+        GuardBif::size(&ErlangTerm::Binary(vec![1, 2, 3, 4])).unwrap(),
+        ErlangTerm::Integer(4)
+    );
+
+    // Test bit_size
+    assert_eq!(
+        GuardBif::bit_size(&ErlangTerm::Binary(vec![1, 2])).unwrap(),
+        ErlangTerm::Integer(16)
+    );
+    assert_eq!(
+        GuardBif::bit_size(&ErlangTerm::Bitstring(vec![1, 2], 15)).unwrap(),
+        ErlangTerm::Integer(15)
+    );
+
+    // Test byte_size
+    assert_eq!(
+        GuardBif::byte_size(&ErlangTerm::Binary(vec![1, 2, 3])).unwrap(),
+        ErlangTerm::Integer(3)
+    );
+    assert_eq!(
+        GuardBif::byte_size(&ErlangTerm::Bitstring(vec![1, 2], 15)).unwrap(),
+        ErlangTerm::Integer(2)
+    );
+}
+
+#[test]
+fn test_guard_bif_comparison_operations() {
+    // Test min
+    assert_eq!(
+        GuardBif::min(&ErlangTerm::Integer(5), &ErlangTerm::Integer(10)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+    assert_eq!(
+        GuardBif::min(&ErlangTerm::Float(5.5), &ErlangTerm::Float(10.5)).unwrap(),
+        ErlangTerm::Float(5.5)
+    );
+
+    // Test max
+    assert_eq!(
+        GuardBif::max(&ErlangTerm::Integer(5), &ErlangTerm::Integer(10)).unwrap(),
+        ErlangTerm::Integer(10)
+    );
+    assert_eq!(
+        GuardBif::max(&ErlangTerm::Float(5.5), &ErlangTerm::Float(10.5)).unwrap(),
+        ErlangTerm::Float(10.5)
+    );
+}
+
+#[test]
+fn test_guard_bif_type_checking() {
+    // Test is_integer_3
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &ErlangTerm::Integer(5),
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        )
+        .unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &ErlangTerm::Integer(0),
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        )
+        .unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &ErlangTerm::Float(5.0),
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        )
+        .unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+}
+
+#[test]
+fn test_guard_bif_binary_operations() {
+    let binary = ErlangTerm::Binary(vec![1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // Test binary_part_3
+    assert_eq!(
+        GuardBif::binary_part_3(
+            &binary,
+            &ErlangTerm::Integer(2),
+            &ErlangTerm::Integer(3)
+        )
+        .unwrap(),
+        ErlangTerm::Binary(vec![3, 4, 5])
+    );
+
+    // Test binary_part_2
+    let tuple = ErlangTerm::Tuple(vec![ErlangTerm::Integer(1), ErlangTerm::Integer(2)]);
+    assert_eq!(
+        GuardBif::binary_part_2(&binary, &tuple).unwrap(),
+        ErlangTerm::Binary(vec![2, 3])
+    );
+}
+
+#[test]
+fn test_guard_bif_error_handling() {
+    // Test abs with non-number
+    assert!(GuardBif::abs(&ErlangTerm::Atom("test".to_string())).is_err());
+
+    // Test length with non-list
+    assert!(GuardBif::length(&ErlangTerm::Integer(5)).is_err());
+
+    // Test size with invalid type
+    assert!(GuardBif::size(&ErlangTerm::Atom("test".to_string())).is_err());
+
+    // Test is_integer_3 with invalid min/max
+    assert!(GuardBif::is_integer_3(
+        &ErlangTerm::Integer(5),
+        &ErlangTerm::Float(1.0),
+        &ErlangTerm::Integer(10)
+    )
+    .is_err());
+
+    // Test binary_part_3 with out of bounds
+    let binary = ErlangTerm::Binary(vec![1, 2, 3]);
+    assert!(GuardBif::binary_part_3(
+        &binary,
+        &ErlangTerm::Integer(10),
+        &ErlangTerm::Integer(2)
+    )
+    .is_err());
+}
+
+#[test]
+fn test_guard_bif_integer_edge_cases() {
+    // Test abs with i64::MIN (special case - now returns BigInteger)
+    let result = GuardBif::abs(&ErlangTerm::Integer(i64::MIN)).unwrap();
+    // Should return BigInteger (since i64::MIN.abs() exceeds i64::MAX)
+    assert!(matches!(result, ErlangTerm::BigInteger(_)));
+
+    // Test integer operations that return same value
+    assert_eq!(
+        GuardBif::trunc(&ErlangTerm::Integer(5)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+    assert_eq!(
+        GuardBif::floor(&ErlangTerm::Integer(5)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+    assert_eq!(
+        GuardBif::ceil(&ErlangTerm::Integer(5)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+    assert_eq!(
+        GuardBif::round(&ErlangTerm::Integer(5)).unwrap(),
+        ErlangTerm::Integer(5)
+    );
+}
+
+#[test]
+fn test_guard_bif_rational_support() {
+    // Test Rational number support in guard BIFs
+    use entities_utilities::BigRational;
+    
+    // Test abs with Rational
+    let rational = ErlangTerm::Rational(BigRational::from_fraction(-22, 7).unwrap());
+    let result = GuardBif::abs(&rational).unwrap();
+    match result {
+        ErlangTerm::Rational(_) | ErlangTerm::Integer(_) | ErlangTerm::BigInteger(_) | ErlangTerm::Float(_) => {
+            // All valid return types for abs(Rational)
+        }
+        _ => panic!("abs(Rational) should return Rational, Integer, BigInteger, or Float"),
+    }
+    
+    // Test float with Rational
+    let rational_float = ErlangTerm::Rational(BigRational::from_fraction(1, 2).unwrap());
+    let result = GuardBif::float(&rational_float).unwrap();
+    match result {
+        ErlangTerm::Float(f) => {
+            assert!((f - 0.5).abs() < 1e-10);
+        }
+        _ => panic!("float(Rational) should return Float"),
+    }
+    
+    // Test trunc with Rational
+    let rational_trunc = ErlangTerm::Rational(BigRational::from_f64(3.7).unwrap());
+    assert_eq!(GuardBif::trunc(&rational_trunc).unwrap(), ErlangTerm::Integer(3));
+    
+    // Test floor with Rational
+    let rational_floor = ErlangTerm::Rational(BigRational::from_f64(3.7).unwrap());
+    assert_eq!(GuardBif::floor(&rational_floor).unwrap(), ErlangTerm::Integer(3));
+    
+    // Test ceil with Rational
+    let rational_ceil = ErlangTerm::Rational(BigRational::from_f64(3.2).unwrap());
+    assert_eq!(GuardBif::ceil(&rational_ceil).unwrap(), ErlangTerm::Integer(4));
+    
+    // Test round with Rational
+    let rational_round = ErlangTerm::Rational(BigRational::from_f64(3.5).unwrap());
+    assert_eq!(GuardBif::round(&rational_round).unwrap(), ErlangTerm::Integer(4));
+}
+
+#[test]
+fn test_guard_bif_big_integer_support() {
+    // Test BigInteger support in guard BIFs
+    use entities_utilities::BigNumber;
+    
+    // Test abs with BigInteger
+    let big_int = ErlangTerm::BigInteger(BigNumber::from_i64(-1000));
+    let result = GuardBif::abs(&big_int).unwrap();
+    match result {
+        ErlangTerm::Integer(1000) | ErlangTerm::BigInteger(_) => {
+            // Valid return types
+        }
+        _ => panic!("abs(BigInteger) should return Integer or BigInteger"),
+    }
+    
+    // Test float with BigInteger
+    let big_int_float = ErlangTerm::BigInteger(BigNumber::from_i64(100));
+    let result = GuardBif::float(&big_int_float).unwrap();
+    assert_eq!(result, ErlangTerm::Float(100.0));
+    
+    // Test trunc with BigInteger (should return as-is)
+    let big_int_trunc = ErlangTerm::BigInteger(BigNumber::from_i64(1000));
+    let result = GuardBif::trunc(&big_int_trunc).unwrap();
+    match result {
+        ErlangTerm::BigInteger(_) => {
+            // Should return as BigInteger
+        }
+        _ => panic!("trunc(BigInteger) should return BigInteger"),
+    }
+    
+    // Test floor, ceil, round with BigInteger (should return as-is)
+    let big_int_ops = ErlangTerm::BigInteger(BigNumber::from_i64(1000));
+    assert!(matches!(GuardBif::floor(&big_int_ops).unwrap(), ErlangTerm::BigInteger(_)));
+    assert!(matches!(GuardBif::ceil(&big_int_ops).unwrap(), ErlangTerm::BigInteger(_)));
+    assert!(matches!(GuardBif::round(&big_int_ops).unwrap(), ErlangTerm::BigInteger(_)));
+}
+
+#[test]
+fn test_guard_bif_rational_in_comparisons() {
+    // Test Rational in min/max operations
+    use entities_utilities::BigRational;
+    
+    let r1 = ErlangTerm::Rational(BigRational::from_fraction(1, 2).unwrap()); // 0.5
+    let r2 = ErlangTerm::Rational(BigRational::from_fraction(3, 4).unwrap()); // 0.75
+    let int = ErlangTerm::Integer(1);
+    
+    // Rational vs Rational
+    assert_eq!(GuardBif::min(&r1, &r2).unwrap(), r1);
+    assert_eq!(GuardBif::max(&r1, &r2).unwrap(), r2);
+    
+    // Rational vs Integer
+    assert_eq!(GuardBif::min(&r1, &int).unwrap(), r1);
+    assert_eq!(GuardBif::max(&r1, &int).unwrap(), int);
+}
+
+#[test]
+fn test_guard_bif_rational_in_is_integer_3() {
+    // Test Rational in is_integer_3
+    use entities_utilities::BigRational;
+    
+    // Rational that is an integer
+    let rational_int = ErlangTerm::Rational(BigRational::from_i64(5));
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &rational_int,
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        ).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+    
+    // Rational that is NOT an integer
+    let rational_frac = ErlangTerm::Rational(BigRational::from_fraction(22, 7).unwrap());
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &rational_frac,
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        ).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+    
+    // Rational that is an integer but out of range
+    let rational_out = ErlangTerm::Rational(BigRational::from_i64(100));
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &rational_out,
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        ).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+}
+
+#[test]
+fn test_guard_bif_big_integer_in_is_integer_3() {
+    // Test BigInteger in is_integer_3
+    use entities_utilities::BigNumber;
+    
+    // BigInteger that fits in i64 range
+    let big_int = ErlangTerm::BigInteger(BigNumber::from_i64(5));
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &big_int,
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        ).unwrap(),
+        ErlangTerm::Atom("true".to_string())
+    );
+    
+    // BigInteger that fits in i64 but out of range
+    let big_int_out = ErlangTerm::BigInteger(BigNumber::from_i64(100));
+    assert_eq!(
+        GuardBif::is_integer_3(
+            &big_int_out,
+            &ErlangTerm::Integer(1),
+            &ErlangTerm::Integer(10)
+        ).unwrap(),
+        ErlangTerm::Atom("false".to_string())
+    );
+}
+
+#[test]
+fn test_guard_bif_binary_part_3_edge_cases() {
+    // Test binary_part_3 with various edge cases
+    let binary = ErlangTerm::Binary(vec![1, 2, 3, 4, 5]);
+    
+    // Test with negative start (should fail)
+    assert!(GuardBif::binary_part_3(
+        &binary,
+        &ErlangTerm::Integer(-1),
+        &ErlangTerm::Integer(2)
+    ).is_err());
+    
+    // Test with negative length (should fail)
+    assert!(GuardBif::binary_part_3(
+        &binary,
+        &ErlangTerm::Integer(0),
+        &ErlangTerm::Integer(-1)
+    ).is_err());
+    
+    // Test with non-integer start (should fail)
+    assert!(GuardBif::binary_part_3(
+        &binary,
+        &ErlangTerm::Float(1.5),
+        &ErlangTerm::Integer(2)
+    ).is_err());
+    
+    // Test with non-integer length (should fail)
+    assert!(GuardBif::binary_part_3(
+        &binary,
+        &ErlangTerm::Integer(0),
+        &ErlangTerm::Float(2.5)
+    ).is_err());
+    
+    // Test with bitstring
+    let bitstring = ErlangTerm::Bitstring(vec![1, 2, 3], 24);
+    let result = GuardBif::binary_part_3(
+        &bitstring,
+        &ErlangTerm::Integer(0),
+        &ErlangTerm::Integer(2)
+    ).unwrap();
+    match result {
+        ErlangTerm::Bitstring(data, bits) => {
+            assert_eq!(data.len(), 2);
+            assert_eq!(bits, 16);
+        }
+        _ => panic!("Expected Bitstring"),
+    }
+    
+    // Test with bitstring out of bounds
+    assert!(GuardBif::binary_part_3(
+        &bitstring,
+        &ErlangTerm::Integer(2),
+        &ErlangTerm::Integer(5)
+    ).is_err());
+}
+
+#[test]
+fn test_guard_bif_binary_part_2_edge_cases() {
+    // Test binary_part_2 with edge cases
+    let binary = ErlangTerm::Binary(vec![1, 2, 3, 4, 5]);
+    
+    // Test with wrong tuple size (1 element)
+    let tuple1 = ErlangTerm::Tuple(vec![ErlangTerm::Integer(1)]);
+    assert!(GuardBif::binary_part_2(&binary, &tuple1).is_err());
+    
+    // Test with wrong tuple size (3 elements)
+    let tuple3 = ErlangTerm::Tuple(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+        ErlangTerm::Integer(3)
+    ]);
+    assert!(GuardBif::binary_part_2(&binary, &tuple3).is_err());
+    
+    // Test with non-tuple
+    assert!(GuardBif::binary_part_2(&binary, &ErlangTerm::Integer(5)).is_err());
+}
+
+#[test]
+fn test_guard_bif_min_max_non_comparable() {
+    // Test min/max with non-comparable types
+    let atom = ErlangTerm::Atom("test".to_string());
+    let pid = ErlangTerm::Pid(1);
+    
+    // These should fail
+    assert!(GuardBif::min(&atom, &pid).is_err());
+    assert!(GuardBif::max(&atom, &pid).is_err());
+}
+
+#[test]
+fn test_guard_bif_zero_values() {
+    // Test operations with zero values
+    use entities_utilities::BigRational;
+    
+    // Test abs with Float(0.0)
+    assert_eq!(
+        GuardBif::abs(&ErlangTerm::Float(0.0)).unwrap(),
+        ErlangTerm::Float(0.0)
+    );
+    
+    // Test trunc, floor, ceil, round with Float(0.0)
+    assert_eq!(GuardBif::trunc(&ErlangTerm::Float(0.0)).unwrap(), ErlangTerm::Integer(0));
+    assert_eq!(GuardBif::floor(&ErlangTerm::Float(0.0)).unwrap(), ErlangTerm::Integer(0));
+    assert_eq!(GuardBif::ceil(&ErlangTerm::Float(0.0)).unwrap(), ErlangTerm::Integer(0));
+    assert_eq!(GuardBif::round(&ErlangTerm::Float(0.0)).unwrap(), ErlangTerm::Integer(0));
+    
+    // Test with Rational zero
+    let rational_zero = ErlangTerm::Rational(BigRational::from_i64(0));
+    assert_eq!(GuardBif::trunc(&rational_zero).unwrap(), ErlangTerm::Integer(0));
+}
+
+#[test]
+fn test_guard_bif_large_float_conversions() {
+    // Test large float values that convert to BigInteger
+    let large_float = ErlangTerm::Float(1e20);
+    let result = GuardBif::trunc(&large_float).unwrap();
+    assert!(matches!(result, ErlangTerm::BigInteger(_)));
+    
+    let result = GuardBif::floor(&large_float).unwrap();
+    assert!(matches!(result, ErlangTerm::BigInteger(_)));
+    
+    let result = GuardBif::ceil(&large_float).unwrap();
+    assert!(matches!(result, ErlangTerm::BigInteger(_)));
+    
+    let result = GuardBif::round(&large_float).unwrap();
+    assert!(matches!(result, ErlangTerm::BigInteger(_)));
+}
+
+#[test]
+fn test_guard_bif_size_with_bitstring() {
+    // Test size operations with bitstring
+    let bitstring = ErlangTerm::Bitstring(vec![1, 2, 3], 24);
+    
+    // size should return byte size
+    assert_eq!(GuardBif::size(&bitstring).unwrap(), ErlangTerm::Integer(3));
+    
+    // bit_size should return bit size
+    assert_eq!(GuardBif::bit_size(&bitstring).unwrap(), ErlangTerm::Integer(24));
+    
+    // byte_size should return byte size
+    assert_eq!(GuardBif::byte_size(&bitstring).unwrap(), ErlangTerm::Integer(3));
+}
+
+#[test]
+fn test_guard_bif_rational_arithmetic_integration() {
+    // Test Rational arithmetic operations in guard context
+    use entities_utilities::BigRational;
+    
+    // Test with Rational that represents exact integer
+    let rational_int = ErlangTerm::Rational(BigRational::from_i64(42));
+    assert_eq!(GuardBif::trunc(&rational_int).unwrap(), ErlangTerm::Integer(42));
+    assert_eq!(GuardBif::floor(&rational_int).unwrap(), ErlangTerm::Integer(42));
+    assert_eq!(GuardBif::ceil(&rational_int).unwrap(), ErlangTerm::Integer(42));
+    assert_eq!(GuardBif::round(&rational_int).unwrap(), ErlangTerm::Integer(42));
+    
+    // Test with Rational fraction
+    let rational_frac = ErlangTerm::Rational(BigRational::from_fraction(1, 3).unwrap());
+    let result = GuardBif::float(&rational_frac).unwrap();
+    match result {
+        ErlangTerm::Float(f) => {
+            assert!((f - 1.0/3.0).abs() < 1e-10);
+        }
+        _ => panic!("Expected Float"),
+    }
+}
+
+#[test]
+fn test_guard_bif_comprehensive_binary_operations() {
+    // Comprehensive binary operations testing
+    let binary = ErlangTerm::Binary(vec![1, 2, 3, 4, 5, 6, 7, 8]);
+    
+    // Test extracting from start
+    assert_eq!(
+        GuardBif::binary_part_3(
+            &binary,
+            &ErlangTerm::Integer(0),
+            &ErlangTerm::Integer(2)
+        ).unwrap(),
+        ErlangTerm::Binary(vec![1, 2])
+    );
+    
+    // Test extracting to end
+    assert_eq!(
+        GuardBif::binary_part_3(
+            &binary,
+            &ErlangTerm::Integer(6),
+            &ErlangTerm::Integer(2)
+        ).unwrap(),
+        ErlangTerm::Binary(vec![7, 8])
+    );
+    
+    // Test extracting middle
+    assert_eq!(
+        GuardBif::binary_part_3(
+            &binary,
+            &ErlangTerm::Integer(2),
+            &ErlangTerm::Integer(3)
+        ).unwrap(),
+        ErlangTerm::Binary(vec![3, 4, 5])
+    );
+    
+    // Test binary_part_2 with various tuples
+    let tuple1 = ErlangTerm::Tuple(vec![ErlangTerm::Integer(0), ErlangTerm::Integer(1)]);
+    assert_eq!(
+        GuardBif::binary_part_2(&binary, &tuple1).unwrap(),
+        ErlangTerm::Binary(vec![1])
+    );
+    
+    let tuple2 = ErlangTerm::Tuple(vec![ErlangTerm::Integer(4), ErlangTerm::Integer(4)]);
+    assert_eq!(
+        GuardBif::binary_part_2(&binary, &tuple2).unwrap(),
+        ErlangTerm::Binary(vec![5, 6, 7, 8])
     );
 }
 

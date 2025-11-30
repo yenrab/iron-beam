@@ -10,6 +10,7 @@
 //! This module implements safe Rust equivalents of Erlang operator BIFs.
 
 use std::collections::HashMap;
+use entities_utilities::{BigNumber, BigRational};
 
 /// Placeholder for Erlang term representation.
 /// In a full implementation, this would be a proper Eterm type from entities_data_handling.
@@ -17,6 +18,8 @@ use std::collections::HashMap;
 pub enum ErlangTerm {
     Atom(String),
     Integer(i64),
+    BigInteger(BigNumber), // For integers that exceed i64 range
+    Rational(BigRational), // For exact fractional arithmetic
     Float(f64),
     Tuple(Vec<ErlangTerm>),
     List(Vec<ErlangTerm>),
@@ -36,6 +39,14 @@ impl PartialEq for ErlangTerm {
         match (self, other) {
             (ErlangTerm::Atom(a), ErlangTerm::Atom(b)) => a == b,
             (ErlangTerm::Integer(a), ErlangTerm::Integer(b)) => a == b,
+            (ErlangTerm::Integer(a), ErlangTerm::BigInteger(b)) => {
+                b.to_i64().map(|bi| *a == bi).unwrap_or(false)
+            }
+            (ErlangTerm::BigInteger(a), ErlangTerm::Integer(b)) => {
+                a.to_i64().map(|ai| ai == *b).unwrap_or(false)
+            }
+            (ErlangTerm::BigInteger(a), ErlangTerm::BigInteger(b)) => a == b,
+            (ErlangTerm::Rational(a), ErlangTerm::Rational(b)) => a == b,
             (ErlangTerm::Float(a), ErlangTerm::Float(b)) => {
                 // Handle NaN: NaN != NaN in Rust, but we want consistent behavior
                 if a.is_nan() && b.is_nan() {
@@ -75,35 +86,46 @@ impl std::hash::Hash for ErlangTerm {
                 state.write_u8(1);
                 i.hash(state);
             }
+            ErlangTerm::BigInteger(b) => {
+                state.write_u8(1); // Same tag as Integer for compatibility
+                // Hash the big integer by converting to string representation
+                // This ensures consistent hashing
+                format!("{:?}", b).hash(state);
+            }
+            ErlangTerm::Rational(r) => {
+                state.write_u8(2); // Same tag as Float for compatibility
+                // Hash the rational by converting to string representation
+                format!("{}", r).hash(state);
+            }
             ErlangTerm::Float(f) => {
-                state.write_u8(2);
+                state.write_u8(3);
                 f.to_bits().hash(state);
             }
             ErlangTerm::Tuple(v) => {
-                state.write_u8(3);
-                v.len().hash(state);
-                for item in v {
-                    item.hash(state);
-                }
-            }
-            ErlangTerm::List(v) => {
                 state.write_u8(4);
                 v.len().hash(state);
                 for item in v {
                     item.hash(state);
                 }
             }
-            ErlangTerm::Binary(v) => {
+            ErlangTerm::List(v) => {
                 state.write_u8(5);
+                v.len().hash(state);
+                for item in v {
+                    item.hash(state);
+                }
+            }
+            ErlangTerm::Binary(v) => {
+                state.write_u8(6);
                 v.hash(state);
             }
             ErlangTerm::Bitstring(v, bits) => {
-                state.write_u8(6);
+                state.write_u8(7);
                 v.hash(state);
                 bits.hash(state);
             }
             ErlangTerm::Map(m) => {
-                state.write_u8(7);
+                state.write_u8(8);
                 // For HashMap, we need to hash in a deterministic way
                 let mut entries: Vec<_> = m.iter().collect();
                 entries.sort_by(|a, b| format!("{:?}", a.0).cmp(&format!("{:?}", b.0)));
@@ -114,23 +136,23 @@ impl std::hash::Hash for ErlangTerm {
                 }
             }
             ErlangTerm::Pid(p) => {
-                state.write_u8(8);
-                p.hash(state);
-            }
-            ErlangTerm::Port(p) => {
                 state.write_u8(9);
                 p.hash(state);
             }
-            ErlangTerm::Reference(r) => {
+            ErlangTerm::Port(p) => {
                 state.write_u8(10);
+                p.hash(state);
+            }
+            ErlangTerm::Reference(r) => {
+                state.write_u8(11);
                 r.hash(state);
             }
             ErlangTerm::Function { arity } => {
-                state.write_u8(11);
+                state.write_u8(12);
                 arity.hash(state);
             }
             ErlangTerm::Nil => {
-                state.write_u8(12);
+                state.write_u8(13);
             }
         }
     }
@@ -214,6 +236,11 @@ impl ErlangTerm {
         matches!(self, ErlangTerm::Map(_))
     }
 
+    /// Check if term is a rational number
+    pub fn is_rational(&self) -> bool {
+        matches!(self, ErlangTerm::Rational(_))
+    }
+
     /// Get function arity if term is a function
     pub fn function_arity(&self) -> Option<usize> {
         match self {
@@ -238,6 +265,22 @@ impl ErlangTerm {
             (ErlangTerm::Float(a), ErlangTerm::Integer(b)) => {
                 *a == (*b as f64)
             }
+            (ErlangTerm::BigInteger(a), ErlangTerm::Float(b)) => {
+                // Convert big integer to f64 if possible
+                if let Some(ai) = a.to_f64() {
+                    ai == *b
+                } else {
+                    false
+                }
+            }
+            (ErlangTerm::Float(a), ErlangTerm::BigInteger(b)) => {
+                // Convert big integer to f64 if possible
+                if let Some(bi) = b.to_f64() {
+                    *a == bi
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }
@@ -254,12 +297,123 @@ impl ErlangTerm {
         match (self, other) {
             // Number comparisons (with type coercion)
             (ErlangTerm::Integer(a), ErlangTerm::Integer(b)) => Some(a.cmp(b)),
+            (ErlangTerm::Integer(a), ErlangTerm::BigInteger(b)) => {
+                // Convert big integer to i64 if possible, otherwise compare as big
+                if let Some(bi) = b.to_i64() {
+                    Some(a.cmp(&bi))
+                } else {
+                    // Big integer is outside i64 range, so it's larger
+                    Some(std::cmp::Ordering::Less)
+                }
+            }
+            (ErlangTerm::BigInteger(a), ErlangTerm::Integer(b)) => {
+                // Convert big integer to i64 if possible, otherwise compare as big
+                if let Some(ai) = a.to_i64() {
+                    Some(ai.cmp(b))
+                } else {
+                    // Big integer is outside i64 range, so it's larger
+                    Some(std::cmp::Ordering::Greater)
+                }
+            }
+            (ErlangTerm::BigInteger(a), ErlangTerm::BigInteger(b)) => {
+                // Compare big integers using their comp method
+                match a.comp(b) {
+                    -1 => Some(std::cmp::Ordering::Less),
+                    0 => Some(std::cmp::Ordering::Equal),
+                    1 => Some(std::cmp::Ordering::Greater),
+                    _ => None, // Should not happen
+                }
+            }
             (ErlangTerm::Float(a), ErlangTerm::Float(b)) => a.partial_cmp(b),
             (ErlangTerm::Integer(a), ErlangTerm::Float(b)) => {
                 (*a as f64).partial_cmp(b)
             }
             (ErlangTerm::Float(a), ErlangTerm::Integer(b)) => {
                 a.partial_cmp(&(*b as f64))
+            }
+            (ErlangTerm::BigInteger(a), ErlangTerm::Float(b)) => {
+                // Convert big integer to f64 if possible
+                if let Some(ai) = a.to_f64() {
+                    ai.partial_cmp(b)
+                } else {
+                    // Big integer too large for f64, cannot compare
+                    None
+                }
+            }
+            (ErlangTerm::Float(a), ErlangTerm::BigInteger(b)) => {
+                // Convert big integer to f64 if possible
+                if let Some(bi) = b.to_f64() {
+                    a.partial_cmp(&bi)
+                } else {
+                    // Big integer too large for f64, cannot compare
+                    None
+                }
+            }
+            // Rational comparisons
+            (ErlangTerm::Rational(a), ErlangTerm::Rational(b)) => {
+                Some(a.comp(b))
+            }
+            (ErlangTerm::Rational(a), ErlangTerm::Integer(b)) => {
+                // Convert rational to integer if it's an exact integer
+                if let Some(ai) = a.to_i64() {
+                    Some(ai.cmp(b))
+                } else {
+                    // Rational is not an integer, compare as f64
+                    a.to_f64().partial_cmp(&(*b as f64))
+                }
+            }
+            (ErlangTerm::Integer(a), ErlangTerm::Rational(b)) => {
+                // Convert rational to integer if it's an exact integer
+                if let Some(bi) = b.to_i64() {
+                    Some(a.cmp(&bi))
+                } else {
+                    // Rational is not an integer, compare as f64
+                    (*a as f64).partial_cmp(&b.to_f64())
+                }
+            }
+            (ErlangTerm::Rational(a), ErlangTerm::BigInteger(b)) => {
+                // Convert rational to integer if it's an exact integer
+                if let Some(ai) = a.to_i64() {
+                    // Compare with big integer
+                    if let Some(bi) = b.to_i64() {
+                        Some(ai.cmp(&bi))
+                    } else {
+                        // Big integer is outside i64 range
+                        Some(std::cmp::Ordering::Less)
+                    }
+                } else {
+                    // Rational is not an integer, compare as f64
+                    if let Some(bi) = b.to_f64() {
+                        a.to_f64().partial_cmp(&bi)
+                    } else {
+                        None // Cannot compare
+                    }
+                }
+            }
+            (ErlangTerm::BigInteger(a), ErlangTerm::Rational(b)) => {
+                // Convert rational to integer if it's an exact integer
+                if let Some(bi) = b.to_i64() {
+                    // Compare with big integer
+                    if let Some(ai) = a.to_i64() {
+                        Some(ai.cmp(&bi))
+                    } else {
+                        // Big integer is outside i64 range
+                        Some(std::cmp::Ordering::Greater)
+                    }
+                } else {
+                    // Rational is not an integer, compare as f64
+                    if let Some(ai) = a.to_f64() {
+                        ai.partial_cmp(&b.to_f64())
+                    } else {
+                        None // Cannot compare
+                    }
+                }
+            }
+            (ErlangTerm::Rational(a), ErlangTerm::Float(b)) => {
+                a.to_f64().partial_cmp(b)
+            }
+            (ErlangTerm::Float(a), ErlangTerm::Rational(b)) => {
+                a.partial_cmp(&b.to_f64())
             }
             
             // Atom comparisons (lexicographic)
@@ -675,6 +829,21 @@ impl OpBif {
         ErlangTerm::Atom(if arg.is_map() { "true" } else { "false" }.to_string())
     }
 
+    /// Type check: is rational
+    ///
+    /// Checks if the term is a rational number (BigRational).
+    /// This is a Rust-specific extension for exact fractional arithmetic.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If arg is a rational number
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    pub fn is_rational(arg: &ErlangTerm) -> ErlangTerm {
+        ErlangTerm::Atom(if arg.is_rational() { "true" } else { "false" }.to_string())
+    }
+
     /// Helper: Convert ErlangTerm to bool
     fn to_bool(term: &ErlangTerm) -> Result<bool, OpError> {
         match term {
@@ -997,6 +1166,21 @@ mod tests {
         );
         assert_eq!(
             OpBif::is_map(&ErlangTerm::Integer(5)),
+            ErlangTerm::Atom("false".to_string())
+        );
+
+        // Test is_rational
+        use entities_utilities::BigRational;
+        assert_eq!(
+            OpBif::is_rational(&ErlangTerm::Rational(BigRational::from_i64(1))),
+            ErlangTerm::Atom("true".to_string())
+        );
+        assert_eq!(
+            OpBif::is_rational(&ErlangTerm::Integer(5)),
+            ErlangTerm::Atom("false".to_string())
+        );
+        assert_eq!(
+            OpBif::is_rational(&ErlangTerm::Float(5.0)),
             ErlangTerm::Atom("false".to_string())
         );
     }
