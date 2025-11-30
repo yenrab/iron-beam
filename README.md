@@ -1,5 +1,5 @@
 # The Iron BEAM (IBEAM) Project
-##Purpose
+## Purpose
 Providing PRs that increase the security of the BEAM is the primary purpose of the IBEAM project. PRs are provided to the OTP team from this branch of Erlang/OTP.
 
 If you would like to join us in this task, please contribute PRs here. We will evaluate them and wrap them up for the OTP team.
