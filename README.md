@@ -4,7 +4,7 @@ Providing PRs that increase the security of the BEAM is the primary purpose of t
 
 If you would like to join us in this task, please contribute PRs here. We will evaluate them and wrap them up for the OTP team.
 
-##Parts
+## Parts
 There are two foci of this project. Neither has precidence. Both are underway.
 **Inter-Nodal Communication** Increasing the security of communciations between nodes using modern multi-layer security techniques while providing expanded web-wide access to more kinds of nodes.
 **Using Memory Safe Languages** Moving the BEAM code and NIFs from C to Rust to encourage runtime stability and increase security.
