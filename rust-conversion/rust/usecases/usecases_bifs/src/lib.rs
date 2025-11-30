@@ -21,6 +21,8 @@ pub mod op;
 pub mod guard;
 pub mod lists;
 pub mod persistent;
+pub mod load;
+pub mod info;
 
 pub use regex::{RegexBif, CompiledRegex, MatchResult, Capture, RegexError as RegexErr};
 pub use checksum::ChecksumBif;
@@ -36,4 +38,6 @@ pub use op::{OpBif, OpError};
 pub use guard::{GuardBif, GuardError};
 pub use lists::{ListsBif, ListsError};
 pub use persistent::{PersistentBif, PersistentError};
+pub use load::{LoadBif, LoadError, ModuleStatus};
+pub use info::{InfoBif, InfoError};
 

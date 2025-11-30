@@ -58,7 +58,7 @@
   - ✅ usecases_memory_management (15 files, 107 functions)
   - ✅ usecases_process_management (6 files, 50 functions)
   - ✅ usecases_io_operations (2 files, 21 functions)
-  - ⚠️ usecases_bifs (13 files, 282 functions) - **9/13 files implemented (69%)**
+  - ⚠️ usecases_bifs (13 files, 282 functions) - **11/13 files implemented (85%)**
     - ✅ regex.rs (from erl_bif_re.c)
     - ✅ checksum.rs (from erl_bif_chksum.c)
     - ✅ trace.rs (from erl_bif_trace.c)
@@ -69,9 +69,9 @@
     - ✅ op.rs (from erl_bif_op.c) - **30 BIFs implemented (logical, comparison, type-checking operations)**
     - ✅ guard.rs (from erl_bif_guard.c) - **18 BIFs implemented (guard expressions, math, size, comparison)**
     - ✅ lists.rs (from erl_bif_lists.c) - **7 BIFs implemented (append, subtract, member, reverse, keyfind, keymember, keysearch)**
-    - ❌ Missing: persistent.rs (from erl_bif_persistent.c)
+    - ✅ persistent.rs (from erl_bif_persistent.c) - **7 BIFs implemented (put, get, erase, info)**
+    - ✅ load.rs (from beam_bif_load.c) - **19 BIFs implemented (delete_module, module_loaded, pre_loaded, loaded, finish_after_on_load, code_get_debug_info, erts_internal_check_process_code, erts_internal_purge_module, erts_internal_prepare_loading, finish_loading, has_prepared_code_on_load, check_old_code, erts_internal_beamfile_module_md5, erts_internal_beamfile_chunk, erts_internal_check_dirty_process_code, call_on_load_function, erts_literal_area_collector_send_copy_request, erts_literal_area_collector_release_area_switch)**
     - ❌ Missing: info.rs (from erl_bif_info.c)
-    - ❌ Missing: load.rs (from beam_bif_load.c)
   - ✅ usecases_nif_compilation (Rust NIF compilation and safe loading)
     - ✅ nif_compiler.rs
     - ✅ safe_rust_verifier.rs

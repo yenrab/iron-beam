@@ -2657,3 +2657,455 @@ fn test_persistent_bif_info_0_empty() {
         panic!("Expected Map");
     }
 }
+
+// ============================================================================
+// Code Loading BIF Integration Tests
+// ============================================================================
+
+#[test]
+fn test_load_bif_delete_module_1_workflow() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register a module
+    LoadBif::register_module("test_module", ModuleStatus::Loaded, false, false);
+    
+    // Verify it's loaded
+    let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom("test_module".to_string())).unwrap();
+    assert_eq!(loaded, ErlangTerm::Atom("true".to_string()));
+    
+    // Delete it
+    let result = LoadBif::delete_module_1(&ErlangTerm::Atom("test_module".to_string())).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    
+    // Verify it's gone
+    let loaded_after = LoadBif::module_loaded_1(&ErlangTerm::Atom("test_module".to_string())).unwrap();
+    assert_eq!(loaded_after, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_load_bif_loaded_0_workflow() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register some modules
+    LoadBif::register_module("module1", ModuleStatus::Loaded, false, false);
+    LoadBif::register_module("module2", ModuleStatus::Loaded, false, false);
+    
+    // Get all loaded modules
+    let loaded = LoadBif::loaded_0().unwrap();
+    if let ErlangTerm::List(list) = loaded {
+        assert!(list.len() >= 2);
+        assert!(list.contains(&ErlangTerm::Atom("module1".to_string())));
+        assert!(list.contains(&ErlangTerm::Atom("module2".to_string())));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_load_bif_pre_loaded_0_workflow() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register pre-loaded modules
+    LoadBif::register_module("preloaded1", ModuleStatus::PreLoaded, false, false);
+    LoadBif::mark_preloaded("preloaded1");
+    LoadBif::register_module("preloaded2", ModuleStatus::PreLoaded, false, false);
+    LoadBif::mark_preloaded("preloaded2");
+    
+    // Get pre-loaded modules
+    let preloaded = LoadBif::pre_loaded_0().unwrap();
+    if let ErlangTerm::List(list) = preloaded {
+        assert!(list.len() >= 2);
+        assert!(list.contains(&ErlangTerm::Atom("preloaded1".to_string())));
+        assert!(list.contains(&ErlangTerm::Atom("preloaded2".to_string())));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_load_bif_finish_after_on_load_2_workflow() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register module with on_load pending
+    LoadBif::register_module("onload_module", ModuleStatus::OnLoadPending, false, true);
+    
+    // Finish on_load with success
+    let result = LoadBif::finish_after_on_load_2(
+        &ErlangTerm::Atom("onload_module".to_string()),
+        &ErlangTerm::Atom("true".to_string()),
+    ).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+    
+    // Verify module is now loaded
+    let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom("onload_module".to_string())).unwrap();
+    assert_eq!(loaded, ErlangTerm::Atom("true".to_string()));
+}
+
+#[test]
+fn test_load_bif_code_get_debug_info_1_workflow() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    use std::collections::HashMap;
+    
+    LoadBif::clear_all();
+    
+    // Register module
+    LoadBif::register_module("debug_module", ModuleStatus::Loaded, false, false);
+    
+    // Set debug info
+    let debug_info = ErlangTerm::Map({
+        let mut map = HashMap::new();
+        map.insert(
+            ErlangTerm::Atom("source".to_string()),
+            ErlangTerm::Atom("test.erl".to_string()),
+        );
+        map.insert(
+            ErlangTerm::Atom("line".to_string()),
+            ErlangTerm::Integer(42),
+        );
+        map
+    });
+    LoadBif::set_debug_info("debug_module", debug_info.clone());
+    
+    // Get debug info
+    let result = LoadBif::code_get_debug_info_1(&ErlangTerm::Atom("debug_module".to_string())).unwrap();
+    assert_eq!(result, debug_info);
+}
+
+#[test]
+fn test_load_bif_delete_module_with_old_code() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register module with old code
+    LoadBif::register_module("old_module", ModuleStatus::Loaded, true, false);
+    
+    // Try to delete (should fail)
+    let result = LoadBif::delete_module_1(&ErlangTerm::Atom("old_module".to_string()));
+    assert!(result.is_err());
+    
+    // Purge old code
+    LoadBif::erts_internal_purge_module_2(
+        &ErlangTerm::Atom("old_module".to_string()),
+        &ErlangTerm::Atom("force".to_string()),
+    ).unwrap();
+    
+    // Now delete should succeed
+    let delete_result = LoadBif::delete_module_1(&ErlangTerm::Atom("old_module".to_string())).unwrap();
+    assert_eq!(delete_result, ErlangTerm::Atom("true".to_string()));
+}
+
+#[test]
+fn test_load_bif_finish_after_on_load_2_failure() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register module with on_load pending
+    LoadBif::register_module("failed_module", ModuleStatus::OnLoadPending, false, true);
+    
+    // Finish on_load with failure
+    let result = LoadBif::finish_after_on_load_2(
+        &ErlangTerm::Atom("failed_module".to_string()),
+        &ErlangTerm::Atom("false".to_string()),
+    ).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+    
+    // Verify module is removed
+    let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom("failed_module".to_string())).unwrap();
+    assert_eq!(loaded, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_load_bif_module_loaded_1_states() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Test Loaded status
+    LoadBif::register_module("loaded", ModuleStatus::Loaded, false, false);
+    let result = LoadBif::module_loaded_1(&ErlangTerm::Atom("loaded".to_string())).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    
+    // Test PreLoaded status
+    LoadBif::register_module("preloaded", ModuleStatus::PreLoaded, false, false);
+    let result = LoadBif::module_loaded_1(&ErlangTerm::Atom("preloaded".to_string())).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    
+    // Test OnLoadPending status
+    LoadBif::register_module("pending", ModuleStatus::OnLoadPending, false, true);
+    let result = LoadBif::module_loaded_1(&ErlangTerm::Atom("pending".to_string())).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_load_bif_code_get_debug_info_1_none() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register module without debug info
+    LoadBif::register_module("no_debug", ModuleStatus::Loaded, false, false);
+    
+    // Get debug info (should return "none")
+    let result = LoadBif::code_get_debug_info_1(&ErlangTerm::Atom("no_debug".to_string())).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("none".to_string()));
+}
+
+#[test]
+fn test_load_bif_loaded_0_empty() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    
+    LoadBif::clear_all();
+    
+    let result = LoadBif::loaded_0().unwrap();
+    if let ErlangTerm::List(list) = result {
+        assert_eq!(list.len(), 0);
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_load_bif_pre_loaded_0_empty() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    
+    LoadBif::clear_all();
+    
+    let result = LoadBif::pre_loaded_0().unwrap();
+    if let ErlangTerm::List(list) = result {
+        assert_eq!(list.len(), 0);
+    } else {
+        panic!("Expected List");
+    }
+}
+
+// ============================================================================
+// Code Loading BIF Integration Tests - Full Implementation
+// ============================================================================
+
+#[test]
+fn test_load_bif_prepare_loading_workflow() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // Prepare code for loading
+    let code = vec![0x00, 0x01, 0x02, 0x03];
+    let prepared_ref = LoadBif::erts_internal_prepare_loading_2(
+        &ErlangTerm::Atom("test_module".to_string()),
+        &ErlangTerm::Binary(code),
+    ).unwrap();
+    
+    // Check if it has on_load
+    let has_on_load = LoadBif::has_prepared_code_on_load_1(&prepared_ref).unwrap();
+    assert_eq!(has_on_load, ErlangTerm::Atom("false".to_string()));
+    
+    // Finish loading
+    let result = LoadBif::finish_loading_1(&ErlangTerm::List(vec![prepared_ref])).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+    
+    // Verify module is loaded
+    let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom("test_module".to_string())).unwrap();
+    assert_eq!(loaded, ErlangTerm::Atom("true".to_string()));
+}
+
+#[test]
+fn test_load_bif_check_old_code_workflow() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    use usecases_bifs::load::ModuleStatus;
+    
+    LoadBif::clear_all();
+    
+    // Register module with old code
+    LoadBif::register_module("old_module", ModuleStatus::Loaded, true, false);
+    
+    // Check for old code
+    let has_old = LoadBif::check_old_code_1(&ErlangTerm::Atom("old_module".to_string())).unwrap();
+    assert_eq!(has_old, ErlangTerm::Atom("true".to_string()));
+    
+    // Purge old code
+    LoadBif::erts_internal_purge_module_2(
+        &ErlangTerm::Atom("old_module".to_string()),
+        &ErlangTerm::Atom("force".to_string()),
+    ).unwrap();
+    
+    // Check again - should be false now
+    let has_old_after = LoadBif::check_old_code_1(&ErlangTerm::Atom("old_module".to_string())).unwrap();
+    assert_eq!(has_old_after, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_load_bif_beamfile_md5_workflow() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // Get MD5 of BEAM file
+    let code = vec![0xBE, 0x41, 0x4D, 0x01, 0x00, 0x02, 0x03];
+    let md5 = LoadBif::erts_internal_beamfile_module_md5_1(&ErlangTerm::Binary(code)).unwrap();
+    
+    // Should return a binary
+    assert!(matches!(md5, ErlangTerm::Binary(_)));
+}
+
+#[test]
+fn test_load_bif_beamfile_chunk_workflow() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // Extract chunk from BEAM file
+    let code = vec![0x00, 0x01, 0xBE, 0x41, 0x4D, 0x01, 0x00, 0x02, 0x03];
+    let chunk_id = ErlangTerm::List(vec![
+        ErlangTerm::Integer(0xBE),
+        ErlangTerm::Integer(0x41),
+        ErlangTerm::Integer(0x4D),
+        ErlangTerm::Integer(0x01),
+    ]);
+    
+    let chunk = LoadBif::erts_internal_beamfile_chunk_2(&ErlangTerm::Binary(code), &chunk_id).unwrap();
+    
+    // Should return a binary (chunk data) or undefined
+    assert!(matches!(chunk, ErlangTerm::Binary(_) | ErlangTerm::Atom(_)));
+}
+
+#[test]
+fn test_load_bif_prepare_loading_with_on_load() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // Prepare code with on_load (code starting with 0xBE indicates on_load)
+    let code = vec![0xBE, 0x41, 0x4D, 0x01, 0x00];
+    let prepared_ref = LoadBif::erts_internal_prepare_loading_2(
+        &ErlangTerm::Atom("onload_module".to_string()),
+        &ErlangTerm::Binary(code),
+    ).unwrap();
+    
+    // Check if it has on_load
+    let has_on_load = LoadBif::has_prepared_code_on_load_1(&prepared_ref).unwrap();
+    assert_eq!(has_on_load, ErlangTerm::Atom("true".to_string()));
+    
+    // Finish loading
+    let result = LoadBif::finish_loading_1(&ErlangTerm::List(vec![prepared_ref])).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+    
+    // Verify module is in OnLoadPending state
+    let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom("onload_module".to_string())).unwrap();
+    assert_eq!(loaded, ErlangTerm::Atom("false".to_string())); // Not fully loaded yet
+}
+
+#[test]
+fn test_load_bif_finish_loading_multiple_modules() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // Prepare multiple modules
+    let code1 = vec![0x00, 0x01, 0x02];
+    let ref1 = LoadBif::erts_internal_prepare_loading_2(
+        &ErlangTerm::Atom("module1".to_string()),
+        &ErlangTerm::Binary(code1),
+    ).unwrap();
+    
+    let code2 = vec![0x03, 0x04, 0x05];
+    let ref2 = LoadBif::erts_internal_prepare_loading_2(
+        &ErlangTerm::Atom("module2".to_string()),
+        &ErlangTerm::Binary(code2),
+    ).unwrap();
+    
+    // Finish loading both
+    let result = LoadBif::finish_loading_1(&ErlangTerm::List(vec![ref1, ref2])).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+    
+    // Verify both are loaded
+    let loaded1 = LoadBif::module_loaded_1(&ErlangTerm::Atom("module1".to_string())).unwrap();
+    let loaded2 = LoadBif::module_loaded_1(&ErlangTerm::Atom("module2".to_string())).unwrap();
+    assert_eq!(loaded1, ErlangTerm::Atom("true".to_string()));
+    assert_eq!(loaded2, ErlangTerm::Atom("true".to_string()));
+}
+
+#[test]
+fn test_load_bif_literal_area_collector_workflow() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // Test literal area collector operations
+    let result1 = LoadBif::erts_literal_area_collector_send_copy_request_3(
+        &ErlangTerm::Pid(123),
+        &ErlangTerm::Integer(456),
+        &ErlangTerm::Atom("init".to_string()),
+    ).unwrap();
+    assert_eq!(result1, ErlangTerm::Atom("ok".to_string()));
+    
+    let result2 = LoadBif::erts_literal_area_collector_release_area_switch_0().unwrap();
+    assert_eq!(result2, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_load_bif_check_dirty_process_code() {
+    use usecases_bifs::load::LoadBif;
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // Check dirty process code (simplified - always returns false)
+    let result = LoadBif::erts_internal_check_dirty_process_code_2(
+        &ErlangTerm::Pid(123),
+        &ErlangTerm::Atom("test_module".to_string()),
+    ).unwrap();
+    
+    assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_load_bif_call_on_load_function_not_supported() {
+    use usecases_bifs::load::{LoadBif, LoadError};
+    use usecases_bifs::op::ErlangTerm;
+    
+    LoadBif::clear_all();
+    
+    // call_on_load_function is not supported as a BIF
+    let result = LoadBif::call_on_load_function_1(&ErlangTerm::Atom("test_module".to_string()));
+    assert!(result.is_err());
+    if let Err(LoadError::NotSupported(_)) = result {
+        // Expected
+    } else {
+        panic!("Expected NotSupported error");
+    }
+}

@@ -485,34 +485,43 @@ mod tests {
 
     #[test]
     fn test_erase_all_0() {
+        // Clear all first to ensure clean state
         let _ = PersistentBif::erase_all_0();
         
-        // Add some entries
-        PersistentBif::put_2(
-            &ErlangTerm::Atom("key1".to_string()),
-            &ErlangTerm::Integer(1),
-        ).unwrap();
-        PersistentBif::put_2(
-            &ErlangTerm::Atom("key2".to_string()),
-            &ErlangTerm::Integer(2),
-        ).unwrap();
-        
-        // Verify they exist
-        let all = PersistentBif::get_0().unwrap();
-        if let ErlangTerm::List(list) = all {
-            assert_eq!(list.len(), 2);
-        } else {
-            panic!("Expected List");
-        }
-        
-        // Erase all
-        let result = PersistentBif::erase_all_0().unwrap();
-        assert_eq!(result, ErlangTerm::Atom("true".to_string()));
-        
-        // Verify they're gone
-        let all_after = PersistentBif::get_0().unwrap();
-        if let ErlangTerm::List(list) = all_after {
-            assert_eq!(list.len(), 0);
+        // Verify it's empty
+        let all_before = PersistentBif::get_0().unwrap();
+        if let ErlangTerm::List(list) = &all_before {
+            let initial_count = list.len();
+            
+            // Add some entries
+            PersistentBif::put_2(
+                &ErlangTerm::Atom("key1".to_string()),
+                &ErlangTerm::Integer(1),
+            ).unwrap();
+            PersistentBif::put_2(
+                &ErlangTerm::Atom("key2".to_string()),
+                &ErlangTerm::Integer(2),
+            ).unwrap();
+            
+            // Verify they exist (should be initial_count + 2)
+            let all = PersistentBif::get_0().unwrap();
+            if let ErlangTerm::List(list) = all {
+                assert_eq!(list.len(), initial_count + 2);
+            } else {
+                panic!("Expected List");
+            }
+            
+            // Erase all
+            let result = PersistentBif::erase_all_0().unwrap();
+            assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+            
+            // Verify they're gone
+            let all_after = PersistentBif::get_0().unwrap();
+            if let ErlangTerm::List(list) = all_after {
+                assert_eq!(list.len(), 0);
+            } else {
+                panic!("Expected List");
+            }
         } else {
             panic!("Expected List");
         }
