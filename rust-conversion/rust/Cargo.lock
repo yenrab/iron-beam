@@ -2376,6 +2376,8 @@ name = "usecases_process_management"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
+ "entities_utilities",
+ "infrastructure_utilities",
 ]
 
 [[package]]

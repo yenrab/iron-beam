@@ -40,6 +40,19 @@ pub enum ModuleStatus {
     OnLoadPending,
 }
 
+/// Module metadata for information queries
+#[derive(Debug, Clone)]
+pub struct ModuleMetadata {
+    /// MD5 checksum of the module code
+    pub md5: Option<Vec<u8>>,
+    /// Module exports (list of {Function, Arity} tuples)
+    pub exports: Vec<ErlangTerm>,
+    /// Module attributes (list of attribute tuples)
+    pub attributes: Vec<ErlangTerm>,
+    /// Compile information (list of compile option tuples)
+    pub compile: Vec<ErlangTerm>,
+}
+
 /// Module registry entry
 #[derive(Debug, Clone)]
 struct ModuleEntry {
@@ -53,7 +66,16 @@ struct ModuleEntry {
     has_on_load: bool,
     /// Debug info (if available)
     debug_info: Option<ErlangTerm>,
+    /// MD5 checksum of the module code
+    md5: Option<Vec<u8>>,
+    /// Module exports (list of {Function, Arity} tuples)
+    exports: Vec<ErlangTerm>,
+    /// Module attributes (list of attribute tuples)
+    attributes: Vec<ErlangTerm>,
+    /// Compile information (list of compile option tuples)
+    compile: Vec<ErlangTerm>,
 }
+
 
 /// Prepared code state
 ///
@@ -99,11 +121,9 @@ impl PreparedCode {
     }
 
     fn compute_md5(&mut self) {
-        use std::collections::hash_map::DefaultHasher;
-        let mut hasher = DefaultHasher::new();
-        self.code.hash(&mut hasher);
-        let hash = hasher.finish();
-        self.md5 = Some(hash.to_be_bytes().to_vec());
+        use crate::checksum::ChecksumBif;
+        let md5_hash = ChecksumBif::md5(&self.code);
+        self.md5 = Some(md5_hash.to_vec());
     }
 }
 
@@ -750,6 +770,9 @@ impl LoadBif {
                     ModuleStatus::Loaded
                 };
 
+                // Get MD5 from prepared code (ensure it's computed)
+                let md5 = prepared.md5.clone();
+                
                 modules.insert(
                     prepared.module.clone(),
                     ModuleEntry {
@@ -758,6 +781,10 @@ impl LoadBif {
                         has_old_code: false,
                         has_on_load: prepared.has_on_load,
                         debug_info: None,
+                        md5,
+                        exports: vec![], // TODO: Parse from BEAM file
+                        attributes: vec![], // TODO: Parse from BEAM file
+                        compile: vec![], // TODO: Parse from BEAM file
                     },
                 );
                     loaded_modules.push(prepared.module);
@@ -850,15 +877,11 @@ impl LoadBif {
             return Ok(ErlangTerm::Atom("undefined".to_string()));
         }
 
-        // Simplified MD5: Use a hash of the code
-        // In real implementation, this would parse the BEAM file
-        use std::collections::hash_map::DefaultHasher;
-        let mut hasher = DefaultHasher::new();
-        code_bytes.hash(&mut hasher);
-        let hash = hasher.finish();
-        let md5_bytes = hash.to_be_bytes().to_vec();
-
-        Ok(ErlangTerm::Binary(md5_bytes))
+        // Use proper MD5 from checksum module
+        // In real implementation, this would parse the BEAM file to get the actual MD5
+        use crate::checksum::ChecksumBif;
+        let md5_hash = ChecksumBif::md5(&code_bytes);
+        Ok(ErlangTerm::Binary(md5_hash.to_vec()))
     }
 
     /// Extract chunk from BEAM file (erts_internal_beamfile_chunk/2)
@@ -1051,6 +1074,10 @@ impl LoadBif {
                 has_old_code,
                 has_on_load,
                 debug_info: None,
+                md5: None,
+                exports: vec![],
+                attributes: vec![],
+                compile: vec![],
             },
         );
     }
@@ -1060,6 +1087,18 @@ impl LoadBif {
         let registry = ModuleRegistry::get_instance();
         let mut preloaded = registry.preloaded.write().unwrap();
         preloaded.insert(name.to_string());
+    }
+
+    /// Get module metadata (for info module)
+    pub fn get_module_metadata(module_name: &str) -> Option<ModuleMetadata> {
+        let registry = ModuleRegistry::get_instance();
+        let modules = registry.modules.read().unwrap();
+        modules.get(module_name).map(|entry| ModuleMetadata {
+            md5: entry.md5.clone(),
+            exports: entry.exports.clone(),
+            attributes: entry.attributes.clone(),
+            compile: entry.compile.clone(),
+        })
     }
 
     /// Helper: Set debug info for a module (for testing)

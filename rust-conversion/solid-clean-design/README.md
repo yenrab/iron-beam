@@ -25,7 +25,7 @@ The codebase has been organized into **CLEAN Architecture layers** with unidirec
 
 3. **Use Cases Layer** (4 groups)
    - Business logic, algorithms, operations
-   - Dependencies: Entities, Infrastructure
+   - Dependencies: Entities, Infrastructure (correct dependency flow: Use Cases depends on Infrastructure)
 
 4. **Entities Layer** (6 groups)
    - Core data structures, types, constants
@@ -33,7 +33,7 @@ The codebase has been organized into **CLEAN Architecture layers** with unidirec
 
 5. **Infrastructure Layer** (6 groups)
    - Utilities, helpers, common code
-   - Dependencies: Entities, Use Cases
+   - Dependencies: Entities (Infrastructure does NOT depend on Use Cases - dependencies flow inward)
 
 6. **Code Management Layer** (1 group)
    - Module loading, code organization

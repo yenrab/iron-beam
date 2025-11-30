@@ -6,7 +6,7 @@
 //! - Process dictionaries
 //!
 //! Based on erl_process_lock.c, erl_process_dump.c, erl_process_dict.c
-//! Depends on Entities layer.
+//! Depends on Entities and Infrastructure layers (process table/registry).
 
 pub mod process_lock;
 pub mod process_dump;

@@ -298,22 +298,19 @@ impl InfoBif {
             }
         };
 
-        // Check if module is loaded using the load module
+        // Check if module is loaded and get its metadata
         use crate::load::LoadBif;
-        let is_loaded = LoadBif::module_loaded_1(module)
-            .map_err(|e| InfoError::BadArgument(format!("Failed to check module: {:?}", e)))?;
-        
-        if let ErlangTerm::Atom(ref status) = is_loaded {
-            if status != "true" {
-                return Err(InfoError::ModuleNotFound(format!(
-                    "Module {} not found",
-                    module_name
-                )));
-            }
-        }
+        let metadata = LoadBif::get_module_metadata(&module_name)
+            .ok_or_else(|| InfoError::ModuleNotFound(format!(
+                "Module {} not found",
+                module_name
+            )))?;
 
-        // Simplified: return basic module information
-        // In a full implementation, this would query actual module metadata
+        // Get module metadata from the registry
+        let md5_binary = metadata.md5
+            .map(|md5| ErlangTerm::Binary(md5))
+            .unwrap_or_else(|| ErlangTerm::Binary(vec![0; 16]));
+
         let info = vec![
             ErlangTerm::Tuple(vec![
                 ErlangTerm::Atom("module".to_string()),
@@ -321,19 +318,19 @@ impl InfoBif {
             ]),
             ErlangTerm::Tuple(vec![
                 ErlangTerm::Atom("exports".to_string()),
-                ErlangTerm::List(vec![]),
+                ErlangTerm::List(metadata.exports),
             ]),
             ErlangTerm::Tuple(vec![
                 ErlangTerm::Atom("attributes".to_string()),
-                ErlangTerm::List(vec![]),
+                ErlangTerm::List(metadata.attributes),
             ]),
             ErlangTerm::Tuple(vec![
                 ErlangTerm::Atom("compile".to_string()),
-                ErlangTerm::List(vec![]),
+                ErlangTerm::List(metadata.compile),
             ]),
             ErlangTerm::Tuple(vec![
                 ErlangTerm::Atom("md5".to_string()),
-                ErlangTerm::Binary(vec![0; 16]),
+                md5_binary,
             ]),
         ];
 
@@ -385,27 +382,26 @@ impl InfoBif {
             }
         };
 
-        // Check if module is loaded
+        // Check if module is loaded and get its metadata
         use crate::load::LoadBif;
-        let is_loaded = LoadBif::module_loaded_1(module)
-            .map_err(|e| InfoError::BadArgument(format!("Failed to check module: {:?}", e)))?;
-        
-        if let ErlangTerm::Atom(ref status) = is_loaded {
-            if status != "true" {
-                return Err(InfoError::ModuleNotFound(format!(
-                    "Module {} not found",
-                    module_name
-                )));
-            }
-        }
+        let metadata = LoadBif::get_module_metadata(&module_name)
+            .ok_or_else(|| InfoError::ModuleNotFound(format!(
+                "Module {} not found",
+                module_name
+            )))?;
 
-        // Return specific module information
+        // Return specific module information from actual metadata
         match item_str.as_str() {
             "module" => Ok(ErlangTerm::Atom(module_name)),
-            "exports" => Ok(ErlangTerm::List(vec![])),
-            "attributes" => Ok(ErlangTerm::List(vec![])),
-            "compile" => Ok(ErlangTerm::List(vec![])),
-            "md5" => Ok(ErlangTerm::Binary(vec![0; 16])),
+            "exports" => Ok(ErlangTerm::List(metadata.exports)),
+            "attributes" => Ok(ErlangTerm::List(metadata.attributes)),
+            "compile" => Ok(ErlangTerm::List(metadata.compile)),
+            "md5" => {
+                let md5_binary = metadata.md5
+                    .map(|md5| ErlangTerm::Binary(md5))
+                    .unwrap_or_else(|| ErlangTerm::Binary(vec![0; 16]));
+                Ok(md5_binary)
+            }
             _ => Err(InfoError::BadArgument(format!(
                 "Unknown module info item: {}",
                 item_str
@@ -963,6 +959,39 @@ mod tests {
             &ErlangTerm::Atom("arity".to_string()),
         ).unwrap();
         assert_eq!(result, ErlangTerm::Integer(255));
+    }
+
+    #[test]
+    fn test_get_module_info_2_md5_from_prepared_code() {
+        // Test that MD5 is stored when module is loaded via finish_loading
+        use crate::load::LoadBif;
+        LoadBif::clear_all();
+
+        // Prepare code with MD5
+        let code = vec![0xBE, 0x00, 0x01, 0x02, 0x03];
+        let prepared_ref = LoadBif::erts_internal_prepare_loading_2(
+            &ErlangTerm::Atom("test_module".to_string()),
+            &ErlangTerm::Binary(code),
+        ).unwrap();
+
+        // Finish loading to store MD5
+        let result = LoadBif::finish_loading_1(&ErlangTerm::List(vec![prepared_ref])).unwrap();
+        assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+
+        // Get module info and verify MD5 is not all zeros
+        let md5_result = InfoBif::get_module_info_2(
+            &ErlangTerm::Atom("test_module".to_string()),
+            &ErlangTerm::Atom("md5".to_string()),
+        ).unwrap();
+
+        if let ErlangTerm::Binary(md5) = md5_result {
+            assert_eq!(md5.len(), 16);
+            // MD5 should not be all zeros (it should be computed from the code)
+            let all_zeros = md5.iter().all(|&b| b == 0);
+            assert!(!all_zeros, "MD5 should be computed from code, not all zeros");
+        } else {
+            panic!("Expected Binary for MD5");
+        }
     }
 }
 
