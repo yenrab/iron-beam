@@ -3,9 +3,34 @@
 //! Provides persistent term storage - a global key-value store that survives
 //! process restarts. Optimized for frequent reads and infrequent writes.
 //!
-//! Based on erl_bif_persistent.c
-//!
 //! This module implements safe Rust equivalents of Erlang persistent term BIFs.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use crate::op::ErlangTerm;
 use std::collections::HashMap;
@@ -70,9 +95,23 @@ impl PersistentBif {
     /// use usecases_bifs::persistent::PersistentBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Store a simple key-value pair
     /// let key = ErlangTerm::Atom("my_key".to_string());
     /// let value = ErlangTerm::Integer(42);
     /// let result = PersistentBif::put_2(&key, &value).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+    ///
+    /// // Update an existing key
+    /// let new_value = ErlangTerm::Integer(100);
+    /// let result = PersistentBif::put_2(&key, &new_value).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
+    ///
+    /// // Store with different key types
+    /// let tuple_key = ErlangTerm::Tuple(vec![
+    ///     ErlangTerm::Atom("module".to_string()),
+    ///     ErlangTerm::Atom("name".to_string()),
+    /// ]);
+    /// let result = PersistentBif::put_2(&tuple_key, &ErlangTerm::Integer(1)).unwrap();
     /// assert_eq!(result, ErlangTerm::Atom("ok".to_string()));
     /// ```
     pub fn put_2(key: &ErlangTerm, value: &ErlangTerm) -> Result<ErlangTerm, PersistentError> {
@@ -105,14 +144,29 @@ impl PersistentBif {
     /// use usecases_bifs::persistent::PersistentBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
-    /// // Store some terms
+    /// // Clear storage and store some terms
+    /// PersistentBif::erase_all_0().unwrap();
     /// PersistentBif::put_2(
     ///     &ErlangTerm::Atom("key1".to_string()),
     ///     &ErlangTerm::Integer(1),
     /// ).unwrap();
+    /// PersistentBif::put_2(
+    ///     &ErlangTerm::Atom("key2".to_string()),
+    ///     &ErlangTerm::Integer(2),
+    /// ).unwrap();
     ///
+    /// // Get all stored terms
     /// let all = PersistentBif::get_0().unwrap();
-    /// // Returns: [{key1, 1}, ...]
+    /// if let ErlangTerm::List(items) = all {
+    ///     assert!(items.len() >= 2);
+    /// }
+    ///
+    /// // Get all from empty storage
+    /// PersistentBif::erase_all_0().unwrap();
+    /// let empty = PersistentBif::get_0().unwrap();
+    /// if let ErlangTerm::List(items) = empty {
+    ///     assert_eq!(items.len(), 0);
+    /// }
     /// ```
     pub fn get_0() -> Result<ErlangTerm, PersistentError> {
         let storage = PersistentStorage::get_instance();
@@ -145,13 +199,25 @@ impl PersistentBif {
     /// use usecases_bifs::persistent::PersistentBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Get existing key
     /// PersistentBif::put_2(
     ///     &ErlangTerm::Atom("my_key".to_string()),
     ///     &ErlangTerm::Integer(42),
     /// ).unwrap();
-    ///
     /// let value = PersistentBif::get_1(&ErlangTerm::Atom("my_key".to_string())).unwrap();
     /// assert_eq!(value, ErlangTerm::Integer(42));
+    ///
+    /// // Get non-existent key (returns error)
+    /// let result = PersistentBif::get_1(&ErlangTerm::Atom("nonexistent".to_string()));
+    /// assert!(result.is_err());
+    ///
+    /// // Get with different value types
+    /// PersistentBif::put_2(
+    ///     &ErlangTerm::Atom("string_key".to_string()),
+    ///     &ErlangTerm::List(vec![ErlangTerm::Integer(1), ErlangTerm::Integer(2)]),
+    /// ).unwrap();
+    /// let list_value = PersistentBif::get_1(&ErlangTerm::Atom("string_key".to_string())).unwrap();
+    /// assert!(matches!(list_value, ErlangTerm::List(_)));
     /// ```
     pub fn get_1(key: &ErlangTerm) -> Result<ErlangTerm, PersistentError> {
         let storage = PersistentStorage::get_instance();
@@ -180,11 +246,30 @@ impl PersistentBif {
     /// use usecases_bifs::persistent::PersistentBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Get non-existent key with default
     /// let value = PersistentBif::get_2(
     ///     &ErlangTerm::Atom("nonexistent".to_string()),
     ///     &ErlangTerm::Integer(0),
     /// ).unwrap();
     /// assert_eq!(value, ErlangTerm::Integer(0));
+    ///
+    /// // Get existing key (returns actual value, not default)
+    /// PersistentBif::put_2(
+    ///     &ErlangTerm::Atom("existing".to_string()),
+    ///     &ErlangTerm::Integer(100),
+    /// ).unwrap();
+    /// let value = PersistentBif::get_2(
+    ///     &ErlangTerm::Atom("existing".to_string()),
+    ///     &ErlangTerm::Integer(0),
+    /// ).unwrap();
+    /// assert_eq!(value, ErlangTerm::Integer(100));
+    ///
+    /// // Get with different default types
+    /// let value = PersistentBif::get_2(
+    ///     &ErlangTerm::Atom("missing".to_string()),
+    ///     &ErlangTerm::Atom("default".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(value, ErlangTerm::Atom("default".to_string()));
     /// ```
     pub fn get_2(key: &ErlangTerm, default: &ErlangTerm) -> Result<ErlangTerm, PersistentError> {
         let storage = PersistentStorage::get_instance();
@@ -212,13 +297,25 @@ impl PersistentBif {
     /// use usecases_bifs::persistent::PersistentBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Erase existing key
     /// PersistentBif::put_2(
     ///     &ErlangTerm::Atom("my_key".to_string()),
     ///     &ErlangTerm::Integer(42),
     /// ).unwrap();
-    ///
     /// let result = PersistentBif::erase_1(&ErlangTerm::Atom("my_key".to_string())).unwrap();
     /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Erase non-existent key
+    /// let result = PersistentBif::erase_1(&ErlangTerm::Atom("nonexistent".to_string())).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Erase and verify it's gone
+    /// PersistentBif::put_2(
+    ///     &ErlangTerm::Atom("temp".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    /// ).unwrap();
+    /// PersistentBif::erase_1(&ErlangTerm::Atom("temp".to_string())).unwrap();
+    /// assert!(PersistentBif::get_1(&ErlangTerm::Atom("temp".to_string())).is_err());
     /// ```
     pub fn erase_1(key: &ErlangTerm) -> Result<ErlangTerm, PersistentError> {
         let storage = PersistentStorage::get_instance();
@@ -243,11 +340,25 @@ impl PersistentBif {
     /// use usecases_bifs::persistent::PersistentBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Erase all from populated storage
     /// PersistentBif::put_2(
     ///     &ErlangTerm::Atom("key1".to_string()),
     ///     &ErlangTerm::Integer(1),
     /// ).unwrap();
+    /// PersistentBif::put_2(
+    ///     &ErlangTerm::Atom("key2".to_string()),
+    ///     &ErlangTerm::Integer(2),
+    /// ).unwrap();
+    /// let result = PersistentBif::erase_all_0().unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
     ///
+    /// // Verify all are erased
+    /// let all = PersistentBif::get_0().unwrap();
+    /// if let ErlangTerm::List(items) = all {
+    ///     assert_eq!(items.len(), 0);
+    /// }
+    ///
+    /// // Erase all from empty storage
     /// let result = PersistentBif::erase_all_0().unwrap();
     /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
     /// ```
@@ -274,13 +385,27 @@ impl PersistentBif {
     /// use usecases_bifs::persistent::PersistentBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Get info from empty storage
+    /// PersistentBif::erase_all_0().unwrap();
+    /// let info = PersistentBif::info_0().unwrap();
+    /// // info contains count: 0
+    ///
+    /// // Get info from populated storage
     /// PersistentBif::put_2(
     ///     &ErlangTerm::Atom("key1".to_string()),
     ///     &ErlangTerm::Integer(1),
     /// ).unwrap();
-    ///
+    /// PersistentBif::put_2(
+    ///     &ErlangTerm::Atom("key2".to_string()),
+    ///     &ErlangTerm::Integer(2),
+    /// ).unwrap();
     /// let info = PersistentBif::info_0().unwrap();
-    /// // Returns a map with count and memory information
+    /// // info contains count: 2 and memory information
+    ///
+    /// // Get info after modifications
+    /// PersistentBif::erase_1(&ErlangTerm::Atom("key1".to_string())).unwrap();
+    /// let info_after = PersistentBif::info_0().unwrap();
+    /// // info_after contains updated count
     /// ```
     pub fn info_0() -> Result<ErlangTerm, PersistentError> {
         let storage = PersistentStorage::get_instance();

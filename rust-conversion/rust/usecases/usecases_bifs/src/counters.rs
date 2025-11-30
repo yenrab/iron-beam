@@ -4,9 +4,34 @@
 //! Each counter consists of multiple atomic instances (one per scheduler + base value)
 //! to allow concurrent writes without contention.
 //!
-//! Based on erl_bif_counters.c
-//!
 //! This module uses safe Rust atomic operations instead of unsafe FFI calls.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
@@ -36,6 +61,22 @@ impl CounterRef {
     /// # Returns
     /// * `Ok(CounterRef)` if successful
     /// * `Err(CountersError)` if count is invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CounterRef;
+    ///
+    /// // Create a counter array with 10 counters
+    /// let counters = CounterRef::new(10).unwrap();
+    /// assert_eq!(counters.arity(), 10);
+    ///
+    /// // Create a single counter
+    /// let single = CounterRef::new(1).unwrap();
+    /// assert_eq!(single.arity(), 1);
+    ///
+    /// // Invalid: zero counters
+    /// assert!(CounterRef::new(0).is_err());
+    /// ```
     pub fn new(count: usize) -> Result<Self, CountersError> {
         if count == 0 {
             return Err(CountersError::InvalidArgument(
@@ -79,6 +120,25 @@ impl CounterRef {
     /// # Returns
     /// * `Ok(i64)` - The counter value
     /// * `Err(CountersError)` - If index is invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CounterRef;
+    ///
+    /// // Get initial value (should be 0)
+    /// let counters = CounterRef::new(5).unwrap();
+    /// assert_eq!(counters.get(1).unwrap(), 0);
+    ///
+    /// // Get value after setting
+    /// let counters = CounterRef::new(3).unwrap();
+    /// counters.put(2, 42).unwrap();
+    /// assert_eq!(counters.get(2).unwrap(), 42);
+    ///
+    /// // Get value after adding
+    /// let counters = CounterRef::new(3).unwrap();
+    /// counters.add(1, 10).unwrap();
+    /// assert_eq!(counters.get(1).unwrap(), 10);
+    /// ```
     pub fn get(&self, index: usize) -> Result<i64, CountersError> {
         if index == 0 || index > self.arity {
             return Err(CountersError::InvalidArgument(format!(
@@ -104,6 +164,30 @@ impl CounterRef {
     /// # Returns
     /// * `Ok(i64)` - The new counter value after addition
     /// * `Err(CountersError)` - If index is invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CounterRef;
+    ///
+    /// // Add positive value
+    /// let counters = CounterRef::new(3).unwrap();
+    /// let new_value = counters.add(1, 5).unwrap();
+    /// assert_eq!(new_value, 5);
+    /// assert_eq!(counters.get(1).unwrap(), 5);
+    ///
+    /// // Add negative value (decrement)
+    /// let counters = CounterRef::new(3).unwrap();
+    /// counters.put(2, 10).unwrap();
+    /// let new_value = counters.add(2, -3).unwrap();
+    /// assert_eq!(new_value, 7);
+    ///
+    /// // Multiple additions
+    /// let counters = CounterRef::new(2).unwrap();
+    /// counters.add(1, 1).unwrap();
+    /// counters.add(1, 2).unwrap();
+    /// counters.add(1, 3).unwrap();
+    /// assert_eq!(counters.get(1).unwrap(), 6);
+    /// ```
     pub fn add(&self, index: usize, increment: i64) -> Result<i64, CountersError> {
         if index == 0 || index > self.arity {
             return Err(CountersError::InvalidArgument(format!(
@@ -129,6 +213,30 @@ impl CounterRef {
     /// # Returns
     /// * `Ok(())` - If successful
     /// * `Err(CountersError)` - If index is invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CounterRef;
+    ///
+    /// // Set a counter value
+    /// let counters = CounterRef::new(3).unwrap();
+    /// counters.put(1, 42).unwrap();
+    /// assert_eq!(counters.get(1).unwrap(), 42);
+    ///
+    /// // Set multiple counters
+    /// let counters = CounterRef::new(5).unwrap();
+    /// counters.put(1, 10).unwrap();
+    /// counters.put(2, 20).unwrap();
+    /// counters.put(3, 30).unwrap();
+    /// assert_eq!(counters.get(1).unwrap(), 10);
+    /// assert_eq!(counters.get(2).unwrap(), 20);
+    /// assert_eq!(counters.get(3).unwrap(), 30);
+    ///
+    /// // Set negative value
+    /// let counters = CounterRef::new(2).unwrap();
+    /// counters.put(1, -100).unwrap();
+    /// assert_eq!(counters.get(1).unwrap(), -100);
+    /// ```
     pub fn put(&self, index: usize, value: i64) -> Result<(), CountersError> {
         if index == 0 || index > self.arity {
             return Err(CountersError::InvalidArgument(format!(
@@ -151,6 +259,28 @@ impl CounterRef {
     ///
     /// # Returns
     /// Counter information as a map
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CounterRef;
+    ///
+    /// // Get info for small counter array
+    /// let counters = CounterRef::new(5).unwrap();
+    /// let info = counters.info();
+    /// assert_eq!(info.size, 5);
+    /// assert!(info.memory > 0);
+    ///
+    /// // Get info for larger counter array
+    /// let counters = CounterRef::new(100).unwrap();
+    /// let info = counters.info();
+    /// assert_eq!(info.size, 100);
+    /// assert!(info.memory > 0);
+    ///
+    /// // Get info for single counter
+    /// let counters = CounterRef::new(1).unwrap();
+    /// let info = counters.info();
+    /// assert_eq!(info.size, 1);
+    /// ```
     pub fn info(&self) -> CounterInfo {
         CounterInfo {
             size: self.arity,
@@ -188,10 +318,20 @@ impl CountersBif {
     /// * `Ok(CounterRef)` - New counter reference
     /// * `Err(CountersError)` - If creation fails
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::counters::CountersBif;
+    ///
+    /// // Create a counter array with 10 counters
     /// let counters = CountersBif::new(10).unwrap();
+    /// assert_eq!(counters.arity(), 10);
+    ///
+    /// // Create a single counter
+    /// let single = CountersBif::new(1).unwrap();
+    /// assert_eq!(single.arity(), 1);
+    ///
+    /// // Invalid: zero counters
+    /// assert!(CountersBif::new(0).is_err());
     /// ```
     pub fn new(count: usize) -> Result<CounterRef, CountersError> {
         CounterRef::new(count)
@@ -208,6 +348,25 @@ impl CountersBif {
     /// # Returns
     /// * `Ok(i64)` - Counter value
     /// * `Err(CountersError)` - If index is invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::{CountersBif, CounterRef};
+    ///
+    /// // Get initial value
+    /// let counters = CountersBif::new(3).unwrap();
+    /// assert_eq!(CountersBif::get(&counters, 1).unwrap(), 0);
+    ///
+    /// // Get value after setting
+    /// let counters = CountersBif::new(3).unwrap();
+    /// CountersBif::put(&counters, 2, 100).unwrap();
+    /// assert_eq!(CountersBif::get(&counters, 2).unwrap(), 100);
+    ///
+    /// // Get value after adding
+    /// let counters = CountersBif::new(2).unwrap();
+    /// CountersBif::add(&counters, 1, 25).unwrap();
+    /// assert_eq!(CountersBif::get(&counters, 1).unwrap(), 25);
+    /// ```
     pub fn get(counter_ref: &CounterRef, index: usize) -> Result<i64, CountersError> {
         counter_ref.get(index)
     }
@@ -224,6 +383,29 @@ impl CountersBif {
     /// # Returns
     /// * `Ok(i64)` - New counter value
     /// * `Err(CountersError)` - If index is invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CountersBif;
+    ///
+    /// // Add positive value
+    /// let counters = CountersBif::new(3).unwrap();
+    /// let new_value = CountersBif::add(&counters, 1, 10).unwrap();
+    /// assert_eq!(new_value, 10);
+    ///
+    /// // Add negative value (decrement)
+    /// let counters = CountersBif::new(2).unwrap();
+    /// CountersBif::put(&counters, 1, 50).unwrap();
+    /// let new_value = CountersBif::add(&counters, 1, -15).unwrap();
+    /// assert_eq!(new_value, 35);
+    ///
+    /// // Multiple additions
+    /// let counters = CountersBif::new(2).unwrap();
+    /// CountersBif::add(&counters, 1, 5).unwrap();
+    /// CountersBif::add(&counters, 1, 3).unwrap();
+    /// CountersBif::add(&counters, 1, 2).unwrap();
+    /// assert_eq!(CountersBif::get(&counters, 1).unwrap(), 10);
+    /// ```
     pub fn add(counter_ref: &CounterRef, index: usize, increment: i64) -> Result<i64, CountersError> {
         counter_ref.add(index, increment)
     }
@@ -240,6 +422,30 @@ impl CountersBif {
     /// # Returns
     /// * `Ok(())` - If successful
     /// * `Err(CountersError)` - If index is invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CountersBif;
+    ///
+    /// // Set a counter value
+    /// let counters = CountersBif::new(3).unwrap();
+    /// CountersBif::put(&counters, 1, 42).unwrap();
+    /// assert_eq!(CountersBif::get(&counters, 1).unwrap(), 42);
+    ///
+    /// // Set multiple counters
+    /// let counters = CountersBif::new(5).unwrap();
+    /// CountersBif::put(&counters, 1, 10).unwrap();
+    /// CountersBif::put(&counters, 2, 20).unwrap();
+    /// CountersBif::put(&counters, 3, 30).unwrap();
+    /// assert_eq!(CountersBif::get(&counters, 1).unwrap(), 10);
+    /// assert_eq!(CountersBif::get(&counters, 2).unwrap(), 20);
+    ///
+    /// // Overwrite existing value
+    /// let counters = CountersBif::new(2).unwrap();
+    /// CountersBif::put(&counters, 1, 100).unwrap();
+    /// CountersBif::put(&counters, 1, 200).unwrap();
+    /// assert_eq!(CountersBif::get(&counters, 1).unwrap(), 200);
+    /// ```
     pub fn put(counter_ref: &CounterRef, index: usize, value: i64) -> Result<(), CountersError> {
         counter_ref.put(index, value)
     }
@@ -253,6 +459,28 @@ impl CountersBif {
     ///
     /// # Returns
     /// Counter information
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CountersBif;
+    ///
+    /// // Get info for small counter array
+    /// let counters = CountersBif::new(5).unwrap();
+    /// let info = CountersBif::info(&counters);
+    /// assert_eq!(info.size, 5);
+    /// assert!(info.memory > 0);
+    ///
+    /// // Get info for larger counter array
+    /// let counters = CountersBif::new(100).unwrap();
+    /// let info = CountersBif::info(&counters);
+    /// assert_eq!(info.size, 100);
+    /// assert!(info.memory > 0);
+    ///
+    /// // Get info for single counter
+    /// let counters = CountersBif::new(1).unwrap();
+    /// let info = CountersBif::info(&counters);
+    /// assert_eq!(info.size, 1);
+    /// ```
     pub fn info(counter_ref: &CounterRef) -> CounterInfo {
         counter_ref.info()
     }
@@ -267,6 +495,22 @@ impl CountersBif {
     ///
     /// # Returns
     /// Ceiling of dividend / divisor
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::counters::CountersBif;
+    ///
+    /// // Exact division
+    /// assert_eq!(CountersBif::div_ceil(10, 2), 5);
+    ///
+    /// // Ceiling division (rounds up)
+    /// assert_eq!(CountersBif::div_ceil(10, 3), 4);
+    /// assert_eq!(CountersBif::div_ceil(11, 3), 4);
+    ///
+    /// // Edge cases
+    /// assert_eq!(CountersBif::div_ceil(0, 5), 0);
+    /// assert_eq!(CountersBif::div_ceil(1, 5), 1);
+    /// ```
     pub fn div_ceil(dividend: usize, divisor: usize) -> usize {
         if divisor == 0 {
             return 0; // Avoid division by zero

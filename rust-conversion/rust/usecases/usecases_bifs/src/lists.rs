@@ -7,9 +7,34 @@
 //! - List reversal (reverse/2)
 //! - Key-based tuple search (keyfind/3, keymember/3, keysearch/3)
 //!
-//! Based on erl_bif_lists.c
-//!
 //! This module implements safe Rust equivalents of Erlang list BIFs.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use crate::op::ErlangTerm;
 use std::collections::HashMap;
@@ -46,6 +71,7 @@ impl ListsBif {
     /// use usecases_bifs::lists::ListsBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Append two lists
     /// let lhs = ErlangTerm::List(vec![
     ///     ErlangTerm::Integer(1),
     ///     ErlangTerm::Integer(2),
@@ -55,6 +81,23 @@ impl ListsBif {
     ///     ErlangTerm::Integer(4),
     /// ]);
     /// let result = ListsBif::append_2(&lhs, &rhs).unwrap();
+    /// if let ErlangTerm::List(result_vec) = result {
+    ///     assert_eq!(result_vec.len(), 4);
+    /// }
+    ///
+    /// // Append empty list (no-op)
+    /// let lhs = ErlangTerm::List(vec![ErlangTerm::Integer(1)]);
+    /// let rhs = ErlangTerm::Nil;
+    /// let result = ListsBif::append_2(&lhs, &rhs).unwrap();
+    /// if let ErlangTerm::List(result_vec) = result {
+    ///     assert_eq!(result_vec.len(), 1);
+    /// }
+    ///
+    /// // Append to empty list
+    /// let lhs = ErlangTerm::Nil;
+    /// let rhs = ErlangTerm::List(vec![ErlangTerm::Integer(1)]);
+    /// let result = ListsBif::append_2(&lhs, &rhs).unwrap();
+    /// assert_eq!(result, rhs);
     /// ```
     pub fn append_2(lhs: &ErlangTerm, rhs: &ErlangTerm) -> Result<ErlangTerm, ListsError> {
         match lhs {
@@ -103,6 +146,7 @@ impl ListsBif {
     /// use usecases_bifs::lists::ListsBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Subtract single element
     /// let lhs = ErlangTerm::List(vec![
     ///     ErlangTerm::Integer(1),
     ///     ErlangTerm::Integer(2),
@@ -112,7 +156,32 @@ impl ListsBif {
     ///     ErlangTerm::Integer(2),
     /// ]);
     /// let result = ListsBif::subtract_2(&lhs, &rhs).unwrap();
-    /// // Result: [1, 3]
+    /// if let ErlangTerm::List(result_vec) = result {
+    ///     assert_eq!(result_vec.len(), 2);
+    /// }
+    ///
+    /// // Subtract multiple elements
+    /// let lhs = ErlangTerm::List(vec![
+    ///     ErlangTerm::Integer(1),
+    ///     ErlangTerm::Integer(2),
+    ///     ErlangTerm::Integer(2),
+    ///     ErlangTerm::Integer(3),
+    /// ]);
+    /// let rhs = ErlangTerm::List(vec![
+    ///     ErlangTerm::Integer(2),
+    ///     ErlangTerm::Integer(3),
+    /// ]);
+    /// let result = ListsBif::subtract_2(&lhs, &rhs).unwrap();
+    /// if let ErlangTerm::List(result_vec) = result {
+    ///     assert_eq!(result_vec.len(), 1);
+    ///     assert_eq!(result_vec[0], ErlangTerm::Integer(1));
+    /// }
+    ///
+    /// // Subtract from empty list
+    /// let lhs = ErlangTerm::Nil;
+    /// let rhs = ErlangTerm::List(vec![ErlangTerm::Integer(1)]);
+    /// let result = ListsBif::subtract_2(&lhs, &rhs).unwrap();
+    /// assert_eq!(result, ErlangTerm::Nil);
     /// ```
     pub fn subtract_2(lhs: &ErlangTerm, rhs: &ErlangTerm) -> Result<ErlangTerm, ListsError> {
         let lhs_list = match lhs {
@@ -182,13 +251,23 @@ impl ListsBif {
     /// use usecases_bifs::lists::ListsBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Check membership - element found
     /// let list = ErlangTerm::List(vec![
     ///     ErlangTerm::Integer(1),
     ///     ErlangTerm::Integer(2),
     ///     ErlangTerm::Integer(3),
     /// ]);
     /// let result = ListsBif::member_2(&ErlangTerm::Integer(2), &list).unwrap();
-    /// // Result: Atom("true")
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check membership - element not found
+    /// let result = ListsBif::member_2(&ErlangTerm::Integer(5), &list).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check membership in empty list
+    /// let empty = ErlangTerm::Nil;
+    /// let result = ListsBif::member_2(&ErlangTerm::Integer(1), &empty).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
     /// ```
     pub fn member_2(term: &ErlangTerm, list: &ErlangTerm) -> Result<ErlangTerm, ListsError> {
         match list {
@@ -226,6 +305,7 @@ impl ListsBif {
     /// use usecases_bifs::lists::ListsBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Reverse list with nil tail
     /// let list = ErlangTerm::List(vec![
     ///     ErlangTerm::Integer(1),
     ///     ErlangTerm::Integer(2),
@@ -233,7 +313,27 @@ impl ListsBif {
     /// ]);
     /// let tail = ErlangTerm::Nil;
     /// let result = ListsBif::reverse_2(&list, &tail).unwrap();
-    /// // Result: [3, 2, 1]
+    /// if let ErlangTerm::List(result_vec) = result {
+    ///     assert_eq!(result_vec.len(), 3);
+    ///     assert_eq!(result_vec[0], ErlangTerm::Integer(3));
+    ///     assert_eq!(result_vec[2], ErlangTerm::Integer(1));
+    /// }
+    ///
+    /// // Reverse list with non-nil tail
+    /// let list = ErlangTerm::List(vec![ErlangTerm::Integer(1), ErlangTerm::Integer(2)]);
+    /// let tail = ErlangTerm::List(vec![ErlangTerm::Integer(3)]);
+    /// let result = ListsBif::reverse_2(&list, &tail).unwrap();
+    /// if let ErlangTerm::List(result_vec) = result {
+    ///     assert_eq!(result_vec.len(), 3);
+    ///     assert_eq!(result_vec[0], ErlangTerm::Integer(2));
+    ///     assert_eq!(result_vec[2], ErlangTerm::Integer(3));
+    /// }
+    ///
+    /// // Reverse empty list (returns tail)
+    /// let empty = ErlangTerm::Nil;
+    /// let tail = ErlangTerm::List(vec![ErlangTerm::Integer(1)]);
+    /// let result = ListsBif::reverse_2(&empty, &tail).unwrap();
+    /// assert_eq!(result, tail);
     /// ```
     pub fn reverse_2(list: &ErlangTerm, tail: &ErlangTerm) -> Result<ErlangTerm, ListsError> {
         match list {
@@ -284,6 +384,7 @@ impl ListsBif {
     /// use usecases_bifs::lists::ListsBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Find tuple by key at position 1
     /// let list = ErlangTerm::List(vec![
     ///     ErlangTerm::Tuple(vec![
     ///         ErlangTerm::Atom("a".to_string()),
@@ -299,6 +400,33 @@ impl ListsBif {
     ///     &ErlangTerm::Integer(1),
     ///     &list,
     /// ).unwrap();
+    /// if let ErlangTerm::Tuple(tuple) = result {
+    ///     assert_eq!(tuple[0], ErlangTerm::Atom("b".to_string()));
+    /// }
+    ///
+    /// // Find tuple by key at position 2
+    /// let list = ErlangTerm::List(vec![
+    ///     ErlangTerm::Tuple(vec![
+    ///         ErlangTerm::Atom("a".to_string()),
+    ///         ErlangTerm::Integer(1),
+    ///     ]),
+    /// ]);
+    /// let result = ListsBif::keyfind_3(
+    ///     &ErlangTerm::Integer(1),
+    ///     &ErlangTerm::Integer(2),
+    ///     &list,
+    /// ).unwrap();
+    /// if let ErlangTerm::Tuple(tuple) = result {
+    ///     assert_eq!(tuple[1], ErlangTerm::Integer(1));
+    /// }
+    ///
+    /// // Key not found (returns false)
+    /// let result = ListsBif::keyfind_3(
+    ///     &ErlangTerm::Atom("c".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    ///     &list,
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
     /// ```
     pub fn keyfind_3(
         key: &ErlangTerm,
@@ -372,6 +500,47 @@ impl ListsBif {
     /// * `Ok(ErlangTerm::Atom("true"))` - If tuple found
     /// * `Ok(ErlangTerm::Atom("false"))` - If tuple not found
     /// * `Err(ListsError)` - If arguments are invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::lists::ListsBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Check membership - key found
+    /// let list = ErlangTerm::List(vec![
+    ///     ErlangTerm::Tuple(vec![
+    ///         ErlangTerm::Atom("a".to_string()),
+    ///         ErlangTerm::Integer(1),
+    ///     ]),
+    ///     ErlangTerm::Tuple(vec![
+    ///         ErlangTerm::Atom("b".to_string()),
+    ///         ErlangTerm::Integer(2),
+    ///     ]),
+    /// ]);
+    /// let result = ListsBif::keymember_3(
+    ///     &ErlangTerm::Atom("b".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    ///     &list,
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check membership - key not found
+    /// let result = ListsBif::keymember_3(
+    ///     &ErlangTerm::Atom("c".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    ///     &list,
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check membership in empty list
+    /// let empty = ErlangTerm::Nil;
+    /// let result = ListsBif::keymember_3(
+    ///     &ErlangTerm::Atom("a".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    ///     &empty,
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn keymember_3(
         key: &ErlangTerm,
         pos: &ErlangTerm,
@@ -398,6 +567,52 @@ impl ListsBif {
     /// * `Ok(ErlangTerm::Tuple)` - `{value, Tuple}` if found
     /// * `Ok(ErlangTerm::Atom("false"))` - If not found
     /// * `Err(ListsError)` - If arguments are invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::lists::ListsBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Search for tuple - found
+    /// let list = ErlangTerm::List(vec![
+    ///     ErlangTerm::Tuple(vec![
+    ///         ErlangTerm::Atom("a".to_string()),
+    ///         ErlangTerm::Integer(1),
+    ///     ]),
+    ///     ErlangTerm::Tuple(vec![
+    ///         ErlangTerm::Atom("b".to_string()),
+    ///         ErlangTerm::Integer(2),
+    ///     ]),
+    /// ]);
+    /// let result = ListsBif::keysearch_3(
+    ///     &ErlangTerm::Atom("b".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    ///     &list,
+    /// ).unwrap();
+    /// if let ErlangTerm::Tuple(result_tuple) = result {
+    ///     assert_eq!(result_tuple[0], ErlangTerm::Atom("value".to_string()));
+    ///     if let ErlangTerm::Tuple(found_tuple) = &result_tuple[1] {
+    ///         assert_eq!(found_tuple[0], ErlangTerm::Atom("b".to_string()));
+    ///     }
+    /// }
+    ///
+    /// // Search for tuple - not found
+    /// let result = ListsBif::keysearch_3(
+    ///     &ErlangTerm::Atom("c".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    ///     &list,
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Search in empty list
+    /// let empty = ErlangTerm::Nil;
+    /// let result = ListsBif::keysearch_3(
+    ///     &ErlangTerm::Atom("a".to_string()),
+    ///     &ErlangTerm::Integer(1),
+    ///     &empty,
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn keysearch_3(
         key: &ErlangTerm,
         pos: &ErlangTerm,

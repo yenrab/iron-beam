@@ -6,9 +6,34 @@
 //! - Timestamp operations
 //! - Signal handling
 //!
-//! Based on erl_bif_os.c
-//!
 //! This module uses safe Rust standard library functions instead of unsafe FFI calls.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use std::env;
 use std::process;
@@ -26,11 +51,25 @@ impl OsBif {
     /// # Returns
     /// Vector of integers representing the PID digits
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::os::OsBif;
+    ///
+    /// // Get current process ID
     /// let pid = OsBif::getpid();
-    /// // pid might be [1, 2, 3, 4, 5] for PID 12345
+    /// assert!(!pid.is_empty());
+    /// // pid contains digits of the process ID, e.g., [1, 2, 3, 4, 5] for PID 12345
+    ///
+    /// // Get PID multiple times (should be consistent)
+    /// let pid1 = OsBif::getpid();
+    /// let pid2 = OsBif::getpid();
+    /// assert_eq!(pid1, pid2);
+    ///
+    /// // Verify all digits are valid (0-9)
+    /// let pid = OsBif::getpid();
+    /// for digit in &pid {
+    ///     assert!(*digit < 10);
+    /// }
     /// ```
     pub fn getpid() -> Vec<u8> {
         let pid = process::id();
@@ -48,11 +87,24 @@ impl OsBif {
     /// # Returns
     /// Vector of (key, value) string tuples
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::os::OsBif;
+    ///
+    /// // Get all environment variables
     /// let env_vars = OsBif::env();
-    /// // env_vars contains all environment variables
+    /// assert!(!env_vars.is_empty());
+    /// // env_vars contains all environment variables as (key, value) tuples
+    ///
+    /// // Verify format: each entry is a (String, String) tuple
+    /// for (key, value) in &env_vars {
+    ///     assert!(!key.is_empty());
+    /// }
+    ///
+    /// // Get environment variables multiple times
+    /// let env1 = OsBif::env();
+    /// let env2 = OsBif::env();
+    /// assert_eq!(env1.len(), env2.len());
     /// ```
     pub fn env() -> Vec<(String, String)> {
         env::vars().collect()
@@ -70,10 +122,22 @@ impl OsBif {
     /// * `Some(value)` if the variable exists
     /// * `None` if the variable does not exist
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::os::OsBif;
+    ///
+    /// // Get existing environment variable
     /// let path = OsBif::getenv("PATH");
+    /// assert!(path.is_some());
+    ///
+    /// // Get non-existent environment variable
+    /// let missing = OsBif::getenv("NONEXISTENT_VAR_12345");
+    /// assert!(missing.is_none());
+    ///
+    /// // Get environment variable after setting it
+    /// OsBif::putenv("TEST_VAR", "test_value").unwrap();
+    /// let value = OsBif::getenv("TEST_VAR");
+    /// assert_eq!(value, Some("test_value".to_string()));
     /// ```
     pub fn getenv(key: &str) -> Option<String> {
         env::var(key).ok()
@@ -92,10 +156,23 @@ impl OsBif {
     /// * `Ok(())` if successful
     /// * `Err(error)` if setting failed
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::os::OsBif;
+    ///
+    /// // Set a new environment variable
     /// OsBif::putenv("MY_VAR", "my_value").unwrap();
+    /// assert_eq!(OsBif::getenv("MY_VAR"), Some("my_value".to_string()));
+    ///
+    /// // Overwrite an existing environment variable
+    /// OsBif::putenv("MY_VAR", "new_value").unwrap();
+    /// assert_eq!(OsBif::getenv("MY_VAR"), Some("new_value".to_string()));
+    ///
+    /// // Set multiple environment variables
+    /// OsBif::putenv("VAR1", "value1").unwrap();
+    /// OsBif::putenv("VAR2", "value2").unwrap();
+    /// assert_eq!(OsBif::getenv("VAR1"), Some("value1".to_string()));
+    /// assert_eq!(OsBif::getenv("VAR2"), Some("value2".to_string()));
     /// ```
     pub fn putenv(key: &str, value: &str) -> Result<(), OsError> {
         env::set_var(key, value);
@@ -114,10 +191,25 @@ impl OsBif {
     /// * `Ok(())` if successful
     /// * `Err(error)` if unsetting failed
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::os::OsBif;
+    ///
+    /// // Unset an existing environment variable
+    /// OsBif::putenv("MY_VAR", "my_value").unwrap();
     /// OsBif::unsetenv("MY_VAR").unwrap();
+    /// assert_eq!(OsBif::getenv("MY_VAR"), None);
+    ///
+    /// // Unset a non-existent variable (still succeeds)
+    /// OsBif::unsetenv("NONEXISTENT").unwrap();
+    ///
+    /// // Unset multiple variables
+    /// OsBif::putenv("VAR1", "value1").unwrap();
+    /// OsBif::putenv("VAR2", "value2").unwrap();
+    /// OsBif::unsetenv("VAR1").unwrap();
+    /// OsBif::unsetenv("VAR2").unwrap();
+    /// assert_eq!(OsBif::getenv("VAR1"), None);
+    /// assert_eq!(OsBif::getenv("VAR2"), None);
     /// ```
     pub fn unsetenv(key: &str) -> Result<(), OsError> {
         env::remove_var(key);
@@ -132,10 +224,25 @@ impl OsBif {
     /// # Returns
     /// Tuple of (megaseconds, seconds, microseconds)
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::os::OsBif;
+    ///
+    /// // Get current timestamp
     /// let (megasec, sec, microsec) = OsBif::timestamp();
+    /// assert!(megasec > 0 || sec > 0);
+    /// assert!(microsec < 1_000_000);
+    ///
+    /// // Get multiple timestamps (should be increasing or equal)
+    /// let (m1, s1, u1) = OsBif::timestamp();
+    /// std::thread::sleep(std::time::Duration::from_millis(10));
+    /// let (m2, s2, u2) = OsBif::timestamp();
+    /// assert!((m2, s2, u2) >= (m1, s1, u1));
+    ///
+    /// // Verify timestamp components are within expected ranges
+    /// let (megasec, sec, microsec) = OsBif::timestamp();
+    /// assert!(sec < 1_000_000);
+    /// assert!(microsec < 1_000_000);
     /// ```
     pub fn timestamp() -> (u64, u64, u64) {
         let duration = SystemTime::now()

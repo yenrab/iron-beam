@@ -6,9 +6,34 @@
 //! - Module information (get_module_info/1, get_module_info/2)
 //! - Function information (fun_info/2)
 //!
-//! Based on erl_bif_info.c
-//!
 //! This module implements safe Rust equivalents of Erlang information BIFs.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use crate::op::ErlangTerm;
 
@@ -45,8 +70,17 @@ impl InfoBif {
     /// use usecases_bifs::info::InfoBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Get scheduler ID
     /// let result = InfoBif::system_info_1(&ErlangTerm::Atom("scheduler_id".to_string()));
-    /// // Returns scheduler ID
+    /// assert!(result.is_ok());
+    ///
+    /// // Get process limit
+    /// let result = InfoBif::system_info_1(&ErlangTerm::Atom("process_limit".to_string()));
+    /// assert!(result.is_ok());
+    ///
+    /// // Get system version
+    /// let result = InfoBif::system_info_1(&ErlangTerm::Atom("system_version".to_string()));
+    /// assert!(result.is_ok());
     /// ```
     pub fn system_info_1(item: &ErlangTerm) -> Result<ErlangTerm, InfoError> {
         let item_str = match item {
@@ -166,8 +200,17 @@ impl InfoBif {
     /// use usecases_bifs::info::InfoBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Get all process information
     /// let result = InfoBif::process_info_1(&ErlangTerm::Pid(123));
-    /// // Returns list of process info tuples
+    /// assert!(result.is_ok());
+    ///
+    /// // Get process info for different PID
+    /// let result = InfoBif::process_info_1(&ErlangTerm::Pid(456));
+    /// assert!(result.is_ok());
+    ///
+    /// // Invalid: non-PID argument
+    /// let result = InfoBif::process_info_1(&ErlangTerm::Atom("not_a_pid".to_string()));
+    /// assert!(result.is_err());
     /// ```
     pub fn process_info_1(pid: &ErlangTerm) -> Result<ErlangTerm, InfoError> {
         let _pid_value = match pid {
@@ -216,11 +259,26 @@ impl InfoBif {
     /// use usecases_bifs::info::InfoBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Get process status
     /// let result = InfoBif::process_info_2(
     ///     &ErlangTerm::Pid(123),
     ///     &ErlangTerm::Atom("status".to_string()),
     /// );
-    /// // Returns process status
+    /// assert!(result.is_ok());
+    ///
+    /// // Get message queue length
+    /// let result = InfoBif::process_info_2(
+    ///     &ErlangTerm::Pid(456),
+    ///     &ErlangTerm::Atom("message_queue_len".to_string()),
+    /// );
+    /// assert!(result.is_ok());
+    ///
+    /// // Get process priority
+    /// let result = InfoBif::process_info_2(
+    ///     &ErlangTerm::Pid(789),
+    ///     &ErlangTerm::Atom("priority".to_string()),
+    /// );
+    /// assert!(result.is_ok());
     /// ```
     pub fn process_info_2(pid: &ErlangTerm, item: &ErlangTerm) -> Result<ErlangTerm, InfoError> {
         let _pid_value = match pid {
@@ -284,9 +342,23 @@ impl InfoBif {
     /// ```
     /// use usecases_bifs::info::InfoBif;
     /// use usecases_bifs::op::ErlangTerm;
+    /// use usecases_bifs::load::LoadBif;
     ///
-    /// let result = InfoBif::get_module_info_1(&ErlangTerm::Atom("lists".to_string()));
-    /// // Returns list of module info tuples
+    /// // Setup: register a module first
+    /// LoadBif::clear_all();
+    /// LoadBif::register_module("test_module", crate::load::ModuleStatus::Loaded);
+    ///
+    /// // Get all module information
+    /// let result = InfoBif::get_module_info_1(&ErlangTerm::Atom("test_module".to_string()));
+    /// assert!(result.is_ok());
+    ///
+    /// // Get info for non-existent module
+    /// let result = InfoBif::get_module_info_1(&ErlangTerm::Atom("nonexistent".to_string()));
+    /// assert!(result.is_err());
+    ///
+    /// // Invalid: non-atom argument
+    /// let result = InfoBif::get_module_info_1(&ErlangTerm::Integer(123));
+    /// assert!(result.is_err());
     /// ```
     pub fn get_module_info_1(module: &ErlangTerm) -> Result<ErlangTerm, InfoError> {
         let module_name = match module {
@@ -353,12 +425,32 @@ impl InfoBif {
     /// ```
     /// use usecases_bifs::info::InfoBif;
     /// use usecases_bifs::op::ErlangTerm;
+    /// use usecases_bifs::load::LoadBif;
     ///
+    /// // Setup: register a module first
+    /// LoadBif::clear_all();
+    /// LoadBif::register_module("test_module", crate::load::ModuleStatus::Loaded);
+    ///
+    /// // Get module exports
     /// let result = InfoBif::get_module_info_2(
-    ///     &ErlangTerm::Atom("lists".to_string()),
+    ///     &ErlangTerm::Atom("test_module".to_string()),
     ///     &ErlangTerm::Atom("exports".to_string()),
     /// );
-    /// // Returns module exports
+    /// assert!(result.is_ok());
+    ///
+    /// // Get module MD5
+    /// let result = InfoBif::get_module_info_2(
+    ///     &ErlangTerm::Atom("test_module".to_string()),
+    ///     &ErlangTerm::Atom("md5".to_string()),
+    /// );
+    /// assert!(result.is_ok());
+    ///
+    /// // Get module attributes
+    /// let result = InfoBif::get_module_info_2(
+    ///     &ErlangTerm::Atom("test_module".to_string()),
+    ///     &ErlangTerm::Atom("attributes".to_string()),
+    /// );
+    /// assert!(result.is_ok());
     /// ```
     pub fn get_module_info_2(
         module: &ErlangTerm,
@@ -426,12 +518,28 @@ impl InfoBif {
     /// use usecases_bifs::info::InfoBif;
     /// use usecases_bifs::op::ErlangTerm;
     ///
+    /// // Get function arity
     /// let fun_term = ErlangTerm::Function { arity: 1 };
     /// let result = InfoBif::fun_info_2(
     ///     &fun_term,
     ///     &ErlangTerm::Atom("arity".to_string()),
     /// );
-    /// // Returns function arity
+    /// assert!(result.is_ok());
+    ///
+    /// // Get function module
+    /// let fun_term = ErlangTerm::Function { arity: 2 };
+    /// let result = InfoBif::fun_info_2(
+    ///     &fun_term,
+    ///     &ErlangTerm::Atom("module".to_string()),
+    /// );
+    /// assert!(result.is_ok());
+    ///
+    /// // Invalid: non-function term
+    /// let result = InfoBif::fun_info_2(
+    ///     &ErlangTerm::Atom("not_a_function".to_string()),
+    ///     &ErlangTerm::Atom("arity".to_string()),
+    /// );
+    /// assert!(result.is_err());
     /// ```
     pub fn fun_info_2(fun_term: &ErlangTerm, item: &ErlangTerm) -> Result<ErlangTerm, InfoError> {
         let item_str = match item {

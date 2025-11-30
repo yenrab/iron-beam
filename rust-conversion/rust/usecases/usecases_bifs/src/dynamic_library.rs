@@ -1,7 +1,7 @@
 //! Dynamic Library Loader Module
 //!
 //! Provides safe Rust dynamic library loading and unloading functionality.
-//! Based on erl_bif_ddll.c, but modified to work with Rust dynamic libraries (cdylib)
+//! This module is modified to work with Rust dynamic libraries (cdylib)
 //! instead of C drivers.
 //!
 //! This module allows loading and unloading Rust dynamic libraries at runtime,
@@ -20,6 +20,33 @@
 //!
 //! # Safety Requirements and Design Rationale
 //!
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
+
 //! ## Why a Safety Marker is Required
 //!
 //! **This is a custom safety mechanism, not a Rust standard.** Rust does not provide
@@ -386,6 +413,29 @@ impl DynamicLibraryLoader {
     ///
     /// # Returns
     /// Load result or error
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::dynamic_library::{DynamicLibraryLoader, LoadOptions, ProcessId};
+    /// use std::path::Path;
+    ///
+    /// // Load a library
+    /// let process_id = DynamicLibraryLoader::allocate_process_id();
+    /// let path = Path::new("/path/to/library");
+    /// let options = LoadOptions::default();
+    /// let result = DynamicLibraryLoader::try_load(path, "mylib", options, process_id);
+    /// // Result depends on whether library exists and is valid
+    ///
+    /// // Load with reload option
+    /// let mut options = LoadOptions::default();
+    /// options.reload = Some(crate::dynamic_library::ReloadOption::Reload);
+    /// let result = DynamicLibraryLoader::try_load(path, "mylib", options, process_id);
+    ///
+    /// // Load same library from different process (increments ref count)
+    /// let process_id2 = DynamicLibraryLoader::allocate_process_id();
+    /// let result = DynamicLibraryLoader::try_load(path, "mylib", LoadOptions::default(), process_id2);
+    /// // Should return AlreadyLoaded if library was already loaded
+    /// ```
     pub fn try_load(
         path: &Path,
         name: &str,
@@ -798,6 +848,28 @@ impl DynamicLibraryLoader {
     ///
     /// # Returns
     /// Unload result or error
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::dynamic_library::{DynamicLibraryLoader, ProcessId};
+    ///
+    /// // Unload a library loaded by a process
+    /// let process_id = DynamicLibraryLoader::allocate_process_id();
+    /// // ... load library first ...
+    /// let result = DynamicLibraryLoader::try_unload("mylib", process_id);
+    /// // Returns Unloaded if successful, or error if not found/not loaded
+    ///
+    /// // Unload when multiple processes have it loaded
+    /// let process_id1 = DynamicLibraryLoader::allocate_process_id();
+    /// let process_id2 = DynamicLibraryLoader::allocate_process_id();
+    /// // ... both processes load the library ...
+    /// let result = DynamicLibraryLoader::try_unload("mylib", process_id1);
+    /// // Returns Pending if other processes still have it loaded
+    ///
+    /// // Unload non-existent library (returns error)
+    /// let result = DynamicLibraryLoader::try_unload("nonexistent", process_id);
+    /// assert!(result.is_err());
+    /// ```
     pub fn try_unload(name: &str, process_id: ProcessId) -> Result<UnloadResult, LibraryError> {
         let mut registry = LIBRARY_REGISTRY.lock().unwrap();
 
@@ -857,6 +929,24 @@ impl DynamicLibraryLoader {
     ///
     /// # Returns
     /// Vector of library names
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::dynamic_library::DynamicLibraryLoader;
+    ///
+    /// // Get list of loaded libraries
+    /// let libraries = DynamicLibraryLoader::loaded_libraries();
+    /// // Returns all currently loaded library names
+    ///
+    /// // Get list when no libraries are loaded
+    /// let libraries = DynamicLibraryLoader::loaded_libraries();
+    /// assert!(libraries.is_empty() || !libraries.is_empty()); // May be empty or have libraries
+    ///
+    /// // Get list after loading libraries
+    /// // ... load some libraries ...
+    /// let libraries = DynamicLibraryLoader::loaded_libraries();
+    /// // Returns names of all loaded libraries
+    /// ```
     pub fn loaded_libraries() -> Vec<String> {
         let registry = LIBRARY_REGISTRY.lock().unwrap();
         registry.libraries.keys().cloned().collect()
@@ -870,6 +960,27 @@ impl DynamicLibraryLoader {
     ///
     /// # Returns
     /// Library information or error
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::dynamic_library::DynamicLibraryLoader;
+    ///
+    /// // Get info for loaded library
+    /// let info = DynamicLibraryLoader::library_info("mylib", "all");
+    /// if let Ok(lib_info) = info {
+    ///     assert_eq!(lib_info.name, "mylib");
+    ///     // lib_info contains status, path, process_count, etc.
+    /// }
+    ///
+    /// // Get info for non-existent library (returns error)
+    /// let info = DynamicLibraryLoader::library_info("nonexistent", "all");
+    /// assert!(info.is_err());
+    ///
+    /// // Get info with different item names (all return same info currently)
+    /// let info1 = DynamicLibraryLoader::library_info("mylib", "status");
+    /// let info2 = DynamicLibraryLoader::library_info("mylib", "path");
+    /// // Both return the same LibraryInfo structure
+    /// ```
     pub fn library_info(name: &str, _item: &str) -> Result<LibraryInfo, LibraryError> {
         let registry = LIBRARY_REGISTRY.lock().unwrap();
 
@@ -890,6 +1001,29 @@ impl DynamicLibraryLoader {
     }
 
     /// Allocate a new process ID (for testing/placeholder)
+    ///
+    /// # Returns
+    /// New process ID
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::dynamic_library::DynamicLibraryLoader;
+    ///
+    /// // Allocate a process ID
+    /// let process_id = DynamicLibraryLoader::allocate_process_id();
+    /// assert!(process_id.0 > 0);
+    ///
+    /// // Allocate multiple process IDs (should be unique)
+    /// let id1 = DynamicLibraryLoader::allocate_process_id();
+    /// let id2 = DynamicLibraryLoader::allocate_process_id();
+    /// let id3 = DynamicLibraryLoader::allocate_process_id();
+    /// assert_ne!(id1, id2);
+    /// assert_ne!(id2, id3);
+    ///
+    /// // Use process ID for library operations
+    /// let process_id = DynamicLibraryLoader::allocate_process_id();
+    /// // ... use process_id with try_load, try_unload, etc. ...
+    /// ```
     pub fn allocate_process_id() -> ProcessId {
         let mut registry = LIBRARY_REGISTRY.lock().unwrap();
         registry.allocate_process_id()

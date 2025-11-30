@@ -1,7 +1,6 @@
 //! Trace BIF Module
 //!
 //! Provides tracing built-in functions.
-//! Based on erl_bif_trace.c
 //!
 //! This module provides a safe Rust API for tracing operations:
 //! - Trace session management
@@ -9,6 +8,33 @@
 //! - Sequential tracing
 //! - System monitoring
 //! - Trace info queries
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -248,6 +274,24 @@ impl TraceBif {
     ///
     /// # Returns
     /// Session ID on success
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::TraceBif;
+    ///
+    /// // Create a trace session
+    /// let session_id = TraceBif::create_session("my_session".to_string()).unwrap();
+    /// assert!(session_id.0 > 0);
+    ///
+    /// // Create multiple sessions
+    /// let session1 = TraceBif::create_session("session1".to_string()).unwrap();
+    /// let session2 = TraceBif::create_session("session2".to_string()).unwrap();
+    /// assert_ne!(session1, session2);
+    ///
+    /// // Create session with empty name
+    /// let session = TraceBif::create_session("".to_string()).unwrap();
+    /// assert!(session.0 > 0);
+    /// ```
     pub fn create_session(name: String) -> Result<TraceSessionId, TraceError> {
         let mut state = TRACE_STATE.lock().map_err(|_| TraceError::InternalError)?;
         let id = TraceSessionId(state.next_session_id);
@@ -273,6 +317,27 @@ impl TraceBif {
     ///
     /// # Returns
     /// Number of processes/ports traced
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::{TraceBif, TraceTarget, TraceFlags};
+    ///
+    /// // Enable tracing for a process
+    /// let flags = TraceFlags { call: true, ..Default::default() };
+    /// let count = TraceBif::trace(None, TraceTarget::Process(123), true, flags).unwrap();
+    /// assert_eq!(count, 1);
+    ///
+    /// // Disable tracing for a process
+    /// let flags = TraceFlags::default();
+    /// let count = TraceBif::trace(None, TraceTarget::Process(123), false, flags).unwrap();
+    /// assert_eq!(count, 1);
+    ///
+    /// // Enable tracing with session
+    /// let session = TraceBif::create_session("test".to_string()).unwrap();
+    /// let flags = TraceFlags { send: true, receive: true, ..Default::default() };
+    /// let count = TraceBif::trace(Some(session), TraceTarget::Process(456), true, flags).unwrap();
+    /// assert_eq!(count, 1);
+    /// ```
     pub fn trace(
         session_id: Option<TraceSessionId>,
         target: TraceTarget,
@@ -344,6 +409,31 @@ impl TraceBif {
     ///
     /// # Returns
     /// Trace info
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::{TraceBif, TraceTarget, TraceFlags, TraceInfo};
+    ///
+    /// // Get info for traced process
+    /// let flags = TraceFlags { call: true, ..Default::default() };
+    /// TraceBif::trace(None, TraceTarget::Process(123), true, flags).unwrap();
+    /// let info = TraceBif::trace_info(None, TraceTarget::Process(123)).unwrap();
+    /// if let TraceInfo::Process { pid, flags: _ } = info {
+    ///     assert_eq!(pid, 123);
+    /// }
+    ///
+    /// // Get info for non-traced process
+    /// let info = TraceBif::trace_info(None, TraceTarget::Process(999)).unwrap();
+    /// assert!(matches!(info, TraceInfo::NotTraced));
+    ///
+    /// // Get info for port
+    /// let flags = TraceFlags { send: true, ..Default::default() };
+    /// TraceBif::trace(None, TraceTarget::Port(456), true, flags).unwrap();
+    /// let info = TraceBif::trace_info(None, TraceTarget::Port(456)).unwrap();
+    /// if let TraceInfo::Port { port, flags: _ } = info {
+    ///     assert_eq!(port, 456);
+    /// }
+    /// ```
     pub fn trace_info(
         session_id: Option<TraceSessionId>,
         target: TraceTarget,
@@ -393,6 +483,27 @@ impl TraceBif {
     ///
     /// # Returns
     /// Previous value of the flag
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::TraceBif;
+    ///
+    /// // Enable send flag
+    /// let prev = TraceBif::seq_trace("send", true).unwrap();
+    /// assert!(!prev); // Initially false
+    ///
+    /// // Disable send flag
+    /// let prev = TraceBif::seq_trace("send", false).unwrap();
+    /// assert!(prev); // Was true
+    ///
+    /// // Enable receive flag
+    /// let prev = TraceBif::seq_trace("receive", true).unwrap();
+    /// assert!(!prev);
+    ///
+    /// // Enable timestamp flag
+    /// let prev = TraceBif::seq_trace("timestamp", true).unwrap();
+    /// assert!(!prev);
+    /// ```
     pub fn seq_trace(flag: &str, enable: bool) -> Result<bool, TraceError> {
         let mut state = TRACE_STATE.lock().map_err(|_| TraceError::InternalError)?;
         
@@ -437,6 +548,29 @@ impl TraceBif {
     ///
     /// # Returns
     /// Sequential trace flags
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::TraceBif;
+    ///
+    /// // Get default sequential trace flags
+    /// let flags = TraceBif::seq_trace_info().unwrap();
+    /// assert!(!flags.send);
+    /// assert!(!flags.receive);
+    ///
+    /// // Enable flags and get updated info
+    /// TraceBif::seq_trace("send", true).unwrap();
+    /// TraceBif::seq_trace("receive", true).unwrap();
+    /// let flags = TraceBif::seq_trace_info().unwrap();
+    /// assert!(flags.send);
+    /// assert!(flags.receive);
+    ///
+    /// // Get flags after disabling
+    /// TraceBif::seq_trace("send", false).unwrap();
+    /// let flags = TraceBif::seq_trace_info().unwrap();
+    /// assert!(!flags.send);
+    /// assert!(flags.receive);
+    /// ```
     pub fn seq_trace_info() -> Result<SeqTraceFlags, TraceError> {
         let state = TRACE_STATE.lock().map_err(|_| TraceError::InternalError)?;
         Ok(state.seq_trace_flags)
@@ -450,6 +584,30 @@ impl TraceBif {
     ///
     /// # Returns
     /// Previous configuration
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::{TraceBif, SystemMonitorConfig};
+    ///
+    /// // Set system monitor config
+    /// let mut config = SystemMonitorConfig::default();
+    /// config.long_msgq_off = Some(100);
+    /// config.long_msgq_on = Some(50);
+    /// let prev = TraceBif::system_monitor(None, config.clone()).unwrap();
+    /// assert_eq!(prev.long_msgq_off, None); // Previous was default
+    ///
+    /// // Set config with session
+    /// let session = TraceBif::create_session("monitor".to_string()).unwrap();
+    /// let mut config2 = SystemMonitorConfig::default();
+    /// config2.large_heap_off = Some(1000);
+    /// let prev = TraceBif::system_monitor(Some(session), config2).unwrap();
+    ///
+    /// // Update existing config
+    /// let mut config3 = SystemMonitorConfig::default();
+    /// config3.busy_port_off = Some(200);
+    /// let prev = TraceBif::system_monitor(None, config3).unwrap();
+    /// assert_eq!(prev.long_msgq_off, Some(100)); // Previous had our value
+    /// ```
     pub fn system_monitor(
         session_id: Option<TraceSessionId>,
         config: SystemMonitorConfig,
@@ -475,6 +633,27 @@ impl TraceBif {
     ///
     /// # Returns
     /// System monitor configuration
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::{TraceBif, SystemMonitorConfig};
+    ///
+    /// // Get default configuration
+    /// let config = TraceBif::system_monitor_get(None).unwrap();
+    /// assert_eq!(config.long_msgq_off, None);
+    ///
+    /// // Set and get configuration
+    /// let mut new_config = SystemMonitorConfig::default();
+    /// new_config.long_msgq_off = Some(100);
+    /// TraceBif::system_monitor(None, new_config).unwrap();
+    /// let config = TraceBif::system_monitor_get(None).unwrap();
+    /// assert_eq!(config.long_msgq_off, Some(100));
+    ///
+    /// // Get config with session
+    /// let session = TraceBif::create_session("test".to_string()).unwrap();
+    /// let config = TraceBif::system_monitor_get(Some(session)).unwrap();
+    /// assert_eq!(config.long_msgq_off, Some(100));
+    /// ```
     pub fn system_monitor_get(
         session_id: Option<TraceSessionId>,
     ) -> Result<SystemMonitorConfig, TraceError> {
@@ -497,6 +676,30 @@ impl TraceBif {
     ///
     /// # Returns
     /// Success or error
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::trace::TraceBif;
+    ///
+    /// // Create and destroy a session
+    /// let session = TraceBif::create_session("temp".to_string()).unwrap();
+    /// let result = TraceBif::destroy_session(session);
+    /// assert!(result.is_ok());
+    ///
+    /// // Destroy non-existent session (returns error)
+    /// let fake_session = TraceBif::create_session("fake".to_string()).unwrap();
+    /// TraceBif::destroy_session(fake_session).unwrap();
+    /// let result = TraceBif::destroy_session(fake_session);
+    /// assert!(result.is_err());
+    ///
+    /// // Create multiple sessions and destroy one
+    /// let session1 = TraceBif::create_session("s1".to_string()).unwrap();
+    /// let session2 = TraceBif::create_session("s2".to_string()).unwrap();
+    /// TraceBif::destroy_session(session1).unwrap();
+    /// // session2 should still be valid
+    /// let result = TraceBif::destroy_session(session2);
+    /// assert!(result.is_ok());
+    /// ```
     pub fn destroy_session(session_id: TraceSessionId) -> Result<(), TraceError> {
         let mut state = TRACE_STATE.lock().map_err(|_| TraceError::InternalError)?;
         

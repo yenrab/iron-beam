@@ -7,9 +7,34 @@
 //! - Type checking (is_integer_3)
 //! - Binary operations (binary_part_2, binary_part_3)
 //!
-//! Based on erl_bif_guard.c
-//!
 //! This module implements safe Rust equivalents of Erlang guard BIFs.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use crate::op::ErlangTerm;
 use entities_utilities::{BigNumber, BigRational};
@@ -52,6 +77,26 @@ impl GuardBif {
     ///
     /// # Returns
     /// Absolute value of the argument (may return Integer, BigInteger, Float, or Rational)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Absolute value of positive integer
+    /// let result = GuardBif::abs(&ErlangTerm::Integer(42)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(42));
+    ///
+    /// // Absolute value of negative integer
+    /// let result = GuardBif::abs(&ErlangTerm::Integer(-42)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(42));
+    ///
+    /// // Absolute value of float
+    /// let result = GuardBif::abs(&ErlangTerm::Float(-3.14)).unwrap();
+    /// if let ErlangTerm::Float(f) = result {
+    ///     assert!((f - 3.14).abs() < 0.001);
+    /// }
+    /// ```
     pub fn abs(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Integer(n) => {
@@ -125,6 +170,30 @@ impl GuardBif {
     ///
     /// # Returns
     /// Float representation of the argument
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Convert integer to float
+    /// let result = GuardBif::float(&ErlangTerm::Integer(42)).unwrap();
+    /// if let ErlangTerm::Float(f) = result {
+    ///     assert!((f - 42.0).abs() < 0.001);
+    /// }
+    ///
+    /// // Float remains float
+    /// let result = GuardBif::float(&ErlangTerm::Float(3.14)).unwrap();
+    /// if let ErlangTerm::Float(f) = result {
+    ///     assert!((f - 3.14).abs() < 0.001);
+    /// }
+    ///
+    /// // Convert negative integer to float
+    /// let result = GuardBif::float(&ErlangTerm::Integer(-10)).unwrap();
+    /// if let ErlangTerm::Float(f) = result {
+    ///     assert!((f - (-10.0)).abs() < 0.001);
+    /// }
+    /// ```
     pub fn float(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Float(f) => Ok(ErlangTerm::Float(*f)),
@@ -155,6 +224,24 @@ impl GuardBif {
     ///
     /// # Returns
     /// Integer part of the value (truncated toward zero, may return Integer or BigInteger)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Truncate positive float
+    /// let result = GuardBif::trunc(&ErlangTerm::Float(3.7)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(3));
+    ///
+    /// // Truncate negative float
+    /// let result = GuardBif::trunc(&ErlangTerm::Float(-3.7)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(-3));
+    ///
+    /// // Truncate integer (no change)
+    /// let result = GuardBif::trunc(&ErlangTerm::Integer(42)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(42));
+    /// ```
     pub fn trunc(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Integer(n) => Ok(ErlangTerm::Integer(*n)),
@@ -202,6 +289,24 @@ impl GuardBif {
     ///
     /// # Returns
     /// Largest integer less than or equal to the argument (may return Integer or BigInteger)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Floor of positive float
+    /// let result = GuardBif::floor(&ErlangTerm::Float(3.7)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(3));
+    ///
+    /// // Floor of negative float
+    /// let result = GuardBif::floor(&ErlangTerm::Float(-3.7)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(-4));
+    ///
+    /// // Floor of integer (no change)
+    /// let result = GuardBif::floor(&ErlangTerm::Integer(42)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(42));
+    /// ```
     pub fn floor(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Integer(n) => Ok(ErlangTerm::Integer(*n)),
@@ -236,6 +341,24 @@ impl GuardBif {
     ///
     /// # Returns
     /// Smallest integer greater than or equal to the argument (may return Integer or BigInteger)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Ceiling of positive float
+    /// let result = GuardBif::ceil(&ErlangTerm::Float(3.2)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(4));
+    ///
+    /// // Ceiling of negative float
+    /// let result = GuardBif::ceil(&ErlangTerm::Float(-3.2)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(-3));
+    ///
+    /// // Ceiling of integer (no change)
+    /// let result = GuardBif::ceil(&ErlangTerm::Integer(42)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(42));
+    /// ```
     pub fn ceil(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Integer(n) => Ok(ErlangTerm::Integer(*n)),
@@ -270,6 +393,24 @@ impl GuardBif {
     ///
     /// # Returns
     /// Nearest integer to the argument (may return Integer or BigInteger)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Round positive float up
+    /// let result = GuardBif::round(&ErlangTerm::Float(3.7)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(4));
+    ///
+    /// // Round positive float down
+    /// let result = GuardBif::round(&ErlangTerm::Float(3.2)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(3));
+    ///
+    /// // Round negative float
+    /// let result = GuardBif::round(&ErlangTerm::Float(-3.5)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(-4));
+    /// ```
     pub fn round(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Integer(n) => Ok(ErlangTerm::Integer(*n)),
@@ -304,6 +445,31 @@ impl GuardBif {
     ///
     /// # Returns
     /// Length of the list as an integer
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Length of non-empty list
+    /// let list = ErlangTerm::List(vec![
+    ///     ErlangTerm::Integer(1),
+    ///     ErlangTerm::Integer(2),
+    ///     ErlangTerm::Integer(3),
+    /// ]);
+    /// let result = GuardBif::length(&list).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(3));
+    ///
+    /// // Length of empty list
+    /// let empty = ErlangTerm::Nil;
+    /// let result = GuardBif::length(&empty).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(0));
+    ///
+    /// // Length of single-element list
+    /// let single = ErlangTerm::List(vec![ErlangTerm::Integer(42)]);
+    /// let result = GuardBif::length(&single).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(1));
+    /// ```
     pub fn length(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::List(items) => Ok(ErlangTerm::Integer(items.len() as i64)),
@@ -323,6 +489,31 @@ impl GuardBif {
     ///
     /// # Returns
     /// Size as an integer (arity for tuples, byte size for binaries)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Size of tuple (arity)
+    /// let tuple = ErlangTerm::Tuple(vec![
+    ///     ErlangTerm::Integer(1),
+    ///     ErlangTerm::Integer(2),
+    ///     ErlangTerm::Integer(3),
+    /// ]);
+    /// let result = GuardBif::size(&tuple).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(3));
+    ///
+    /// // Size of binary (byte size)
+    /// let binary = ErlangTerm::Binary(vec![1, 2, 3, 4, 5]);
+    /// let result = GuardBif::size(&binary).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(5));
+    ///
+    /// // Size of bitstring
+    /// let bitstring = ErlangTerm::Bitstring(vec![0xFF], 12);
+    /// let result = GuardBif::size(&bitstring).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(2)); // 12 bits = 2 bytes
+    /// ```
     pub fn size(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Tuple(items) => Ok(Self::usize_to_term(items.len())),
@@ -347,6 +538,27 @@ impl GuardBif {
     ///
     /// # Returns
     /// Bit size as an integer
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Bit size of binary (8 bits per byte)
+    /// let binary = ErlangTerm::Binary(vec![1, 2, 3]);
+    /// let result = GuardBif::bit_size(&binary).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(24)); // 3 bytes * 8 bits
+    ///
+    /// // Bit size of bitstring
+    /// let bitstring = ErlangTerm::Bitstring(vec![0xFF], 12);
+    /// let result = GuardBif::bit_size(&bitstring).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(12));
+    ///
+    /// // Bit size of empty binary
+    /// let empty = ErlangTerm::Binary(vec![]);
+    /// let result = GuardBif::bit_size(&empty).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(0));
+    /// ```
     pub fn bit_size(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Binary(data) => {
@@ -369,6 +581,27 @@ impl GuardBif {
     ///
     /// # Returns
     /// Byte size as an integer (number of bytes needed to store)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Byte size of binary
+    /// let binary = ErlangTerm::Binary(vec![1, 2, 3, 4]);
+    /// let result = GuardBif::byte_size(&binary).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(4));
+    ///
+    /// // Byte size of bitstring (rounds up)
+    /// let bitstring = ErlangTerm::Bitstring(vec![0xFF], 12);
+    /// let result = GuardBif::byte_size(&bitstring).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(2)); // 12 bits = 2 bytes
+    ///
+    /// // Byte size of empty binary
+    /// let empty = ErlangTerm::Binary(vec![]);
+    /// let result = GuardBif::byte_size(&empty).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(0));
+    /// ```
     pub fn byte_size(arg: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         match arg {
             ErlangTerm::Binary(data) => Ok(Self::usize_to_term(data.len())),
@@ -394,6 +627,36 @@ impl GuardBif {
     ///
     /// # Returns
     /// `true` if value is an integer in the range [min, max], `false` otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Check integer in range
+    /// let result = GuardBif::is_integer_3(
+    ///     &ErlangTerm::Integer(5),
+    ///     &ErlangTerm::Integer(1),
+    ///     &ErlangTerm::Integer(10),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check integer outside range
+    /// let result = GuardBif::is_integer_3(
+    ///     &ErlangTerm::Integer(15),
+    ///     &ErlangTerm::Integer(1),
+    ///     &ErlangTerm::Integer(10),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check at boundaries
+    /// let result = GuardBif::is_integer_3(
+    ///     &ErlangTerm::Integer(1),
+    ///     &ErlangTerm::Integer(1),
+    ///     &ErlangTerm::Integer(10),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    /// ```
     pub fn is_integer_3(
         value: &ErlangTerm,
         min: &ErlangTerm,
@@ -495,6 +758,26 @@ impl GuardBif {
     ///
     /// # Returns
     /// The smaller of the two values
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Min of two integers
+    /// let result = GuardBif::min(&ErlangTerm::Integer(5), &ErlangTerm::Integer(10)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(5));
+    ///
+    /// // Min with floats
+    /// let result = GuardBif::min(&ErlangTerm::Float(3.14), &ErlangTerm::Float(2.71)).unwrap();
+    /// if let ErlangTerm::Float(f) = result {
+    ///     assert!((f - 2.71).abs() < 0.001);
+    /// }
+    ///
+    /// // Min when equal
+    /// let result = GuardBif::min(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(5));
+    /// ```
     pub fn min(arg1: &ErlangTerm, arg2: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         // Use comparison from ErlangTerm
         match arg1.compare(arg2) {
@@ -516,6 +799,26 @@ impl GuardBif {
     ///
     /// # Returns
     /// The larger of the two values
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Max of two integers
+    /// let result = GuardBif::max(&ErlangTerm::Integer(5), &ErlangTerm::Integer(10)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(10));
+    ///
+    /// // Max with floats
+    /// let result = GuardBif::max(&ErlangTerm::Float(3.14), &ErlangTerm::Float(2.71)).unwrap();
+    /// if let ErlangTerm::Float(f) = result {
+    ///     assert!((f - 3.14).abs() < 0.001);
+    /// }
+    ///
+    /// // Max when equal
+    /// let result = GuardBif::max(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5)).unwrap();
+    /// assert_eq!(result, ErlangTerm::Integer(5));
+    /// ```
     pub fn max(arg1: &ErlangTerm, arg2: &ErlangTerm) -> Result<ErlangTerm, GuardError> {
         // Use comparison from ErlangTerm
         match arg1.compare(arg2) {
@@ -538,6 +841,43 @@ impl GuardBif {
     ///
     /// # Returns
     /// Sub-binary starting at position `start` with length `length`
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Extract part of binary
+    /// let binary = ErlangTerm::Binary(vec![1, 2, 3, 4, 5, 6, 7, 8]);
+    /// let result = GuardBif::binary_part_3(
+    ///     &binary,
+    ///     &ErlangTerm::Integer(2),
+    ///     &ErlangTerm::Integer(3),
+    /// ).unwrap();
+    /// if let ErlangTerm::Binary(data) = result {
+    ///     assert_eq!(data, vec![3, 4, 5]);
+    /// }
+    ///
+    /// // Extract from start
+    /// let result = GuardBif::binary_part_3(
+    ///     &binary,
+    ///     &ErlangTerm::Integer(0),
+    ///     &ErlangTerm::Integer(2),
+    /// ).unwrap();
+    /// if let ErlangTerm::Binary(data) = result {
+    ///     assert_eq!(data, vec![1, 2]);
+    /// }
+    ///
+    /// // Extract single byte
+    /// let result = GuardBif::binary_part_3(
+    ///     &binary,
+    ///     &ErlangTerm::Integer(4),
+    ///     &ErlangTerm::Integer(1),
+    /// ).unwrap();
+    /// if let ErlangTerm::Binary(data) = result {
+    ///     assert_eq!(data, vec![5]);
+    /// }
+    /// ```
     pub fn binary_part_3(
         binary: &ErlangTerm,
         start: &ErlangTerm,
@@ -605,6 +945,43 @@ impl GuardBif {
     ///
     /// # Returns
     /// Sub-binary starting at position `Start` with length `Length`
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::guard::GuardBif;
+    /// use usecases_bifs::op::ErlangTerm;
+    ///
+    /// // Extract using tuple spec
+    /// let binary = ErlangTerm::Binary(vec![1, 2, 3, 4, 5]);
+    /// let spec = ErlangTerm::Tuple(vec![
+    ///     ErlangTerm::Integer(1),
+    ///     ErlangTerm::Integer(3),
+    /// ]);
+    /// let result = GuardBif::binary_part_2(&binary, &spec).unwrap();
+    /// if let ErlangTerm::Binary(data) = result {
+    ///     assert_eq!(data, vec![2, 3, 4]);
+    /// }
+    ///
+    /// // Extract from start
+    /// let spec = ErlangTerm::Tuple(vec![
+    ///     ErlangTerm::Integer(0),
+    ///     ErlangTerm::Integer(2),
+    /// ]);
+    /// let result = GuardBif::binary_part_2(&binary, &spec).unwrap();
+    /// if let ErlangTerm::Binary(data) = result {
+    ///     assert_eq!(data, vec![1, 2]);
+    /// }
+    ///
+    /// // Single byte
+    /// let spec = ErlangTerm::Tuple(vec![
+    ///     ErlangTerm::Integer(4),
+    ///     ErlangTerm::Integer(1),
+    /// ]);
+    /// let result = GuardBif::binary_part_2(&binary, &spec).unwrap();
+    /// if let ErlangTerm::Binary(data) = result {
+    ///     assert_eq!(data, vec![5]);
+    /// }
+    /// ```
     pub fn binary_part_2(
         binary: &ErlangTerm,
         tuple: &ErlangTerm,

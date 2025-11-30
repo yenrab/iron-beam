@@ -1,11 +1,37 @@
 //! Regular Expression BIF Module
 //!
 //! Provides regular expression built-in functions.
-//! Based on erl_bif_re.c
 //!
 //! This module implements regex operations using the Rust `regex` crate.
 //! Note: The C code uses PCRE2, but we use Rust's regex crate for safe Rust implementation.
 //! For internal usecases, this provides equivalent functionality.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use regex::{Regex, RegexBuilder};
 use std::sync::Arc;
@@ -24,6 +50,26 @@ impl RegexBif {
     ///
     /// # Returns
     /// Compiled regex or error
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::regex::RegexBif;
+    ///
+    /// // Compile a simple pattern
+    /// let re = RegexBif::compile(r"hello", false, false, false).unwrap();
+    /// let result = RegexBif::run(&re, "hello world", 0).unwrap();
+    /// assert!(result.matched);
+    ///
+    /// // Compile with case-insensitive matching
+    /// let re = RegexBif::compile(r"hello", true, false, false).unwrap();
+    /// let result = RegexBif::run(&re, "HELLO world", 0).unwrap();
+    /// assert!(result.matched);
+    ///
+    /// // Compile with multiline mode
+    /// let re = RegexBif::compile(r"^hello", false, true, false).unwrap();
+    /// let result = RegexBif::run(&re, "world\nhello", 0).unwrap();
+    /// assert!(result.matched);
+    /// ```
     pub fn compile(
         pattern: &str,
         case_insensitive: bool,
@@ -50,6 +96,26 @@ impl RegexBif {
     ///
     /// # Returns
     /// Compiled regex or error
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::regex::RegexBif;
+    ///
+    /// // Compile a simple pattern with defaults
+    /// let re = RegexBif::compile_simple(r"hello").unwrap();
+    /// let result = RegexBif::run(&re, "hello world", 0).unwrap();
+    /// assert!(result.matched);
+    ///
+    /// // Compile pattern with capture groups
+    /// let re = RegexBif::compile_simple(r"(\w+) (\w+)").unwrap();
+    /// let result = RegexBif::run(&re, "hello world", 0).unwrap();
+    /// assert!(result.matched);
+    /// assert_eq!(result.captures.len(), 3);
+    ///
+    /// // Compile invalid pattern (returns error)
+    /// let re = RegexBif::compile_simple(r"[invalid");
+    /// assert!(re.is_err());
+    /// ```
     pub fn compile_simple(pattern: &str) -> Result<CompiledRegex, RegexError> {
         Self::compile(pattern, false, false, false)
     }
@@ -58,6 +124,25 @@ impl RegexBif {
     ///
     /// # Returns
     /// Version string
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::regex::RegexBif;
+    ///
+    /// // Get version string
+    /// let version = RegexBif::version();
+    /// assert!(!version.is_empty());
+    ///
+    /// // Version is consistent across calls
+    /// let v1 = RegexBif::version();
+    /// let v2 = RegexBif::version();
+    /// assert_eq!(v1, v2);
+    ///
+    /// // Version is a static string
+    /// let version_ptr1 = RegexBif::version() as *const str;
+    /// let version_ptr2 = RegexBif::version() as *const str;
+    /// assert_eq!(version_ptr1, version_ptr2);
+    /// ```
     pub fn version() -> &'static str {
         env!("CARGO_PKG_VERSION")
     }
@@ -71,6 +156,31 @@ impl RegexBif {
     ///
     /// # Returns
     /// Match result with captures
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::regex::RegexBif;
+    ///
+    /// // Simple match from start
+    /// let re = RegexBif::compile_simple(r"hello").unwrap();
+    /// let result = RegexBif::run(&re, "hello world", 0).unwrap();
+    /// assert!(result.matched);
+    /// assert_eq!(result.captures[0].text, "hello");
+    ///
+    /// // Match with offset
+    /// let re = RegexBif::compile_simple(r"world").unwrap();
+    /// let result = RegexBif::run(&re, "hello world", 6).unwrap();
+    /// assert!(result.matched);
+    /// assert_eq!(result.captures[0].start, 6);
+    ///
+    /// // Match with capture groups
+    /// let re = RegexBif::compile_simple(r"(\w+) (\w+)").unwrap();
+    /// let result = RegexBif::run(&re, "hello world", 0).unwrap();
+    /// assert!(result.matched);
+    /// assert_eq!(result.captures[0].text, "hello world");
+    /// assert_eq!(result.captures[1].text, "hello");
+    /// assert_eq!(result.captures[2].text, "world");
+    /// ```
     pub fn run(
         regex: &CompiledRegex,
         text: &str,
@@ -132,6 +242,29 @@ impl RegexBif {
     ///
     /// # Returns
     /// Vector of match results
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::regex::RegexBif;
+    ///
+    /// // Find all numbers in text
+    /// let re = RegexBif::compile_simple(r"\d+").unwrap();
+    /// let results = RegexBif::find_all(&re, "123 abc 456 def 789");
+    /// assert_eq!(results.len(), 3);
+    /// assert_eq!(results[0].captures[0].text, "123");
+    /// assert_eq!(results[1].captures[0].text, "456");
+    /// assert_eq!(results[2].captures[0].text, "789");
+    ///
+    /// // Find all words
+    /// let re = RegexBif::compile_simple(r"\w+").unwrap();
+    /// let results = RegexBif::find_all(&re, "hello world test");
+    /// assert_eq!(results.len(), 3);
+    ///
+    /// // Find all with no matches
+    /// let re = RegexBif::compile_simple(r"\d+").unwrap();
+    /// let results = RegexBif::find_all(&re, "abc def");
+    /// assert_eq!(results.len(), 0);
+    /// ```
     pub fn find_all(regex: &CompiledRegex, text: &str) -> Vec<MatchResult> {
         let regex_ref = regex.regex.as_ref();
         let mut results = Vec::new();
@@ -180,6 +313,31 @@ pub struct CompiledRegex {
 
 impl CompiledRegex {
     /// Get a reference to the underlying regex
+    ///
+    /// # Returns
+    /// Reference to the compiled regex
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::regex::RegexBif;
+    ///
+    /// // Get reference to underlying regex
+    /// let compiled = RegexBif::compile_simple(r"test").unwrap();
+    /// let regex_ref = compiled.as_ref();
+    /// assert!(regex_ref.is_match("test"));
+    ///
+    /// // Use reference for additional operations
+    /// let compiled = RegexBif::compile_simple(r"\d+").unwrap();
+    /// let regex_ref = compiled.as_ref();
+    /// assert!(regex_ref.is_match("123"));
+    /// assert!(!regex_ref.is_match("abc"));
+    ///
+    /// // Reference can be used multiple times
+    /// let compiled = RegexBif::compile_simple(r"hello").unwrap();
+    /// let regex_ref = compiled.as_ref();
+    /// assert!(regex_ref.is_match("hello"));
+    /// assert!(regex_ref.is_match("hello world"));
+    /// ```
     pub fn as_ref(&self) -> &Regex {
         self.regex.as_ref()
     }

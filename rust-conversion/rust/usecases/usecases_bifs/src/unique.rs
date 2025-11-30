@@ -4,9 +4,34 @@
 //! - References (make_ref)
 //! - Unique integers (with optional monotonic and positive flags)
 //!
-//! Based on erl_bif_unique.c
-//!
 //! This module uses safe Rust atomic operations and thread IDs for unique value generation.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
@@ -212,12 +237,28 @@ impl UniqueBif {
     /// # Returns
     /// New unique reference
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::unique::UniqueBif;
+    ///
+    /// // Create multiple unique references
     /// let ref1 = UniqueBif::make_ref();
     /// let ref2 = UniqueBif::make_ref();
+    /// let ref3 = UniqueBif::make_ref();
     /// assert_ne!(ref1, ref2);
+    /// assert_ne!(ref2, ref3);
+    /// assert_ne!(ref1, ref3);
+    ///
+    /// // References have thread ID and value components
+    /// let ref1 = UniqueBif::make_ref();
+    /// assert!(ref1.thread_id() > 0);
+    /// assert!(ref1.value() > 0);
+    ///
+    /// // Create references from different calls
+    /// let ref1 = UniqueBif::make_ref();
+    /// std::thread::sleep(std::time::Duration::from_millis(1));
+    /// let ref2 = UniqueBif::make_ref();
+    /// assert_ne!(ref1.value(), ref2.value());
     /// ```
     pub fn make_ref() -> Reference {
         get_generator().make_ref()
@@ -231,10 +272,26 @@ impl UniqueBif {
     /// # Returns
     /// Unique integer (may be negative)
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::unique::UniqueBif;
+    ///
+    /// // Generate multiple unique integers
     /// let int1 = UniqueBif::unique_integer();
+    /// let int2 = UniqueBif::unique_integer();
+    /// let int3 = UniqueBif::unique_integer();
+    /// assert_ne!(int1, int2);
+    /// assert_ne!(int2, int3);
+    ///
+    /// // Integers may be negative (no positive flag)
+    /// let ints: Vec<i64> = (0..10).map(|_| UniqueBif::unique_integer()).collect();
+    /// // At least some should be unique
+    /// let unique_count = ints.iter().collect::<std::collections::HashSet<_>>().len();
+    /// assert!(unique_count >= 1);
+    ///
+    /// // Generate integers over time
+    /// let int1 = UniqueBif::unique_integer();
+    /// std::thread::sleep(std::time::Duration::from_millis(1));
     /// let int2 = UniqueBif::unique_integer();
     /// assert_ne!(int1, int2);
     /// ```
@@ -253,12 +310,35 @@ impl UniqueBif {
     /// * `Ok(i64)` - Unique integer
     /// * `Err(UniqueError)` - If invalid options provided
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use usecases_bifs::unique::{UniqueBif, UniqueIntegerOption};
+    ///
+    /// // Generate monotonic unique integers (strictly increasing)
     /// let int1 = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Monotonic]).unwrap();
     /// let int2 = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Monotonic]).unwrap();
-    /// assert!(int2 > int1); // Monotonic ensures increasing
+    /// let int3 = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Monotonic]).unwrap();
+    /// assert!(int2 > int1);
+    /// assert!(int3 > int2);
+    ///
+    /// // Generate positive unique integers
+    /// let int1 = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Positive]).unwrap();
+    /// let int2 = UniqueBif::unique_integer_with_options(&[UniqueIntegerOption::Positive]).unwrap();
+    /// assert!(int1 > 0);
+    /// assert!(int2 > 0);
+    /// assert_ne!(int1, int2);
+    ///
+    /// // Generate monotonic and positive integers
+    /// let int1 = UniqueBif::unique_integer_with_options(&[
+    ///     UniqueIntegerOption::Monotonic,
+    ///     UniqueIntegerOption::Positive,
+    /// ]).unwrap();
+    /// let int2 = UniqueBif::unique_integer_with_options(&[
+    ///     UniqueIntegerOption::Monotonic,
+    ///     UniqueIntegerOption::Positive,
+    /// ]).unwrap();
+    /// assert!(int1 > 0);
+    /// assert!(int2 > int1);
     /// ```
     pub fn unique_integer_with_options(
         options: &[UniqueIntegerOption],

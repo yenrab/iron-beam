@@ -5,9 +5,34 @@
 //! - Comparison operations (>, >=, <, <=, ==, =/=)
 //! - Type checking operations (is_atom, is_integer, is_list, etc.)
 //!
-//! Based on erl_bif_op.c
-//!
 //! This module implements safe Rust equivalents of Erlang operator BIFs.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use std::collections::HashMap;
 use entities_utilities::{BigNumber, BigRational};
@@ -534,6 +559,32 @@ impl OpBif {
     /// * `Ok(ErlangTerm::Atom("true"))` - If both arguments are true
     /// * `Ok(ErlangTerm::Atom("false"))` - Otherwise
     /// * `Err(OpError)` - If arguments are not booleans
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Both true
+    /// let result = OpBif::and(
+    ///     &ErlangTerm::Atom("true".to_string()),
+    ///     &ErlangTerm::Atom("true".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // One false
+    /// let result = OpBif::and(
+    ///     &ErlangTerm::Atom("true".to_string()),
+    ///     &ErlangTerm::Atom("false".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Both false
+    /// let result = OpBif::and(
+    ///     &ErlangTerm::Atom("false".to_string()),
+    ///     &ErlangTerm::Atom("false".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn and(arg1: &ErlangTerm, arg2: &ErlangTerm) -> Result<ErlangTerm, OpError> {
         let b1 = Self::to_bool(arg1)?;
         let b2 = Self::to_bool(arg2)?;
@@ -543,6 +594,41 @@ impl OpBif {
     /// Logical OR operation
     ///
     /// Equivalent to `erlang:'or'/2` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg1` - First boolean argument
+    /// * `arg2` - Second boolean argument
+    ///
+    /// # Returns
+    /// * `Ok(ErlangTerm::Atom("true"))` - If either argument is true
+    /// * `Ok(ErlangTerm::Atom("false"))` - If both are false
+    /// * `Err(OpError)` - If arguments are not booleans
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Both true
+    /// let result = OpBif::or(
+    ///     &ErlangTerm::Atom("true".to_string()),
+    ///     &ErlangTerm::Atom("true".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // One true
+    /// let result = OpBif::or(
+    ///     &ErlangTerm::Atom("true".to_string()),
+    ///     &ErlangTerm::Atom("false".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Both false
+    /// let result = OpBif::or(
+    ///     &ErlangTerm::Atom("false".to_string()),
+    ///     &ErlangTerm::Atom("false".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn or(arg1: &ErlangTerm, arg2: &ErlangTerm) -> Result<ErlangTerm, OpError> {
         let b1 = Self::to_bool(arg1)?;
         let b2 = Self::to_bool(arg2)?;
@@ -552,6 +638,41 @@ impl OpBif {
     /// Logical XOR operation
     ///
     /// Equivalent to `erlang:'xor'/2` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg1` - First boolean argument
+    /// * `arg2` - Second boolean argument
+    ///
+    /// # Returns
+    /// * `Ok(ErlangTerm::Atom("true"))` - If arguments differ
+    /// * `Ok(ErlangTerm::Atom("false"))` - If arguments are the same
+    /// * `Err(OpError)` - If arguments are not booleans
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Different values (true, false)
+    /// let result = OpBif::xor(
+    ///     &ErlangTerm::Atom("true".to_string()),
+    ///     &ErlangTerm::Atom("false".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Same values (both true)
+    /// let result = OpBif::xor(
+    ///     &ErlangTerm::Atom("true".to_string()),
+    ///     &ErlangTerm::Atom("true".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Same values (both false)
+    /// let result = OpBif::xor(
+    ///     &ErlangTerm::Atom("false".to_string()),
+    ///     &ErlangTerm::Atom("false".to_string()),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn xor(arg1: &ErlangTerm, arg2: &ErlangTerm) -> Result<ErlangTerm, OpError> {
         let b1 = Self::to_bool(arg1)?;
         let b2 = Self::to_bool(arg2)?;
@@ -561,6 +682,32 @@ impl OpBif {
     /// Logical NOT operation
     ///
     /// Equivalent to `erlang:'not'/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Boolean argument
+    ///
+    /// # Returns
+    /// * `Ok(ErlangTerm::Atom("true"))` - If argument is false
+    /// * `Ok(ErlangTerm::Atom("false"))` - If argument is true
+    /// * `Err(OpError)` - If argument is not a boolean
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // NOT true
+    /// let result = OpBif::not(&ErlangTerm::Atom("true".to_string())).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // NOT false
+    /// let result = OpBif::not(&ErlangTerm::Atom("false".to_string())).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Double negation
+    /// let arg = ErlangTerm::Atom("true".to_string());
+    /// let result = OpBif::not(&OpBif::not(&arg).unwrap()).unwrap();
+    /// assert_eq!(result, arg);
+    /// ```
     pub fn not(arg: &ErlangTerm) -> Result<ErlangTerm, OpError> {
         let b = Self::to_bool(arg)?;
         Ok(ErlangTerm::Atom(if b { "false" } else { "true" }.to_string()))
@@ -569,6 +716,31 @@ impl OpBif {
     /// Strictly greater than comparison
     ///
     /// Equivalent to `erlang:'>'/2` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If arg1 > arg2
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Integer comparison
+    /// let result = OpBif::sgt(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Equal values
+    /// let result = OpBif::sgt(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Float comparison
+    /// let result = OpBif::sgt(&ErlangTerm::Float(3.14), &ErlangTerm::Float(2.71));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    /// ```
     pub fn sgt(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         match arg1.compare(arg2) {
             Some(std::cmp::Ordering::Greater) => ErlangTerm::Atom("true".to_string()),
@@ -579,6 +751,31 @@ impl OpBif {
     /// Strictly greater than or equal comparison
     ///
     /// Equivalent to `erlang:'>='/2` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If arg1 >= arg2
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Greater than
+    /// let result = OpBif::sge(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Equal values
+    /// let result = OpBif::sge(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Less than
+    /// let result = OpBif::sge(&ErlangTerm::Integer(3), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn sge(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         match arg1.compare(arg2) {
             Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => {
@@ -591,6 +788,31 @@ impl OpBif {
     /// Strictly less than comparison
     ///
     /// Equivalent to `erlang:'<'/2` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If arg1 < arg2
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Less than
+    /// let result = OpBif::slt(&ErlangTerm::Integer(3), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Equal values
+    /// let result = OpBif::slt(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Greater than
+    /// let result = OpBif::slt(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn slt(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         match arg1.compare(arg2) {
             Some(std::cmp::Ordering::Less) => ErlangTerm::Atom("true".to_string()),
@@ -601,6 +823,31 @@ impl OpBif {
     /// Strictly less than or equal comparison
     ///
     /// Equivalent to `erlang:'=<'/2` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If arg1 <= arg2
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Less than
+    /// let result = OpBif::sle(&ErlangTerm::Integer(3), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Equal values
+    /// let result = OpBif::sle(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Greater than
+    /// let result = OpBif::sle(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn sle(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         match arg1.compare(arg2) {
             Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => {
@@ -613,6 +860,32 @@ impl OpBif {
     /// Equality comparison (structural equality)
     ///
     /// Equivalent to `erlang:'=='/2` in Erlang.
+    /// Allows type coercion: Integer(1) == Float(1.0) is true
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If terms are structurally equal
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Equal integers
+    /// let result = OpBif::seq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Type coercion: integer equals float
+    /// let result = OpBif::seq(&ErlangTerm::Integer(1), &ErlangTerm::Float(1.0));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Different values
+    /// let result = OpBif::seq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn seq(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg1.eq(arg2) { "true" } else { "false" }.to_string())
     }
@@ -621,6 +894,31 @@ impl OpBif {
     ///
     /// Equivalent to `erlang:'=:='/2` in Erlang.
     /// Requires exact type match: Integer(1) =:= Float(1.0) is false
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If terms are exactly equal (same type and value)
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Exact match
+    /// let result = OpBif::seqeq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Different types (no coercion)
+    /// let result = OpBif::seqeq(&ErlangTerm::Integer(1), &ErlangTerm::Float(1.0));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Different values
+    /// let result = OpBif::seqeq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn seqeq(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg1.exact_eq(arg2) { "true" } else { "false" }.to_string())
     }
@@ -629,6 +927,31 @@ impl OpBif {
     ///
     /// Equivalent to `erlang:'/='/2` in Erlang.
     /// Allows type coercion: Integer(1) /= Float(1.0) is false
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If terms are not structurally equal
+    /// * `ErlangTerm::Atom("false")` - If terms are equal
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Different values
+    /// let result = OpBif::sneq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Equal values (with type coercion)
+    /// let result = OpBif::sneq(&ErlangTerm::Integer(1), &ErlangTerm::Float(1.0));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Same values
+    /// let result = OpBif::sneq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn sneq(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if !arg1.eq(arg2) { "true" } else { "false" }.to_string())
     }
@@ -637,6 +960,31 @@ impl OpBif {
     ///
     /// Equivalent to `erlang:'=/='/2` in Erlang.
     /// Requires exact type match: Integer(1) =/= Float(1.0) is true
+    ///
+    /// # Arguments
+    /// * `arg1` - First term
+    /// * `arg2` - Second term
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If terms are not exactly equal
+    /// * `ErlangTerm::Atom("false")` - If terms are exactly equal
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Different types (no coercion)
+    /// let result = OpBif::sneqeq(&ErlangTerm::Integer(1), &ErlangTerm::Float(1.0));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Exact match
+    /// let result = OpBif::sneqeq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(5));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Different values
+    /// let result = OpBif::sneqeq(&ErlangTerm::Integer(5), &ErlangTerm::Integer(3));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    /// ```
     pub fn sneqeq(arg1: &ErlangTerm, arg2: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if !arg1.exact_eq(arg2) { "true" } else { "false" }.to_string())
     }
@@ -644,6 +992,30 @@ impl OpBif {
     /// Type check: is atom
     ///
     /// Equivalent to `erlang:is_atom/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is an atom
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check atom
+    /// let result = OpBif::is_atom(&ErlangTerm::Atom("hello".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-atom
+    /// let result = OpBif::is_atom(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check another type
+    /// let result = OpBif::is_atom(&ErlangTerm::Float(3.14));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_atom(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_atom() { "true" } else { "false" }.to_string())
     }
@@ -651,6 +1023,30 @@ impl OpBif {
     /// Type check: is float
     ///
     /// Equivalent to `erlang:is_float/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a float
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check float
+    /// let result = OpBif::is_float(&ErlangTerm::Float(3.14));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check integer (not float)
+    /// let result = OpBif::is_float(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check atom
+    /// let result = OpBif::is_float(&ErlangTerm::Atom("test".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_float(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_float() { "true" } else { "false" }.to_string())
     }
@@ -658,6 +1054,30 @@ impl OpBif {
     /// Type check: is integer
     ///
     /// Equivalent to `erlang:is_integer/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is an integer
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check integer
+    /// let result = OpBif::is_integer(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check float (not integer)
+    /// let result = OpBif::is_integer(&ErlangTerm::Float(3.14));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check atom
+    /// let result = OpBif::is_integer(&ErlangTerm::Atom("test".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_integer(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_integer() { "true" } else { "false" }.to_string())
     }
@@ -665,6 +1085,30 @@ impl OpBif {
     /// Type check: is list
     ///
     /// Equivalent to `erlang:is_list/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a list or nil
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check list
+    /// let result = OpBif::is_list(&ErlangTerm::List(vec![ErlangTerm::Integer(1)]));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check nil (also a list)
+    /// let result = OpBif::is_list(&ErlangTerm::Nil);
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check tuple (not a list)
+    /// let result = OpBif::is_list(&ErlangTerm::Tuple(vec![ErlangTerm::Integer(1)]));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_list(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_list() { "true" } else { "false" }.to_string())
     }
@@ -672,6 +1116,30 @@ impl OpBif {
     /// Type check: is number
     ///
     /// Equivalent to `erlang:is_number/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is an integer or float
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check integer
+    /// let result = OpBif::is_number(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check float
+    /// let result = OpBif::is_number(&ErlangTerm::Float(3.14));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check atom (not a number)
+    /// let result = OpBif::is_number(&ErlangTerm::Atom("test".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_number(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_number() { "true" } else { "false" }.to_string())
     }
@@ -679,6 +1147,30 @@ impl OpBif {
     /// Type check: is PID
     ///
     /// Equivalent to `erlang:is_pid/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a PID
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check PID
+    /// let result = OpBif::is_pid(&ErlangTerm::Pid(12345));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-PID
+    /// let result = OpBif::is_pid(&ErlangTerm::Integer(12345));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check atom
+    /// let result = OpBif::is_pid(&ErlangTerm::Atom("pid".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_pid(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_pid() { "true" } else { "false" }.to_string())
     }
@@ -686,6 +1178,30 @@ impl OpBif {
     /// Type check: is port
     ///
     /// Equivalent to `erlang:is_port/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a port
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check port
+    /// let result = OpBif::is_port(&ErlangTerm::Port(67890));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-port
+    /// let result = OpBif::is_port(&ErlangTerm::Integer(67890));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check PID (not a port)
+    /// let result = OpBif::is_port(&ErlangTerm::Pid(12345));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_port(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_port() { "true" } else { "false" }.to_string())
     }
@@ -693,6 +1209,30 @@ impl OpBif {
     /// Type check: is reference
     ///
     /// Equivalent to `erlang:is_reference/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a reference
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check reference
+    /// let result = OpBif::is_reference(&ErlangTerm::Reference(11111));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-reference
+    /// let result = OpBif::is_reference(&ErlangTerm::Integer(11111));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check PID (not a reference)
+    /// let result = OpBif::is_reference(&ErlangTerm::Pid(12345));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_reference(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_reference() { "true" } else { "false" }.to_string())
     }
@@ -700,6 +1240,30 @@ impl OpBif {
     /// Type check: is tuple
     ///
     /// Equivalent to `erlang:is_tuple/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a tuple
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check tuple
+    /// let result = OpBif::is_tuple(&ErlangTerm::Tuple(vec![ErlangTerm::Integer(1)]));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check list (not a tuple)
+    /// let result = OpBif::is_tuple(&ErlangTerm::List(vec![ErlangTerm::Integer(1)]));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check atom
+    /// let result = OpBif::is_tuple(&ErlangTerm::Atom("test".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_tuple(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_tuple() { "true" } else { "false" }.to_string())
     }
@@ -707,6 +1271,30 @@ impl OpBif {
     /// Type check: is binary
     ///
     /// Equivalent to `erlang:is_binary/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a binary (byte-aligned bitstring)
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check binary
+    /// let result = OpBif::is_binary(&ErlangTerm::Binary(vec![1, 2, 3]));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check byte-aligned bitstring
+    /// let result = OpBif::is_binary(&ErlangTerm::Bitstring(vec![1, 2], 16));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-byte-aligned bitstring (not a binary)
+    /// let result = OpBif::is_binary(&ErlangTerm::Bitstring(vec![1], 12));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_binary(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_binary() { "true" } else { "false" }.to_string())
     }
@@ -714,6 +1302,30 @@ impl OpBif {
     /// Type check: is bitstring
     ///
     /// Equivalent to `erlang:is_bitstring/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a binary or bitstring
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check binary
+    /// let result = OpBif::is_bitstring(&ErlangTerm::Binary(vec![1, 2, 3]));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check bitstring
+    /// let result = OpBif::is_bitstring(&ErlangTerm::Bitstring(vec![1], 12));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-bitstring
+    /// let result = OpBif::is_bitstring(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_bitstring(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_bitstring() { "true" } else { "false" }.to_string())
     }
@@ -721,6 +1333,33 @@ impl OpBif {
     /// Type check: is function
     ///
     /// Equivalent to `erlang:is_function/1` in Erlang.
+    /// Type check: is function
+    ///
+    /// Equivalent to `erlang:is_function/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a function
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check function
+    /// let result = OpBif::is_function(&ErlangTerm::Function { arity: 2 });
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-function
+    /// let result = OpBif::is_function(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check atom
+    /// let result = OpBif::is_function(&ErlangTerm::Atom("test".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_function(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_function() { "true" } else { "false" }.to_string())
     }
@@ -737,6 +1376,32 @@ impl OpBif {
     /// * `Ok(ErlangTerm::Atom("true"))` - If arg1 is a function with the specified arity
     /// * `Ok(ErlangTerm::Atom("false"))` - Otherwise
     /// * `Err(OpError)` - If arg2 is not a valid non-negative integer
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check function with matching arity
+    /// let result = OpBif::is_function_with_arity(
+    ///     &ErlangTerm::Function { arity: 2 },
+    ///     &ErlangTerm::Integer(2),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check function with non-matching arity
+    /// let result = OpBif::is_function_with_arity(
+    ///     &ErlangTerm::Function { arity: 2 },
+    ///     &ErlangTerm::Integer(3),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check non-function
+    /// let result = OpBif::is_function_with_arity(
+    ///     &ErlangTerm::Integer(42),
+    ///     &ErlangTerm::Integer(2),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_function_with_arity(
         arg1: &ErlangTerm,
         arg2: &ErlangTerm,
@@ -753,6 +1418,30 @@ impl OpBif {
     /// Type check: is boolean
     ///
     /// Equivalent to `erlang:is_boolean/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a boolean (atom "true" or "false")
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check true
+    /// let result = OpBif::is_boolean(&ErlangTerm::Atom("true".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check false
+    /// let result = OpBif::is_boolean(&ErlangTerm::Atom("false".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-boolean atom
+    /// let result = OpBif::is_boolean(&ErlangTerm::Atom("maybe".to_string()));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_boolean(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_boolean() { "true" } else { "false" }.to_string())
     }
@@ -770,6 +1459,27 @@ impl OpBif {
     /// * `Ok(ErlangTerm::Atom("true"))` - If arg1 is a tuple with first element == arg2
     /// * `Ok(ErlangTerm::Atom("false"))` - Otherwise
     /// * `Err(OpError)` - If arg2 is not an atom
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check matching record
+    /// let tuple = ErlangTerm::Tuple(vec![
+    ///     ErlangTerm::Atom("person".to_string()),
+    ///     ErlangTerm::Integer(42),
+    /// ]);
+    /// let result = OpBif::is_record(&tuple, &ErlangTerm::Atom("person".to_string())).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-matching record
+    /// let result = OpBif::is_record(&tuple, &ErlangTerm::Atom("animal".to_string())).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check non-tuple
+    /// let result = OpBif::is_record(&ErlangTerm::Integer(42), &ErlangTerm::Atom("person".to_string())).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_record(arg1: &ErlangTerm, arg2: &ErlangTerm) -> Result<ErlangTerm, OpError> {
         if !arg2.is_atom() {
             return Err(OpError::BadArgument("Second argument must be an atom".to_string()));
@@ -800,6 +1510,40 @@ impl OpBif {
     /// * `Ok(ErlangTerm::Atom("true"))` - If arg1 is a tuple with size == arg3 and first element == arg2
     /// * `Ok(ErlangTerm::Atom("false"))` - Otherwise
     /// * `Err(OpError)` - If arguments are invalid
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    ///
+    /// // Check matching record with size
+    /// let tuple = ErlangTerm::Tuple(vec![
+    ///     ErlangTerm::Atom("person".to_string()),
+    ///     ErlangTerm::Integer(42),
+    ///     ErlangTerm::Atom("john".to_string()),
+    /// ]);
+    /// let result = OpBif::is_record_with_size(
+    ///     &tuple,
+    ///     &ErlangTerm::Atom("person".to_string()),
+    ///     &ErlangTerm::Integer(3),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check wrong size
+    /// let result = OpBif::is_record_with_size(
+    ///     &tuple,
+    ///     &ErlangTerm::Atom("person".to_string()),
+    ///     &ErlangTerm::Integer(2),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check wrong atom
+    /// let result = OpBif::is_record_with_size(
+    ///     &tuple,
+    ///     &ErlangTerm::Atom("animal".to_string()),
+    ///     &ErlangTerm::Integer(3),
+    /// ).unwrap();
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_record_with_size(
         arg1: &ErlangTerm,
         arg2: &ErlangTerm,
@@ -825,6 +1569,33 @@ impl OpBif {
     /// Type check: is map
     ///
     /// Equivalent to `erlang:is_map/1` in Erlang.
+    ///
+    /// # Arguments
+    /// * `arg` - Term to check
+    ///
+    /// # Returns
+    /// * `ErlangTerm::Atom("true")` - If term is a map
+    /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    /// use std::collections::HashMap;
+    ///
+    /// // Check map
+    /// let mut map = HashMap::new();
+    /// map.insert(ErlangTerm::Atom("key".to_string()), ErlangTerm::Integer(42));
+    /// let result = OpBif::is_map(&ErlangTerm::Map(map));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check non-map
+    /// let result = OpBif::is_map(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check tuple (not a map)
+    /// let result = OpBif::is_map(&ErlangTerm::Tuple(vec![ErlangTerm::Integer(1)]));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_map(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_map() { "true" } else { "false" }.to_string())
     }
@@ -840,6 +1611,25 @@ impl OpBif {
     /// # Returns
     /// * `ErlangTerm::Atom("true")` - If arg is a rational number
     /// * `ErlangTerm::Atom("false")` - Otherwise
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::op::{OpBif, ErlangTerm};
+    /// use entities_utilities::BigRational;
+    ///
+    /// // Check rational
+    /// let rational = BigRational::from_integer(1) / BigRational::from_integer(3);
+    /// let result = OpBif::is_rational(&ErlangTerm::Rational(rational));
+    /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    ///
+    /// // Check integer (not rational)
+    /// let result = OpBif::is_rational(&ErlangTerm::Integer(42));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    ///
+    /// // Check float (not rational)
+    /// let result = OpBif::is_rational(&ErlangTerm::Float(3.14));
+    /// assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+    /// ```
     pub fn is_rational(arg: &ErlangTerm) -> ErlangTerm {
         ErlangTerm::Atom(if arg.is_rational() { "true" } else { "false" }.to_string())
     }

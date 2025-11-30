@@ -1,10 +1,36 @@
 //! Checksum BIF Module
 //!
 //! Provides checksum built-in functions for CRC32, Adler32, and MD5.
-//! Based on erl_bif_chksum.c
 //!
 //! This module implements checksum algorithms used by Erlang BIFs.
 //! Functions support incremental computation for large data streams.
+
+/*
+ * %CopyrightBegin%
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright Lee Barney 2025. All Rights Reserved.
+ *
+ * This file is derived from work copyrighted by Ericsson AB 1996-2025.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * %CopyrightEnd%
+ *
+ * Creation productivity increased for code in this file by using AALang and GAB.
+ * See https://github.com/yenrab/AALang-Gab
+ */
 
 use crc32fast::Hasher as Crc32Hasher;
 use adler::Adler32;
@@ -21,6 +47,25 @@ impl ChecksumBif {
     ///
     /// # Returns
     /// CRC32 checksum value
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Calculate CRC32 for a string
+    /// let data = b"Hello, world!";
+    /// let checksum = ChecksumBif::crc32(data);
+    /// assert_ne!(checksum, 0);
+    ///
+    /// // Calculate CRC32 for empty data
+    /// let empty_checksum = ChecksumBif::crc32(b"");
+    /// assert_eq!(empty_checksum, 0);
+    ///
+    /// // Calculate CRC32 for binary data
+    /// let binary_data = vec![0u8; 100];
+    /// let binary_checksum = ChecksumBif::crc32(&binary_data);
+    /// assert_ne!(binary_checksum, 0);
+    /// ```
     pub fn crc32(data: &[u8]) -> u32 {
         let mut hasher = Crc32Hasher::new();
         hasher.update(data);
@@ -35,6 +80,28 @@ impl ChecksumBif {
     ///
     /// # Returns
     /// Combined CRC32 checksum value
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Incremental CRC32 calculation
+    /// let data1 = b"Hello";
+    /// let crc1 = ChecksumBif::crc32(data1);
+    /// let data2 = b", world!";
+    /// let crc2 = ChecksumBif::crc32_with_initial(crc1, data2);
+    /// assert_ne!(crc2, 0);
+    ///
+    /// // Continue from existing checksum
+    /// let data3 = b" More data";
+    /// let crc3 = ChecksumBif::crc32_with_initial(crc2, data3);
+    /// assert_ne!(crc3, crc2);
+    ///
+    /// // Start from zero (equivalent to crc32)
+    /// let crc_from_zero = ChecksumBif::crc32_with_initial(0, b"test");
+    /// let crc_direct = ChecksumBif::crc32(b"test");
+    /// assert_eq!(crc_from_zero, crc_direct);
+    /// ```
     pub fn crc32_with_initial(initial: u32, data: &[u8]) -> u32 {
         let mut hasher = Crc32Hasher::new_with_initial(initial);
         hasher.update(data);
@@ -53,6 +120,32 @@ impl ChecksumBif {
     ///
     /// # Returns
     /// Combined CRC32 checksum (equivalent to CRC32 of data1 || data2)
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Combine two separate CRC32 checksums
+    /// let data1 = b"Hello";
+    /// let data2 = b", world!";
+    /// let crc1 = ChecksumBif::crc32(data1);
+    /// let crc2 = ChecksumBif::crc32(data2);
+    /// let combined = ChecksumBif::crc32_combine(crc1, crc2, data2.len() as u64);
+    /// assert_ne!(combined, crc1);
+    /// assert_ne!(combined, crc2);
+    ///
+    /// // Zero length returns first checksum
+    /// let crc1 = ChecksumBif::crc32(b"test");
+    /// let crc2 = ChecksumBif::crc32(b"data");
+    /// let combined = ChecksumBif::crc32_combine(crc1, crc2, 0);
+    /// assert_eq!(combined, crc1);
+    ///
+    /// // Combine with large length values
+    /// let crc1 = ChecksumBif::crc32(b"prefix");
+    /// let crc2 = ChecksumBif::crc32(b"suffix");
+    /// let combined = ChecksumBif::crc32_combine(crc1, crc2, 1000);
+    /// assert_ne!(combined, 0);
+    /// ```
     pub fn crc32_combine(crc1: u32, crc2: u32, length2: u64) -> u32 {
         if length2 == 0 {
             return crc1;
@@ -126,6 +219,25 @@ impl ChecksumBif {
     ///
     /// # Returns
     /// Adler32 checksum value
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Calculate Adler32 for a string
+    /// let data = b"Hello, world!";
+    /// let checksum = ChecksumBif::adler32(data);
+    /// assert_ne!(checksum, 0);
+    ///
+    /// // Calculate Adler32 for empty data (returns 1)
+    /// let empty_checksum = ChecksumBif::adler32(b"");
+    /// assert_eq!(empty_checksum, 1);
+    ///
+    /// // Calculate Adler32 for binary data
+    /// let binary_data = vec![0u8; 100];
+    /// let binary_checksum = ChecksumBif::adler32(&binary_data);
+    /// assert_ne!(binary_checksum, 0);
+    /// ```
     pub fn adler32(data: &[u8]) -> u32 {
         let mut hasher = Adler32::new();
         Hasher::write(&mut hasher, data);
@@ -140,6 +252,29 @@ impl ChecksumBif {
     ///
     /// # Returns
     /// Combined Adler32 checksum value
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Incremental Adler32 calculation
+    /// let data1 = b"Hello";
+    /// let adler1 = ChecksumBif::adler32(data1);
+    /// let data2 = b", world!";
+    /// let adler2 = ChecksumBif::adler32_with_initial(adler1, data2);
+    /// let adler_combined = ChecksumBif::adler32(b"Hello, world!");
+    /// assert_eq!(adler2, adler_combined);
+    ///
+    /// // Continue from existing checksum
+    /// let data3 = b" More data";
+    /// let adler3 = ChecksumBif::adler32_with_initial(adler2, data3);
+    /// assert_ne!(adler3, adler2);
+    ///
+    /// // Start from 1 (empty Adler32)
+    /// let adler_from_one = ChecksumBif::adler32_with_initial(1, b"test");
+    /// let adler_direct = ChecksumBif::adler32(b"test");
+    /// assert_eq!(adler_from_one, adler_direct);
+    /// ```
     pub fn adler32_with_initial(initial: u32, data: &[u8]) -> u32 {
         let mut hasher = Adler32::from_checksum(initial);
         Hasher::write(&mut hasher, data);
@@ -155,6 +290,31 @@ impl ChecksumBif {
     ///
     /// # Returns
     /// Combined Adler32 checksum
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Combine two separate Adler32 checksums
+    /// let data1 = b"Hello";
+    /// let data2 = b", world!";
+    /// let adler1 = ChecksumBif::adler32(data1);
+    /// let adler2 = ChecksumBif::adler32(data2);
+    /// let combined = ChecksumBif::adler32_combine(adler1, adler2, data2.len() as u64);
+    /// assert_ne!(combined, 0);
+    ///
+    /// // Zero length returns first checksum
+    /// let adler1 = ChecksumBif::adler32(b"test");
+    /// let adler2 = ChecksumBif::adler32(b"data");
+    /// let combined = ChecksumBif::adler32_combine(adler1, adler2, 0);
+    /// assert_eq!(combined, adler1);
+    ///
+    /// // Combine with various length values
+    /// let adler1 = ChecksumBif::adler32(b"prefix");
+    /// let adler2 = ChecksumBif::adler32(b"suffix");
+    /// let combined = ChecksumBif::adler32_combine(adler1, adler2, 65521);
+    /// assert_ne!(combined, 0);
+    /// ```
     pub fn adler32_combine(adler1: u32, adler2: u32, length2: u64) -> u32 {
         if length2 == 0 {
             return adler1;
@@ -183,6 +343,29 @@ impl ChecksumBif {
     ///
     /// # Returns
     /// MD5 hash as a 16-byte array
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Calculate MD5 for a string
+    /// let data = b"Hello, world!";
+    /// let hash = ChecksumBif::md5(data);
+    /// assert_ne!(hash, [0; 16]);
+    ///
+    /// // Calculate MD5 for empty data
+    /// let empty_hash = ChecksumBif::md5(b"");
+    /// let expected = [
+    ///     0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+    ///     0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
+    /// ];
+    /// assert_eq!(empty_hash, expected);
+    ///
+    /// // Calculate MD5 for binary data
+    /// let binary_data = vec![0u8; 100];
+    /// let binary_hash = ChecksumBif::md5(&binary_data);
+    /// assert_ne!(binary_hash, [0; 16]);
+    /// ```
     pub fn md5(data: &[u8]) -> [u8; 16] {
         let hash = md5::compute(data);
         hash.0
@@ -191,6 +374,35 @@ impl ChecksumBif {
     /// Calculate MD5 checksum incrementally
     ///
     /// Returns a context that can be used for incremental MD5 computation
+    ///
+    /// # Returns
+    /// A new `Md5Context` for incremental MD5 computation
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::ChecksumBif;
+    ///
+    /// // Incremental MD5 calculation
+    /// let mut ctx = ChecksumBif::md5_new();
+    /// ctx.update(b"Hello");
+    /// ctx.update(b", world!");
+    /// let hash_incremental = ctx.finalize();
+    /// let hash_direct = ChecksumBif::md5(b"Hello, world!");
+    /// assert_eq!(hash_incremental, hash_direct);
+    ///
+    /// // Multiple updates
+    /// let mut ctx = ChecksumBif::md5_new();
+    /// ctx.update(b"Part1");
+    /// ctx.update(b"Part2");
+    /// ctx.update(b"Part3");
+    /// let hash = ctx.finalize();
+    /// assert_eq!(hash, ChecksumBif::md5(b"Part1Part2Part3"));
+    ///
+    /// // Empty context
+    /// let ctx = ChecksumBif::md5_new();
+    /// let hash = ctx.finalize();
+    /// assert_eq!(hash, ChecksumBif::md5(b""));
+    /// ```
     pub fn md5_new() -> Md5Context {
         Md5Context::new()
     }
@@ -203,6 +415,20 @@ pub struct Md5Context {
 
 impl Md5Context {
     /// Create a new MD5 context
+    ///
+    /// # Returns
+    /// A new `Md5Context` instance
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::Md5Context;
+    ///
+    /// // Create a new context
+    /// let ctx = Md5Context::new();
+    /// let hash = ctx.finalize();
+    /// assert_eq!(hash, [0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+    ///                    0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e]);
+    /// ```
     pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
@@ -210,11 +436,75 @@ impl Md5Context {
     }
 
     /// Update the context with additional data
+    ///
+    /// # Arguments
+    /// * `data` - Additional data to add to the MD5 computation
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::Md5Context;
+    ///
+    /// // Update with single chunk
+    /// let mut ctx = Md5Context::new();
+    /// ctx.update(b"Hello");
+    /// let hash = ctx.finalize();
+    /// assert_ne!(hash, [0; 16]);
+    ///
+    /// // Update with multiple chunks
+    /// let mut ctx = Md5Context::new();
+    /// ctx.update(b"Chunk1");
+    /// ctx.update(b"Chunk2");
+    /// ctx.update(b"Chunk3");
+    /// let hash = ctx.finalize();
+    /// assert_eq!(hash, [0x5a, 0x8d, 0x3e, 0x8e, 0x4a, 0x9c, 0x0e, 0x5f,
+    ///                    0x8b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c]);
+    ///
+    /// // Update with empty data
+    /// let mut ctx = Md5Context::new();
+    /// ctx.update(b"");
+    /// let hash = ctx.finalize();
+    /// assert_eq!(hash, [0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+    ///                    0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e]);
+    /// ```
     pub fn update(&mut self, data: &[u8]) {
         self.buffer.extend_from_slice(data);
     }
 
     /// Finalize and return the MD5 hash
+    ///
+    /// Consumes the context and returns the computed MD5 hash.
+    ///
+    /// # Returns
+    /// The MD5 hash as a 16-byte array
+    ///
+    /// # Examples
+    /// ```
+    /// use usecases_bifs::checksum::Md5Context;
+    ///
+    /// // Finalize after updates
+    /// let mut ctx = Md5Context::new();
+    /// ctx.update(b"test data");
+    /// let hash = ctx.finalize();
+    /// assert_ne!(hash, [0; 16]);
+    ///
+    /// // Finalize empty context
+    /// let ctx = Md5Context::new();
+    /// let hash = ctx.finalize();
+    /// let expected = [
+    ///     0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+    ///     0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
+    /// ];
+    /// assert_eq!(hash, expected);
+    ///
+    /// // Finalize after multiple updates
+    /// let mut ctx = Md5Context::new();
+    /// ctx.update(b"a");
+    /// ctx.update(b"b");
+    /// ctx.update(b"c");
+    /// let hash = ctx.finalize();
+    /// assert_eq!(hash, [0x90, 0x01, 0x50, 0x98, 0x3c, 0xd2, 0x4f, 0xb0,
+    ///                    0xd6, 0x96, 0x3f, 0x7d, 0x28, 0xe1, 0x7f, 0x72]);
+    /// ```
     pub fn finalize(self) -> [u8; 16] {
         let hash = md5::compute(&self.buffer);
         hash.0

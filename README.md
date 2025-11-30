@@ -1,3 +1,17 @@
+# The Iron BEAM (IBEAM) Project
+##Purpose
+Providing PRs that increase the security of the BEAM is the primary purpose of the IBEAM project. PRs are provided to the OTP team from this branch of Erlang/OTP.
+
+If you would like to join us in this task, please contribute PRs here. We will evaluate them and wrap them up for the OTP team.
+
+##Parts
+There are two foci of this project. Neither has precidence. Both are underway.
+**Inter-Nodal Communication** Increasing the security of communciations between nodes using modern multi-layer security techniques while providing expanded web-wide access to more kinds of nodes.
+**Using Memory Safe Languages** Moving the BEAM code and NIFs from C to Rust to encourage runtime stability and increase security.
+
+## Erlang/OTP
+The standard Erlang/OTP readme follows here
+
 # [Erlang/OTP](https://www.erlang.org)
 
 **Erlang** is a programming language and runtime system for building massively scalable soft real-time systems with requirements on high availability. 
