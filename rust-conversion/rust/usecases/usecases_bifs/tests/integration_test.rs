@@ -11,6 +11,8 @@ use usecases_bifs::counters::{CountersBif, CounterRef, CountersError};
 use usecases_bifs::unique::{UniqueBif, Reference, UniqueIntegerOption};
 use usecases_bifs::op::{OpBif, OpError, ErlangTerm};
 use usecases_bifs::guard::{GuardBif, GuardError};
+use usecases_bifs::lists::{ListsBif, ListsError};
+use usecases_bifs::persistent::{PersistentBif, PersistentError};
 use usecases_nif_compilation::{NifCompiler, CompileOptions};
 use std::fs;
 use std::io::Write;
@@ -1954,3 +1956,704 @@ fn test_guard_bif_comprehensive_binary_operations() {
     );
 }
 
+// ============================================================================
+// Lists BIF Integration Tests
+// ============================================================================
+
+#[test]
+fn test_lists_bif_append_2_workflow() {
+    // Test append operation workflow
+    let lhs = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+    ]);
+    let rhs = ErlangTerm::List(vec![
+        ErlangTerm::Integer(3),
+        ErlangTerm::Integer(4),
+    ]);
+    
+    let result = ListsBif::append_2(&lhs, &rhs).unwrap();
+    
+    if let ErlangTerm::List(result_vec) = result {
+        assert_eq!(result_vec.len(), 4);
+        assert_eq!(result_vec[0], ErlangTerm::Integer(1));
+        assert_eq!(result_vec[1], ErlangTerm::Integer(2));
+        assert_eq!(result_vec[2], ErlangTerm::Integer(3));
+        assert_eq!(result_vec[3], ErlangTerm::Integer(4));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_lists_bif_append_2_nested_lists() {
+    // Test appending nested lists
+    let lhs = ErlangTerm::List(vec![
+        ErlangTerm::List(vec![ErlangTerm::Integer(1)]),
+    ]);
+    let rhs = ErlangTerm::List(vec![
+        ErlangTerm::List(vec![ErlangTerm::Integer(2)]),
+    ]);
+    
+    let result = ListsBif::append_2(&lhs, &rhs).unwrap();
+    
+    if let ErlangTerm::List(result_vec) = result {
+        assert_eq!(result_vec.len(), 2);
+        // Both elements should be lists
+        assert!(matches!(result_vec[0], ErlangTerm::List(_)));
+        assert!(matches!(result_vec[1], ErlangTerm::List(_)));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_lists_bif_subtract_2_workflow() {
+    // Test subtract operation workflow
+    let lhs = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+        ErlangTerm::Integer(3),
+        ErlangTerm::Integer(4),
+    ]);
+    let rhs = ErlangTerm::List(vec![
+        ErlangTerm::Integer(2),
+        ErlangTerm::Integer(4),
+    ]);
+    
+    let result = ListsBif::subtract_2(&lhs, &rhs).unwrap();
+    
+    if let ErlangTerm::List(result_vec) = result {
+        assert_eq!(result_vec.len(), 2);
+        assert_eq!(result_vec[0], ErlangTerm::Integer(1));
+        assert_eq!(result_vec[1], ErlangTerm::Integer(3));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_lists_bif_subtract_2_with_atoms() {
+    // Test subtract with atoms
+    let lhs = ErlangTerm::List(vec![
+        ErlangTerm::Atom("a".to_string()),
+        ErlangTerm::Atom("b".to_string()),
+        ErlangTerm::Atom("c".to_string()),
+    ]);
+    let rhs = ErlangTerm::List(vec![ErlangTerm::Atom("b".to_string())]);
+    
+    let result = ListsBif::subtract_2(&lhs, &rhs).unwrap();
+    
+    if let ErlangTerm::List(result_vec) = result {
+        assert_eq!(result_vec.len(), 2);
+        assert_eq!(result_vec[0], ErlangTerm::Atom("a".to_string()));
+        assert_eq!(result_vec[1], ErlangTerm::Atom("c".to_string()));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_lists_bif_member_2_workflow() {
+    // Test member operation workflow
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+        ErlangTerm::Integer(3),
+    ]);
+    
+    // Element found
+    let result1 = ListsBif::member_2(&ErlangTerm::Integer(2), &list).unwrap();
+    assert_eq!(result1, ErlangTerm::Atom("true".to_string()));
+    
+    // Element not found
+    let result2 = ListsBif::member_2(&ErlangTerm::Integer(5), &list).unwrap();
+    assert_eq!(result2, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_lists_bif_member_2_with_type_coercion() {
+    // Test member with type coercion (Integer == Float)
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Float(2.0),
+        ErlangTerm::Integer(3),
+    ]);
+    
+    // Integer(1) should match Integer(1)
+    let result1 = ListsBif::member_2(&ErlangTerm::Integer(1), &list).unwrap();
+    assert_eq!(result1, ErlangTerm::Atom("true".to_string()));
+    
+    // Integer(2) should match Float(2.0) due to structural equality
+    let result2 = ListsBif::member_2(&ErlangTerm::Integer(2), &list).unwrap();
+    assert_eq!(result2, ErlangTerm::Atom("true".to_string()));
+}
+
+#[test]
+fn test_lists_bif_reverse_2_workflow() {
+    // Test reverse operation workflow
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+        ErlangTerm::Integer(3),
+    ]);
+    let tail = ErlangTerm::Nil;
+    
+    let result = ListsBif::reverse_2(&list, &tail).unwrap();
+    
+    if let ErlangTerm::List(result_vec) = result {
+        assert_eq!(result_vec.len(), 3);
+        assert_eq!(result_vec[0], ErlangTerm::Integer(3));
+        assert_eq!(result_vec[1], ErlangTerm::Integer(2));
+        assert_eq!(result_vec[2], ErlangTerm::Integer(1));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_lists_bif_reverse_2_with_tail() {
+    // Test reverse with tail
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+    ]);
+    let tail = ErlangTerm::List(vec![
+        ErlangTerm::Integer(3),
+        ErlangTerm::Integer(4),
+    ]);
+    
+    let result = ListsBif::reverse_2(&list, &tail).unwrap();
+    
+    if let ErlangTerm::List(result_vec) = result {
+        assert_eq!(result_vec.len(), 4);
+        assert_eq!(result_vec[0], ErlangTerm::Integer(2));
+        assert_eq!(result_vec[1], ErlangTerm::Integer(1));
+        assert_eq!(result_vec[2], ErlangTerm::Integer(3));
+        assert_eq!(result_vec[3], ErlangTerm::Integer(4));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_lists_bif_keyfind_3_workflow() {
+    // Test keyfind operation workflow
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("name".to_string()),
+            ErlangTerm::Atom("alice".to_string()),
+            ErlangTerm::Integer(25),
+        ]),
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("name".to_string()),
+            ErlangTerm::Atom("bob".to_string()),
+            ErlangTerm::Integer(30),
+        ]),
+    ]);
+    
+    // Find by key at position 1
+    let result = ListsBif::keyfind_3(
+        &ErlangTerm::Atom("name".to_string()),
+        &ErlangTerm::Integer(1),
+        &list,
+    )
+    .unwrap();
+    
+    // Should return first tuple
+    if let ErlangTerm::Tuple(tuple_vec) = result {
+        assert_eq!(tuple_vec[0], ErlangTerm::Atom("name".to_string()));
+        assert_eq!(tuple_vec[1], ErlangTerm::Atom("alice".to_string()));
+    } else {
+        panic!("Expected Tuple");
+    }
+}
+
+#[test]
+fn test_lists_bif_keyfind_3_not_found() {
+    // Test keyfind when key not found
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("name".to_string()),
+            ErlangTerm::Atom("alice".to_string()),
+        ]),
+    ]);
+    
+    let result = ListsBif::keyfind_3(
+        &ErlangTerm::Atom("age".to_string()),
+        &ErlangTerm::Integer(1),
+        &list,
+    )
+    .unwrap();
+    
+    assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_lists_bif_keymember_3_workflow() {
+    // Test keymember operation workflow
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Integer(1),
+            ErlangTerm::Atom("one".to_string()),
+        ]),
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Integer(2),
+            ErlangTerm::Atom("two".to_string()),
+        ]),
+    ]);
+    
+    // Key exists
+    let result1 = ListsBif::keymember_3(
+        &ErlangTerm::Integer(1),
+        &ErlangTerm::Integer(1),
+        &list,
+    )
+    .unwrap();
+    assert_eq!(result1, ErlangTerm::Atom("true".to_string()));
+    
+    // Key doesn't exist
+    let result2 = ListsBif::keymember_3(
+        &ErlangTerm::Integer(3),
+        &ErlangTerm::Integer(1),
+        &list,
+    )
+    .unwrap();
+    assert_eq!(result2, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_lists_bif_keysearch_3_workflow() {
+    // Test keysearch operation workflow
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("key".to_string()),
+            ErlangTerm::Integer(42),
+        ]),
+    ]);
+    
+    let result = ListsBif::keysearch_3(
+        &ErlangTerm::Atom("key".to_string()),
+        &ErlangTerm::Integer(1),
+        &list,
+    )
+    .unwrap();
+    
+    // Should return {value, Tuple}
+    if let ErlangTerm::Tuple(tuple_vec) = result {
+        assert_eq!(tuple_vec.len(), 2);
+        assert_eq!(tuple_vec[0], ErlangTerm::Atom("value".to_string()));
+        if let ErlangTerm::Tuple(inner_tuple) = &tuple_vec[1] {
+            assert_eq!(inner_tuple[0], ErlangTerm::Atom("key".to_string()));
+            assert_eq!(inner_tuple[1], ErlangTerm::Integer(42));
+        } else {
+            panic!("Expected inner Tuple");
+        }
+    } else {
+        panic!("Expected Tuple");
+    }
+}
+
+#[test]
+fn test_lists_bif_error_handling() {
+    // Test error handling for invalid arguments
+    
+    // append_2 with non-list LHS
+    let result = ListsBif::append_2(&ErlangTerm::Integer(1), &ErlangTerm::Nil);
+    assert!(result.is_err());
+    
+    // subtract_2 with non-list LHS
+    let result = ListsBif::subtract_2(&ErlangTerm::Integer(1), &ErlangTerm::Nil);
+    assert!(result.is_err());
+    
+    // subtract_2 with non-list RHS
+    let result = ListsBif::subtract_2(
+        &ErlangTerm::List(vec![ErlangTerm::Integer(1)]),
+        &ErlangTerm::Integer(1),
+    );
+    assert!(result.is_err());
+    
+    // member_2 with non-list
+    let result = ListsBif::member_2(&ErlangTerm::Integer(1), &ErlangTerm::Integer(1));
+    assert!(result.is_err());
+    
+    // reverse_2 with non-list
+    let result = ListsBif::reverse_2(&ErlangTerm::Integer(1), &ErlangTerm::Nil);
+    assert!(result.is_err());
+    
+    // keyfind_3 with invalid position
+    let result = ListsBif::keyfind_3(
+        &ErlangTerm::Integer(1),
+        &ErlangTerm::Integer(0), // Position must be >= 1
+        &ErlangTerm::Nil,
+    );
+    assert!(result.is_err());
+    
+    // keyfind_3 with non-list
+    let result = ListsBif::keyfind_3(
+        &ErlangTerm::Integer(1),
+        &ErlangTerm::Integer(1),
+        &ErlangTerm::Integer(1),
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_lists_bif_keyfind_3_position_bounds() {
+    // Test keyfind with position out of bounds
+    let list = ErlangTerm::List(vec![
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Integer(1),
+            ErlangTerm::Integer(2),
+        ]),
+    ]);
+    
+    // Position 3 is out of bounds (tuple only has 2 elements)
+    let result = ListsBif::keyfind_3(
+        &ErlangTerm::Integer(1),
+        &ErlangTerm::Integer(3),
+        &list,
+    )
+    .unwrap();
+    // Should return false (position out of bounds)
+    assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_lists_bif_large_lists() {
+    // Test operations with larger lists
+    let mut large_list = Vec::new();
+    for i in 0..100 {
+        large_list.push(ErlangTerm::Integer(i));
+    }
+    let list = ErlangTerm::List(large_list);
+    
+    // Test member
+    let result = ListsBif::member_2(&ErlangTerm::Integer(50), &list).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    
+    // Test reverse
+    let reversed = ListsBif::reverse_2(&list, &ErlangTerm::Nil).unwrap();
+    if let ErlangTerm::List(reversed_vec) = reversed {
+        assert_eq!(reversed_vec.len(), 100);
+        assert_eq!(reversed_vec[0], ErlangTerm::Integer(99));
+        assert_eq!(reversed_vec[99], ErlangTerm::Integer(0));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_lists_bif_subtract_2_preserves_order() {
+    // Test that subtract preserves order of remaining elements
+    let lhs = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+        ErlangTerm::Integer(3),
+        ErlangTerm::Integer(4),
+        ErlangTerm::Integer(5),
+    ]);
+    let rhs = ErlangTerm::List(vec![
+        ErlangTerm::Integer(2),
+        ErlangTerm::Integer(4),
+    ]);
+    
+    let result = ListsBif::subtract_2(&lhs, &rhs).unwrap();
+    
+    if let ErlangTerm::List(result_vec) = result {
+        assert_eq!(result_vec.len(), 3);
+        assert_eq!(result_vec[0], ErlangTerm::Integer(1));
+        assert_eq!(result_vec[1], ErlangTerm::Integer(3));
+        assert_eq!(result_vec[2], ErlangTerm::Integer(5));
+    } else {
+        panic!("Expected List");
+    }
+}
+
+
+// ============================================================================
+// Persistent Term BIF Integration Tests
+// ============================================================================
+
+#[test]
+fn test_persistent_bif_put_2_and_get_1() {
+    // Clear storage first
+    let _ = PersistentBif::erase_all_0();
+    
+    let key = ErlangTerm::Atom("test_key".to_string());
+    let value = ErlangTerm::Integer(42);
+    
+    // Put a value
+    let put_result = PersistentBif::put_2(&key, &value).unwrap();
+    assert_eq!(put_result, ErlangTerm::Atom("ok".to_string()));
+    
+    // Get it back
+    let get_result = PersistentBif::get_1(&key).unwrap();
+    assert_eq!(get_result, value);
+}
+
+#[test]
+fn test_persistent_bif_get_2_with_default() {
+    let _ = PersistentBif::erase_all_0();
+    
+    let key = ErlangTerm::Atom("default_key".to_string());
+    let default = ErlangTerm::Integer(0);
+    
+    // Get with default when key doesn't exist
+    let result1 = PersistentBif::get_2(&key, &default).unwrap();
+    assert_eq!(result1, default);
+    
+    // Store a value
+    let value = ErlangTerm::Integer(100);
+    PersistentBif::put_2(&key, &value).unwrap();
+    
+    // Get with default when key exists (should return stored value)
+    let result2 = PersistentBif::get_2(&key, &default).unwrap();
+    assert_eq!(result2, value);
+}
+
+#[test]
+fn test_persistent_bif_get_0_workflow() {
+    let _ = PersistentBif::erase_all_0();
+    
+    // Store multiple entries
+    PersistentBif::put_2(
+        &ErlangTerm::Atom("key1".to_string()),
+        &ErlangTerm::Integer(1),
+    ).unwrap();
+    PersistentBif::put_2(
+        &ErlangTerm::Atom("key2".to_string()),
+        &ErlangTerm::Integer(2),
+    ).unwrap();
+    
+    // Get all entries
+    let all = PersistentBif::get_0().unwrap();
+    if let ErlangTerm::List(list) = all {
+        assert!(list.len() >= 2);
+        // Verify both entries are present
+        let mut found_key1 = false;
+        let mut found_key2 = false;
+        for entry in &list {
+            if let ErlangTerm::Tuple(tuple) = entry {
+                if tuple.len() == 2 {
+                    if tuple[0] == ErlangTerm::Atom("key1".to_string()) {
+                        found_key1 = true;
+                    }
+                    if tuple[0] == ErlangTerm::Atom("key2".to_string()) {
+                        found_key2 = true;
+                    }
+                }
+            }
+        }
+        assert!(found_key1);
+        assert!(found_key2);
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_persistent_bif_erase_1_workflow() {
+    let _ = PersistentBif::erase_all_0();
+    
+    let key = ErlangTerm::Atom("erase_key".to_string());
+    let value = ErlangTerm::Integer(200);
+    
+    // Store a value
+    PersistentBif::put_2(&key, &value).unwrap();
+    
+    // Verify it exists
+    let get_result = PersistentBif::get_1(&key).unwrap();
+    assert_eq!(get_result, value);
+    
+    // Erase it
+    let erase_result = PersistentBif::erase_1(&key).unwrap();
+    assert_eq!(erase_result, ErlangTerm::Atom("true".to_string()));
+    
+    // Verify it's gone
+    let get_result_after = PersistentBif::get_1(&key);
+    assert!(get_result_after.is_err());
+}
+
+#[test]
+fn test_persistent_bif_erase_1_not_found() {
+    let _ = PersistentBif::erase_all_0();
+    
+    let key = ErlangTerm::Atom("nonexistent".to_string());
+    
+    // Try to erase a non-existent key
+    let result = PersistentBif::erase_1(&key).unwrap();
+    assert_eq!(result, ErlangTerm::Atom("false".to_string()));
+}
+
+#[test]
+fn test_persistent_bif_erase_all_0_workflow() {
+    let _ = PersistentBif::erase_all_0();
+    
+    // Store multiple entries
+    PersistentBif::put_2(
+        &ErlangTerm::Atom("key1".to_string()),
+        &ErlangTerm::Integer(1),
+    ).unwrap();
+    PersistentBif::put_2(
+        &ErlangTerm::Atom("key2".to_string()),
+        &ErlangTerm::Integer(2),
+    ).unwrap();
+    
+    // Verify they exist
+    let all_before = PersistentBif::get_0().unwrap();
+    if let ErlangTerm::List(list) = all_before {
+        assert!(list.len() >= 2);
+    } else {
+        panic!("Expected List");
+    }
+    
+    // Erase all
+    let erase_result = PersistentBif::erase_all_0().unwrap();
+    assert_eq!(erase_result, ErlangTerm::Atom("true".to_string()));
+    
+    // Verify they're gone
+    let all_after = PersistentBif::get_0().unwrap();
+    if let ErlangTerm::List(list) = all_after {
+        assert_eq!(list.len(), 0);
+    } else {
+        panic!("Expected List");
+    }
+}
+
+#[test]
+fn test_persistent_bif_info_0_workflow() {
+    let _ = PersistentBif::erase_all_0();
+    
+    // Store some entries
+    PersistentBif::put_2(
+        &ErlangTerm::Atom("info_key1".to_string()),
+        &ErlangTerm::Integer(1),
+    ).unwrap();
+    PersistentBif::put_2(
+        &ErlangTerm::Atom("info_key2".to_string()),
+        &ErlangTerm::Integer(2),
+    ).unwrap();
+    
+    // Get info
+    let info = PersistentBif::info_0().unwrap();
+    if let ErlangTerm::Map(map) = info {
+        let count = map.get(&ErlangTerm::Atom("count".to_string()));
+        assert!(count.is_some());
+        if let Some(ErlangTerm::Integer(count_val)) = count {
+            assert!(*count_val >= 2);
+        }
+        
+        let memory = map.get(&ErlangTerm::Atom("memory".to_string()));
+        assert!(memory.is_some());
+    } else {
+        panic!("Expected Map");
+    }
+}
+
+#[test]
+fn test_persistent_bif_update_existing_key() {
+    let _ = PersistentBif::erase_all_0();
+    
+    let key = ErlangTerm::Atom("update_key".to_string());
+    let value1 = ErlangTerm::Integer(1);
+    let value2 = ErlangTerm::Integer(2);
+    
+    // Store initial value
+    PersistentBif::put_2(&key, &value1).unwrap();
+    let get1 = PersistentBif::get_1(&key).unwrap();
+    assert_eq!(get1, value1);
+    
+    // Update with new value
+    PersistentBif::put_2(&key, &value2).unwrap();
+    let get2 = PersistentBif::get_1(&key).unwrap();
+    assert_eq!(get2, value2);
+}
+
+#[test]
+fn test_persistent_bif_different_key_types() {
+    let _ = PersistentBif::erase_all_0();
+    
+    // Store with atom key
+    PersistentBif::put_2(
+        &ErlangTerm::Atom("atom_key".to_string()),
+        &ErlangTerm::Integer(1),
+    ).unwrap();
+    
+    // Store with integer key
+    PersistentBif::put_2(
+        &ErlangTerm::Integer(123),
+        &ErlangTerm::Atom("int_value".to_string()),
+    ).unwrap();
+    
+    // Store with tuple key
+    let tuple_key = ErlangTerm::Tuple(vec![
+        ErlangTerm::Atom("tuple".to_string()),
+        ErlangTerm::Integer(456),
+    ]);
+    PersistentBif::put_2(
+        &tuple_key,
+        &ErlangTerm::Float(3.14),
+    ).unwrap();
+    
+    // Retrieve all
+    let atom_val = PersistentBif::get_1(&ErlangTerm::Atom("atom_key".to_string())).unwrap();
+    assert_eq!(atom_val, ErlangTerm::Integer(1));
+    
+    let int_val = PersistentBif::get_1(&ErlangTerm::Integer(123)).unwrap();
+    assert_eq!(int_val, ErlangTerm::Atom("int_value".to_string()));
+    
+    let tuple_val = PersistentBif::get_1(&tuple_key).unwrap();
+    assert_eq!(tuple_val, ErlangTerm::Float(3.14));
+}
+
+#[test]
+fn test_persistent_bif_complex_values() {
+    let _ = PersistentBif::erase_all_0();
+    
+    let key = ErlangTerm::Atom("complex_key".to_string());
+    let complex_value = ErlangTerm::List(vec![
+        ErlangTerm::Integer(1),
+        ErlangTerm::Integer(2),
+        ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("nested".to_string()),
+            ErlangTerm::Integer(3),
+        ]),
+    ]);
+    
+    // Store complex value
+    PersistentBif::put_2(&key, &complex_value).unwrap();
+    
+    // Retrieve it
+    let retrieved = PersistentBif::get_1(&key).unwrap();
+    assert_eq!(retrieved, complex_value);
+}
+
+#[test]
+fn test_persistent_bif_get_1_error() {
+    let _ = PersistentBif::erase_all_0();
+    
+    let key = ErlangTerm::Atom("nonexistent_key".to_string());
+    
+    // Try to get a non-existent key
+    let result = PersistentBif::get_1(&key);
+    assert!(result.is_err());
+    if let Err(PersistentError::BadArgument(msg)) = result {
+        assert!(msg.contains("not found"));
+    } else {
+        panic!("Expected BadArgument error");
+    }
+}
+
+#[test]
+fn test_persistent_bif_info_0_empty() {
+    let _ = PersistentBif::erase_all_0();
+    
+    let info = PersistentBif::info_0().unwrap();
+    if let ErlangTerm::Map(map) = info {
+        let count = map.get(&ErlangTerm::Atom("count".to_string()));
+        assert_eq!(count, Some(&ErlangTerm::Integer(0)));
+    } else {
+        panic!("Expected Map");
+    }
+}

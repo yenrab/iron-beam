@@ -58,7 +58,7 @@
   - ✅ usecases_memory_management (15 files, 107 functions)
   - ✅ usecases_process_management (6 files, 50 functions)
   - ✅ usecases_io_operations (2 files, 21 functions)
-  - ⚠️ usecases_bifs (13 files, 282 functions) - **8/13 files implemented (62%)**
+  - ⚠️ usecases_bifs (13 files, 282 functions) - **9/13 files implemented (69%)**
     - ✅ regex.rs (from erl_bif_re.c)
     - ✅ checksum.rs (from erl_bif_chksum.c)
     - ✅ trace.rs (from erl_bif_trace.c)
@@ -66,11 +66,11 @@
     - ✅ os.rs (from erl_bif_os.c)
     - ✅ counters.rs (from erl_bif_counters.c)
     - ✅ unique.rs (from erl_bif_unique.c)
-    - ✅ op.rs (from erl_bif_op.c) - **NEW: 30 BIFs implemented (logical, comparison, type-checking operations)**
+    - ✅ op.rs (from erl_bif_op.c) - **30 BIFs implemented (logical, comparison, type-checking operations)**
+    - ✅ guard.rs (from erl_bif_guard.c) - **18 BIFs implemented (guard expressions, math, size, comparison)**
+    - ✅ lists.rs (from erl_bif_lists.c) - **7 BIFs implemented (append, subtract, member, reverse, keyfind, keymember, keysearch)**
     - ❌ Missing: persistent.rs (from erl_bif_persistent.c)
-    - ❌ Missing: guard.rs (from erl_bif_guard.c)
     - ❌ Missing: info.rs (from erl_bif_info.c)
-    - ❌ Missing: lists.rs (from erl_bif_lists.c)
     - ❌ Missing: load.rs (from beam_bif_load.c)
   - ✅ usecases_nif_compilation (Rust NIF compilation and safe loading)
     - ✅ nif_compiler.rs
