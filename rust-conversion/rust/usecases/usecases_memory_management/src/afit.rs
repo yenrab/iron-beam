@@ -164,5 +164,77 @@ mod tests {
         
         allocator.dealloc(ptr2, 200);
     }
+
+    #[test]
+    fn test_afit_alloc_zero_size() {
+        let allocator = AFitAllocator::new();
+        allocator.clear();
+        let result = allocator.alloc(0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+    }
+
+    #[test]
+    fn test_afit_realloc_zero_size() {
+        let allocator = AFitAllocator::new();
+        allocator.clear();
+        let ptr = allocator.alloc(100).unwrap();
+        let result = allocator.realloc(ptr, 100, 0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+    }
+
+    #[test]
+    fn test_afit_realloc_null_pointer() {
+        let allocator = AFitAllocator::new();
+        allocator.clear();
+        let new_ptr = allocator.realloc(std::ptr::null_mut(), 0, 100).unwrap();
+        assert!(!new_ptr.is_null());
+        allocator.dealloc(new_ptr, 100);
+    }
+
+    #[test]
+    fn test_afit_dealloc_null_pointer() {
+        let allocator = AFitAllocator::new();
+        allocator.clear();
+        allocator.dealloc(std::ptr::null_mut(), 100);
+    }
+
+    #[test]
+    fn test_afit_dealloc_zero_size() {
+        let allocator = AFitAllocator::new();
+        allocator.clear();
+        let ptr = allocator.alloc(100).unwrap();
+        allocator.dealloc(ptr, 0);
+        allocator.dealloc(ptr, 100);
+    }
+
+    #[test]
+    fn test_afit_exact_size_allocation() {
+        let allocator = AFitAllocator::new();
+        allocator.clear();
+        // Allocate and free a block
+        let ptr1 = allocator.alloc(104).unwrap(); // 104 is 8-byte aligned
+        allocator.dealloc(ptr1, 104);
+        
+        // Allocate exactly the same size - should reuse without splitting
+        let ptr2 = allocator.alloc(104).unwrap();
+        assert_eq!(ptr1 as usize, ptr2 as usize);
+        allocator.dealloc(ptr2, 104);
+    }
+
+    #[test]
+    fn test_afit_block_splitting() {
+        let allocator = AFitAllocator::new();
+        allocator.clear();
+        // Allocate a larger block
+        let ptr1 = allocator.alloc(200).unwrap();
+        allocator.dealloc(ptr1, 200);
+        
+        // Allocate smaller - should split the block
+        let ptr2 = allocator.alloc(100).unwrap();
+        assert_eq!(ptr1 as usize, ptr2 as usize);
+        
+        // The remaining part should be available
+        allocator.dealloc(ptr2, 100);
+    }
 }
 

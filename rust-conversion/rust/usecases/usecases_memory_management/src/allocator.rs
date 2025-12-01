@@ -143,5 +143,67 @@ mod tests {
         assert!(!new_ptr.is_null());
         allocator.dealloc(new_ptr, 100);
     }
+
+    #[test]
+    fn test_alloc_zero_size() {
+        let allocator = DefaultAllocator;
+        let result = allocator.alloc(0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+    }
+
+    #[test]
+    fn test_realloc_zero_size() {
+        let allocator = DefaultAllocator;
+        let ptr = allocator.alloc(100).unwrap();
+        let result = allocator.realloc(ptr, 100, 0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+        // ptr should have been deallocated
+    }
+
+    #[test]
+    fn test_realloc_null_pointer() {
+        let allocator = DefaultAllocator;
+        // Realloc with null pointer should allocate new memory
+        let new_ptr = allocator.realloc(std::ptr::null_mut(), 0, 100).unwrap();
+        assert!(!new_ptr.is_null());
+        allocator.dealloc(new_ptr, 100);
+    }
+
+    #[test]
+    fn test_realloc_shrink() {
+        let allocator = DefaultAllocator;
+        let ptr = allocator.alloc(200).unwrap();
+        // Shrink allocation
+        let new_ptr = allocator.realloc(ptr, 200, 50).unwrap();
+        assert!(!new_ptr.is_null());
+        allocator.dealloc(new_ptr, 50);
+    }
+
+    #[test]
+    fn test_realloc_grow() {
+        let allocator = DefaultAllocator;
+        let ptr = allocator.alloc(50).unwrap();
+        // Grow allocation
+        let new_ptr = allocator.realloc(ptr, 50, 200).unwrap();
+        assert!(!new_ptr.is_null());
+        allocator.dealloc(new_ptr, 200);
+    }
+
+    #[test]
+    fn test_dealloc_null_pointer() {
+        let allocator = DefaultAllocator;
+        // Dealloc with null pointer should be safe (no-op)
+        allocator.dealloc(std::ptr::null_mut(), 100);
+    }
+
+    #[test]
+    fn test_dealloc_zero_size() {
+        let allocator = DefaultAllocator;
+        let ptr = allocator.alloc(100).unwrap();
+        // Dealloc with zero size should be safe (no-op)
+        allocator.dealloc(ptr, 0);
+        // Still need to properly dealloc
+        allocator.dealloc(ptr, 100);
+    }
 }
 

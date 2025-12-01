@@ -191,5 +191,86 @@ mod tests {
         allocator.dealloc(ptr3, 100);
         allocator.dealloc(ptr4, 50);
     }
+
+    #[test]
+    fn test_firstfit_alloc_zero_size() {
+        let allocator = FirstFitAllocator::new();
+        allocator.clear();
+        let result = allocator.alloc(0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+    }
+
+    #[test]
+    fn test_firstfit_realloc_zero_size() {
+        let allocator = FirstFitAllocator::new();
+        allocator.clear();
+        let ptr = allocator.alloc(100).unwrap();
+        let result = allocator.realloc(ptr, 100, 0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+    }
+
+    #[test]
+    fn test_firstfit_realloc_null_pointer() {
+        let allocator = FirstFitAllocator::new();
+        allocator.clear();
+        let new_ptr = allocator.realloc(std::ptr::null_mut(), 0, 100).unwrap();
+        assert!(!new_ptr.is_null());
+        allocator.dealloc(new_ptr, 100);
+    }
+
+    #[test]
+    fn test_firstfit_dealloc_null_pointer() {
+        let allocator = FirstFitAllocator::new();
+        allocator.clear();
+        allocator.dealloc(std::ptr::null_mut(), 100);
+    }
+
+    #[test]
+    fn test_firstfit_dealloc_zero_size() {
+        let allocator = FirstFitAllocator::new();
+        allocator.clear();
+        let ptr = allocator.alloc(100).unwrap();
+        allocator.dealloc(ptr, 0);
+        allocator.dealloc(ptr, 100);
+    }
+
+    #[test]
+    fn test_firstfit_block_merging() {
+        let allocator = FirstFitAllocator::new();
+        allocator.clear();
+        // Test that merging logic is executed by using 8-byte aligned sizes
+        // Allocate a large block (already 8-byte aligned)
+        let ptr1 = allocator.alloc(208).unwrap(); // 208 = 8-byte aligned
+        allocator.dealloc(ptr1, 208);
+        
+        // Split into two 8-byte aligned parts
+        let ptr2 = allocator.alloc(104).unwrap(); // 104 = 8-byte aligned
+        let ptr3 = allocator.alloc(104).unwrap(); // Should use remaining part
+        
+        // Verify they're adjacent (both are 104 bytes, so ptr3 = ptr2 + 104)
+        assert_eq!(ptr2 as usize + 104, ptr3 as usize);
+        
+        // Free in reverse order to test merging with previous
+        allocator.dealloc(ptr3, 104);
+        allocator.dealloc(ptr2, 104);
+        
+        // Should be able to allocate the merged block
+        let ptr4 = allocator.alloc(208).unwrap();
+        assert_eq!(ptr1 as usize, ptr4 as usize);
+        allocator.dealloc(ptr4, 208);
+    }
+
+    #[test]
+    fn test_firstfit_exact_size_allocation() {
+        let allocator = FirstFitAllocator::new();
+        allocator.clear();
+        let ptr1 = allocator.alloc(104).unwrap(); // 104 is 8-byte aligned
+        allocator.dealloc(ptr1, 104);
+        
+        // Allocate exactly the same size - should reuse without splitting
+        let ptr2 = allocator.alloc(104).unwrap();
+        assert_eq!(ptr1 as usize, ptr2 as usize);
+        allocator.dealloc(ptr2, 104);
+    }
 }
 

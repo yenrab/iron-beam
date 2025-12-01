@@ -284,5 +284,98 @@ mod tests {
         
         allocator.dealloc(ptr4, 150);
     }
+
+    #[test]
+    fn test_goodfit_alloc_zero_size() {
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        let result = allocator.alloc(0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+    }
+
+    #[test]
+    fn test_goodfit_realloc_zero_size() {
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        let ptr = allocator.alloc(100).unwrap();
+        let result = allocator.realloc(ptr, 100, 0);
+        assert_eq!(result, Err(AllocationError::InvalidSize));
+    }
+
+    #[test]
+    fn test_goodfit_realloc_null_pointer() {
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        let new_ptr = allocator.realloc(std::ptr::null_mut(), 0, 100).unwrap();
+        assert!(!new_ptr.is_null());
+        allocator.dealloc(new_ptr, 100);
+    }
+
+    #[test]
+    fn test_goodfit_dealloc_null_pointer() {
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        allocator.dealloc(std::ptr::null_mut(), 100);
+    }
+
+    #[test]
+    fn test_goodfit_dealloc_zero_size() {
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        let ptr = allocator.alloc(100).unwrap();
+        allocator.dealloc(ptr, 0);
+        allocator.dealloc(ptr, 100);
+    }
+
+    #[test]
+    fn test_goodfit_block_merging() {
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        // Use 8-byte aligned sizes
+        let ptr1 = allocator.alloc(208).unwrap();
+        allocator.dealloc(ptr1, 208);
+        
+        let ptr2 = allocator.alloc(104).unwrap();
+        let ptr3 = allocator.alloc(104).unwrap();
+        
+        assert_eq!(ptr2 as usize + 104, ptr3 as usize);
+        
+        allocator.dealloc(ptr3, 104);
+        allocator.dealloc(ptr2, 104);
+        
+        let ptr4 = allocator.alloc(208).unwrap();
+        assert_eq!(ptr1 as usize, ptr4 as usize);
+        allocator.dealloc(ptr4, 208);
+    }
+
+    #[test]
+    fn test_goodfit_exact_size_allocation() {
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        let ptr1 = allocator.alloc(128).unwrap(); // Power of 2, 8-byte aligned
+        allocator.dealloc(ptr1, 128);
+        
+        let ptr2 = allocator.alloc(128).unwrap();
+        assert_eq!(ptr1 as usize, ptr2 as usize);
+        allocator.dealloc(ptr2, 128);
+    }
+
+    #[test]
+    fn test_goodfit_size_class() {
+        // Test that size_class works correctly
+        let allocator = GoodFitAllocator::new();
+        allocator.clear();
+        
+        // Test various sizes to ensure size class calculation works
+        let ptr1 = allocator.alloc(1).unwrap(); // Should round to 8, class 8
+        let ptr2 = allocator.alloc(7).unwrap(); // Should round to 8, class 8
+        let ptr3 = allocator.alloc(8).unwrap(); // Should be class 8
+        let ptr4 = allocator.alloc(9).unwrap(); // Should round to 16, class 16
+        
+        allocator.dealloc(ptr1, 1);
+        allocator.dealloc(ptr2, 7);
+        allocator.dealloc(ptr3, 8);
+        allocator.dealloc(ptr4, 9);
+    }
 }
 
