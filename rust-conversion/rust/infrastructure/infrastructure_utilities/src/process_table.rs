@@ -45,7 +45,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicU64, Ordering};
-use entities_process_port::{Process, ProcessId};
+use entities_process::{Process, ProcessId};
 
 /// Process table/registry
 ///
@@ -142,7 +142,7 @@ impl ProcessTable {
     /// # Examples
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     ///
     /// let table = ProcessTable::new();
     /// let process = Arc::new(Process::new(123));
@@ -170,7 +170,7 @@ impl ProcessTable {
     /// # Examples
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     /// use std::sync::Arc;
     ///
     /// let table = ProcessTable::new();
@@ -202,7 +202,7 @@ impl ProcessTable {
     /// # Examples
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     /// use std::sync::Arc;
     ///
     /// let table = ProcessTable::new();
@@ -234,7 +234,7 @@ impl ProcessTable {
     /// # Examples
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     /// use std::sync::Arc;
     ///
     /// let table = ProcessTable::new();
@@ -274,7 +274,7 @@ impl ProcessTable {
     /// # Examples
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     /// use std::sync::Arc;
     ///
     /// let table = ProcessTable::new();
@@ -296,7 +296,7 @@ impl ProcessTable {
     /// # Examples
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     /// use std::sync::Arc;
     ///
     /// let table = ProcessTable::new();
@@ -330,7 +330,7 @@ impl ProcessTable {
     /// # Examples
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     /// use std::sync::Arc;
     ///
     /// let table = ProcessTable::new();
@@ -455,7 +455,7 @@ pub fn get_global_process_table() -> &'static ProcessTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use entities_process_port::Process;
+    use entities_process::Process;
     use std::sync::Arc;
 
     #[test]

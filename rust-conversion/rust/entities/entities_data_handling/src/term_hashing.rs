@@ -1701,6 +1701,19 @@ pub trait TermHash {
     fn hash(&self) -> HashValue;
 }
 
+// Implement Eq for Term (handles Float NaN case)
+impl Eq for Term {}
+
+// Implement Hash for Term using make_hash
+impl std::hash::Hash for Term {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Use make_hash to compute the hash value
+        // Clone is necessary because make_hash takes ownership
+        let hash_value = make_hash(self.clone());
+        state.write_u32(hash_value);
+    }
+}
+
 // Hash constants (prime numbers just above 2^28)
 // These match the C implementation exactly
 // Hash multipliers for make_hash (prime numbers just above 2^28)

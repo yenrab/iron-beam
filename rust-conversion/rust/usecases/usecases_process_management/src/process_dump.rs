@@ -6,7 +6,7 @@
 //! Process dumps provide detailed information about a process's state,
 //! including heap, stack, registers, and other internal state.
 
-use entities_process_port::{Process, ProcessId};
+use entities_process::{Process, ProcessId};
 use infrastructure_utilities::process_table::get_global_process_table;
 use std::sync::Arc;
 
@@ -25,7 +25,7 @@ impl ProcessDump {
     /// # Examples
     /// ```
     /// use usecases_process_management::process_dump::ProcessDump;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     ///
     /// let process = Process::new(123);
     /// let dump = ProcessDump::dump(&process);
@@ -87,7 +87,7 @@ impl ProcessDump {
     /// # Examples
     /// ```
     /// use usecases_process_management::process_dump::ProcessDump;
-    /// use entities_process_port::Process;
+    /// use entities_process::Process;
     /// use infrastructure_utilities::process_table::get_global_process_table;
     /// use std::sync::Arc;
     ///

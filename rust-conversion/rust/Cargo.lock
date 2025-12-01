@@ -523,7 +523,7 @@ name = "entities_io_operations"
 version = "0.1.0"
 
 [[package]]
-name = "entities_process_port"
+name = "entities_process"
 version = "0.1.0"
 
 [[package]]
@@ -1157,7 +1157,7 @@ name = "infrastructure_utilities"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
- "entities_process_port",
+ "entities_process",
  "entities_utilities",
  "usecases_memory_management",
 ]
@@ -2377,7 +2377,7 @@ name = "usecases_process_management"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
- "entities_process_port",
+ "entities_process",
  "entities_utilities",
  "infrastructure_utilities",
 ]
