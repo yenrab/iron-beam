@@ -1157,6 +1157,7 @@ name = "infrastructure_utilities"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
+ "entities_process_port",
  "entities_utilities",
  "usecases_memory_management",
 ]

@@ -7,7 +7,9 @@
 
 pub mod common;
 pub mod helpers;
+pub mod process_table;
 
 pub use common::CommonUtils;
 pub use helpers::HelperFunctions;
+pub use process_table::{ProcessTable, get_global_process_table, ProcessTableError};
 

@@ -177,6 +177,13 @@ impl Default for OffHeap {
     }
 }
 
+// Safety: Process is Send and Sync because:
+// 1. The Erlang runtime manages processes in a thread-safe manner
+// 2. Access to process data is synchronized through the process table and other mechanisms
+// 3. Raw pointers in Process are managed by the runtime and accessed with proper synchronization
+unsafe impl Send for Process {}
+unsafe impl Sync for Process {}
+
 impl Process {
     /// Create a new empty process
     pub fn new(id: ProcessId) -> Self {

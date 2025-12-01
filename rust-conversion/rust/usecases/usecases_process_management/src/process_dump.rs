@@ -7,6 +7,8 @@
 //! including heap, stack, registers, and other internal state.
 
 use entities_process_port::{Process, ProcessId};
+use infrastructure_utilities::process_table::get_global_process_table;
+use std::sync::Arc;
 
 /// Process dump operations
 pub struct ProcessDump;
@@ -82,14 +84,30 @@ impl ProcessDump {
     /// # Returns
     /// Formatted string containing process information, or error message if process not found
     ///
-    /// # Note
-    /// This is a simplified version that creates a new process. In a full implementation,
-    /// this would look up the process in a process table/registry.
+    /// # Examples
+    /// ```
+    /// use usecases_process_management::process_dump::ProcessDump;
+    /// use entities_process_port::Process;
+    /// use infrastructure_utilities::process_table::get_global_process_table;
+    /// use std::sync::Arc;
+    ///
+    /// // Register a process in the table
+    /// let table = get_global_process_table();
+    /// let process = Arc::new(Process::new(123));
+    /// table.insert(123, Arc::clone(&process));
+    ///
+    /// // Dump the process
+    /// let dump = ProcessDump::dump_by_id(123);
+    /// assert!(!dump.is_empty());
+    /// assert!(dump.contains("Process ID: 123"));
+    /// ```
     pub fn dump_by_id(process_id: ProcessId) -> String {
-        // In a full implementation, this would look up the process in a process table
-        // For now, create a new process with the given ID
-        let process = Process::new(process_id);
-        Self::dump(&process)
+        let table = get_global_process_table();
+        if let Some(process) = table.lookup(process_id) {
+            Self::dump(&process)
+        } else {
+            format!("=== Process Not Found ===\nProcess ID: {} not found in process table\n", process_id)
+        }
     }
 }
 
@@ -108,9 +126,21 @@ mod tests {
 
     #[test]
     fn test_process_dump_by_id() {
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use std::sync::Arc;
+        
+        // Register a process in the table
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let dump = ProcessDump::dump_by_id(123);
         assert!(!dump.is_empty());
         assert!(dump.contains("Process ID: 123"));
+        
+        // Test with non-existent process
+        let dump_not_found = ProcessDump::dump_by_id(999);
+        assert!(dump_not_found.contains("not found"));
     }
 
     #[test]
