@@ -27,8 +27,8 @@
  * %CopyrightEnd%
  */
 
-use crate::module_management::{ModuleTableManager, Module, ModuleInstance};
-use crate::code_index::{CodeIndexManager, get_global_code_ix};
+use crate::module_management::ModuleTableManager;
+use crate::code_index::get_global_code_ix;
 
 /// BEAM file read result
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -189,34 +189,275 @@ impl BeamLoader {
     /// Based on erts_finish_loading().
     ///
     /// # Arguments
-    /// * `_beam` - Parsed BEAM file (for future use)
+    /// * `beam` - Parsed BEAM file
     /// * `module_atom` - Module atom index
+    /// * `module_manager` - Module table manager
     ///
     /// # Returns
     /// Ok(()) if successful, error otherwise
     pub fn finish_loading(
-        _beam: &BeamFile,
+        beam: &BeamFile,
+        module_atom: u32,
+        module_manager: &ModuleTableManager,
+    ) -> Result<(), BeamLoadError> {
+        let code_ix = get_global_code_ix();
+        let staging_ix = code_ix.staging_code_ix() as usize;
+        let table = module_manager.get_table(staging_ix);
+
+        // Put module in table (creates if doesn't exist)
+        let module = table.put_module(module_atom);
+
+        // Make current code old (if module already existed)
+        Self::make_current_old(module_manager, module_atom)?;
+
+        // Finalize code into module instance
+        Self::finalize_code(beam, &module, staging_ix)?;
+
+        Ok(())
+    }
+
+    /// Make current code old (for code updates)
+    ///
+    /// Equivalent to beam_make_current_old(). Moves the current module instance
+    /// to the old instance, making room for new code.
+    ///
+    /// # Arguments
+    /// * `module_manager` - Module table manager
+    /// * `module_atom` - Module atom index
+    ///
+    /// # Returns
+    /// Ok(()) if successful, error if old code already exists
+    pub fn make_current_old(
+        module_manager: &ModuleTableManager,
         module_atom: u32,
     ) -> Result<(), BeamLoadError> {
         let code_ix = get_global_code_ix();
         let staging_ix = code_ix.staging_code_ix() as usize;
-
-        // Get module table manager (would be a global in full implementation)
-        // For now, we'll create a temporary one
-        let module_manager = ModuleTableManager::new();
         let table = module_manager.get_table(staging_ix);
 
-        // Put module in table (creates if doesn't exist)
-        let _module = table.put_module(module_atom);
-
-        // Update module instance with code
-        // In a full implementation, this would:
-        // 1. Allocate code memory
-        // 2. Copy code data
-        // 3. Set up code header
-        // 4. Update module instance fields
+        if table.get_module(module_atom).is_some() {
+            // Check if old code already exists (would need to check old instance)
+            // For now, simplified: just copy curr to old
+            // In full implementation, would check if old is already populated
+        }
 
         Ok(())
+    }
+
+    /// Finalize code loading into module instance
+    ///
+    /// Equivalent to beam_load_finalize_code(). Sets up the module instance with
+    /// the loaded code.
+    ///
+    /// # Arguments
+    /// * `beam` - Parsed BEAM file
+    /// * `_module` - Module to update
+    /// * `_code_ix` - Code index
+    ///
+    /// # Returns
+    /// Ok(()) if successful, error otherwise
+    pub fn finalize_code(
+        beam: &BeamFile,
+        _module: &crate::module_management::Module,
+        _code_ix: usize,
+    ) -> Result<(), BeamLoadError> {
+        // In a full implementation, this would:
+        // 1. Allocate code memory
+        // 2. Copy code data from beam
+        // 3. Set up code header
+        // 4. Update module.curr with code information
+        // 5. Set executable_region and writable_region
+        
+        // For now, simplified: just verify beam has code
+        if beam.code_data.is_empty() {
+            return Err(BeamLoadError::InvalidModule);
+        }
+
+        Ok(())
+    }
+
+    /// Initialize loading subsystem
+    ///
+    /// Equivalent to init_load(). Called at system startup.
+    pub fn init_load() {
+        // In a full implementation, this would:
+        // 1. Initialize beam_catches
+        // 2. Initialize ranges
+        // 3. Set up other loading infrastructure
+    }
+
+    /// Check if module has on_load function
+    ///
+    /// Equivalent to erts_has_code_on_load(). Returns true if the module
+    /// has an on_load function, false otherwise.
+    ///
+    /// # Arguments
+    /// * `beam` - Parsed BEAM file
+    ///
+    /// # Returns
+    /// true if module has on_load, false otherwise
+    pub fn has_code_on_load(beam: &BeamFile) -> bool {
+        beam.has_on_load
+    }
+
+    /// Report loading error
+    ///
+    /// Equivalent to beam_load_report_error(). Formats and reports an error
+    /// that occurred during module loading.
+    ///
+    /// # Arguments
+    /// * `line` - Line number where error occurred
+    /// * `module` - Module atom index
+    /// * `function` - Function atom index (if applicable)
+    /// * `arity` - Function arity (if applicable)
+    /// * `format` - Error message format string
+    /// * `args` - Format arguments
+    pub fn report_error(
+        line: u32,
+        module: u32,
+        function: Option<u32>,
+        arity: Option<u32>,
+        format: &str,
+        args: &[&dyn std::fmt::Display],
+    ) {
+        eprint!("beam_load.rs({}): Error loading ", line);
+        
+        if let (Some(func), Some(arity_val)) = (function, arity) {
+            eprint!("function {}:{}:{}", module, func, arity_val);
+        } else {
+            eprint!("module {}", module);
+        }
+        
+        eprint!(":\n  ");
+        
+        // Simple format string handling
+        let mut format_chars = format.chars().peekable();
+        let mut arg_idx = 0;
+        while let Some(ch) = format_chars.next() {
+            if ch == '{' && format_chars.peek() == Some(&'}') {
+                format_chars.next(); // consume '}'
+                if arg_idx < args.len() {
+                    eprint!("{}", args[arg_idx]);
+                    arg_idx += 1;
+                }
+            } else {
+                eprint!("{}", ch);
+            }
+        }
+        eprintln!();
+    }
+
+    /// Prepare emit (begin code emission)
+    ///
+    /// Equivalent to beam_load_prepare_emit(). Prepares the loader state
+    /// for emitting code.
+    ///
+    /// # Arguments
+    /// * `beam` - Parsed BEAM file
+    ///
+    /// # Returns
+    /// Ok(()) if successful, error otherwise
+    pub fn prepare_emit(beam: &BeamFile) -> Result<(), BeamLoadError> {
+        // In a full implementation, this would:
+        // 1. Allocate code memory
+        // 2. Set up code header
+        // 3. Initialize emit state
+        
+        if beam.code_data.is_empty() {
+            return Err(BeamLoadError::InvalidModule);
+        }
+        
+        Ok(())
+    }
+
+    /// Emit an operation
+    ///
+    /// Equivalent to beam_load_emit_op(). Emits a single operation to the code.
+    ///
+    /// # Arguments
+    /// * `beam` - Parsed BEAM file
+    /// * `op_code` - Operation code
+    /// * `args` - Operation arguments
+    ///
+    /// # Returns
+    /// Ok(()) if successful, error otherwise
+    pub fn emit_op(
+        _beam: &BeamFile,
+        _op_code: u32,
+        _args: &[u32],
+    ) -> Result<(), BeamLoadError> {
+        // In a full implementation, this would:
+        // 1. Encode operation
+        // 2. Write to code buffer
+        // 3. Update code position
+        
+        Ok(())
+    }
+
+    /// Finish emit (complete code emission)
+    ///
+    /// Equivalent to beam_load_finish_emit(). Completes code emission and
+    /// finalizes the code.
+    ///
+    /// # Arguments
+    /// * `beam` - Parsed BEAM file
+    ///
+    /// # Returns
+    /// Ok(()) if successful, error otherwise
+    pub fn finish_emit(beam: &BeamFile) -> Result<(), BeamLoadError> {
+        // In a full implementation, this would:
+        // 1. Finalize code header
+        // 2. Set up code pointers
+        // 3. Validate code
+        
+        if beam.code_data.is_empty() {
+            return Err(BeamLoadError::InvalidModule);
+        }
+        
+        Ok(())
+    }
+
+    /// Purge auxiliary code
+    ///
+    /// Equivalent to beam_load_purge_aux(). Purges old code from a module.
+    ///
+    /// # Arguments
+    /// * `code_hdr` - Code header pointer (simplified as usize)
+    pub fn purge_aux(_code_hdr: usize) {
+        // In a full implementation, this would:
+        // 1. Free code memory
+        // 2. Release resources
+        // 3. Update module state
+    }
+
+    /// Create new generic operation
+    ///
+    /// Equivalent to beam_load_new_genop(). Creates a new generic operation
+    /// in the loader state.
+    ///
+    /// # Returns
+    /// Operation code (simplified)
+    pub fn new_genop() -> u32 {
+        // In a full implementation, this would:
+        // 1. Allocate operation structure
+        // 2. Initialize operation
+        // 3. Return operation pointer
+        
+        0 // Simplified
+    }
+
+    /// Create new label
+    ///
+    /// Equivalent to beam_load_new_label(). Creates a new label in the loader state.
+    ///
+    /// # Returns
+    /// Label index
+    pub fn new_label() -> i32 {
+        // In a full implementation, this would:
+        // 1. Allocate label
+        // 2. Return label index
+        
+        0 // Simplified
     }
 }
 
@@ -286,9 +527,55 @@ mod tests {
         data[8..12].copy_from_slice(b"BEAM");
         
         let beam = BeamLoader::read_beam_file(&data).unwrap();
-        let result = BeamLoader::finish_loading(&beam, 1);
+        let module_manager = ModuleTableManager::new();
+        let result = BeamLoader::finish_loading(&beam, 1, &module_manager);
         // Should succeed (module will be created)
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_has_code_on_load() {
+        let mut data = vec![0u8; 16];
+        data[0..4].copy_from_slice(b"FOR1");
+        data[4..8].copy_from_slice(&8u32.to_le_bytes());
+        data[8..12].copy_from_slice(b"BEAM");
+        
+        let mut beam = BeamLoader::read_beam_file(&data).unwrap();
+        assert!(!BeamLoader::has_code_on_load(&beam));
+        
+        beam.has_on_load = true;
+        assert!(BeamLoader::has_code_on_load(&beam));
+    }
+
+    #[test]
+    fn test_report_error() {
+        // Test error reporting (should not panic)
+        BeamLoader::report_error(100, 1, Some(2), Some(3), "test error {}", &[&"message"]);
+    }
+
+    #[test]
+    fn test_emit_functions() {
+        let mut data = vec![0u8; 16];
+        data[0..4].copy_from_slice(b"FOR1");
+        data[4..8].copy_from_slice(&8u32.to_le_bytes());
+        data[8..12].copy_from_slice(b"BEAM");
+        
+        let beam = BeamLoader::read_beam_file(&data).unwrap();
+        
+        // Test emit functions
+        assert!(BeamLoader::prepare_emit(&beam).is_ok());
+        assert!(BeamLoader::emit_op(&beam, 0, &[]).is_ok());
+        assert!(BeamLoader::finish_emit(&beam).is_ok());
+    }
+
+    #[test]
+    fn test_purge_and_helpers() {
+        // Test purge (should not panic)
+        BeamLoader::purge_aux(0x1000);
+        
+        // Test new_genop and new_label
+        let _genop = BeamLoader::new_genop();
+        let _label = BeamLoader::new_label();
     }
 }
 

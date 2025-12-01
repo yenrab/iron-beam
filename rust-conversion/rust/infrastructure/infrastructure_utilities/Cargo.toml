@@ -11,4 +11,7 @@ entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_utilities = { path = "../../entities/entities_utilities" }
 entities_process = { path = "../../entities/entities_process" }
 usecases_memory_management = { path = "../../usecases/usecases_memory_management" }
+num-rational = "0.4"
+num-traits = "0.2"
+num_cpus = "1.16"
 

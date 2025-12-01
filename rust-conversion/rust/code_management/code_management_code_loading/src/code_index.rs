@@ -144,6 +144,16 @@ impl CodeIndexManager {
         let active_ix = self.active_code_index.load(Ordering::Acquire);
         self.staging_code_index.store(active_ix, Ordering::Release);
     }
+
+    /// Get outstanding blocking code barriers count
+    ///
+    /// Returns the number of outstanding blocking code barriers.
+    /// This is used for thread synchronization.
+    pub fn outstanding_blocking_code_barriers(&self) -> u32 {
+        // In a full implementation, this would track actual barriers
+        // For now, return 0
+        0
+    }
 }
 
 impl Default for CodeIndexManager {
@@ -236,6 +246,226 @@ mod tests {
         
         // Should return the same instance
         assert_eq!(manager1.active_code_ix(), manager2.active_code_ix());
+    }
+
+    #[test]
+    fn test_code_index_manager_default() {
+        // Test Default trait implementation
+        let manager = CodeIndexManager::default();
+        
+        // Verify it works the same as new()
+        assert_eq!(manager.active_code_ix(), 0);
+        assert_eq!(manager.staging_code_ix(), 0);
+        
+        // Test that it can be used
+        manager.start_staging(0);
+        assert_eq!(manager.staging_code_ix(), 1);
+    }
+
+    #[test]
+    fn test_code_index_new() {
+        // Test new() method explicitly
+        let manager = CodeIndexManager::new();
+        
+        // Should start at 0 for both
+        assert_eq!(manager.active_code_ix(), 0);
+        assert_eq!(manager.staging_code_ix(), 0);
+    }
+
+    #[test]
+    fn test_code_index_init_multiple_times() {
+        let manager = CodeIndexManager::new();
+        
+        // Set to different values
+        manager.start_staging(0);
+        manager.commit_staging();
+        assert_eq!(manager.active_code_ix(), 1);
+        
+        // Init should reset to 0
+        manager.init();
+        assert_eq!(manager.active_code_ix(), 0);
+        assert_eq!(manager.staging_code_ix(), 0);
+    }
+
+    #[test]
+    fn test_code_index_end_staging() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Start staging
+        manager.start_staging(0);
+        let staging_before = manager.staging_code_ix();
+        
+        // End staging (should not change staging index)
+        manager.end_staging();
+        let staging_after = manager.staging_code_ix();
+        
+        // end_staging doesn't change the staging index
+        assert_eq!(staging_before, staging_after);
+    }
+
+    #[test]
+    fn test_code_index_commit_without_end() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Start staging
+        manager.start_staging(0);
+        let staging_ix = manager.staging_code_ix();
+        
+        // Commit without end_staging (should still work)
+        manager.commit_staging();
+        assert_eq!(manager.active_code_ix(), staging_ix);
+    }
+
+    #[test]
+    fn test_code_index_abort_after_commit() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Start and commit
+        manager.start_staging(0);
+        manager.commit_staging();
+        let active_after_commit = manager.active_code_ix();
+        
+        // Start staging again
+        manager.start_staging(0);
+        let staging_before_abort = manager.staging_code_ix();
+        assert_ne!(staging_before_abort, active_after_commit);
+        
+        // Abort should reset to active
+        manager.abort_staging();
+        assert_eq!(manager.staging_code_ix(), active_after_commit);
+    }
+
+    #[test]
+    fn test_code_index_wraparound_edge_cases() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Test wraparound from 2 to 0
+        // Set to index 2
+        manager.start_staging(0); // staging = 1
+        manager.commit_staging(); // active = 1, staging = 2
+        manager.start_staging(0); // staging = 2
+        manager.commit_staging(); // active = 2, staging = 0
+        
+        assert_eq!(manager.active_code_ix(), 2);
+        assert_eq!(manager.staging_code_ix(), 0);
+        
+        // Next commit should wrap to 1
+        manager.start_staging(0); // staging = 0
+        manager.commit_staging(); // active = 0, staging = 1
+        assert_eq!(manager.active_code_ix(), 0);
+        assert_eq!(manager.staging_code_ix(), 1);
+    }
+
+    #[test]
+    fn test_code_index_start_staging_with_different_num_new() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Test with different num_new values (parameter is currently unused but should be callable)
+        manager.start_staging(0);
+        let staging1 = manager.staging_code_ix();
+        
+        manager.commit_staging();
+        manager.start_staging(5);
+        let staging2 = manager.staging_code_ix();
+        
+        manager.commit_staging();
+        manager.start_staging(100);
+        let staging3 = manager.staging_code_ix();
+        
+        // All should work the same way (num_new is for future use)
+        assert!(staging1 < NUM_CODE_IX as u32);
+        assert!(staging2 < NUM_CODE_IX as u32);
+        assert!(staging3 < NUM_CODE_IX as u32);
+    }
+
+    #[test]
+    fn test_code_index_multiple_abort_cycles() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Multiple abort cycles
+        for _ in 0..10 {
+            let active_before = manager.active_code_ix();
+            manager.start_staging(0);
+            manager.abort_staging();
+            assert_eq!(manager.staging_code_ix(), active_before);
+        }
+    }
+
+    #[test]
+    fn test_code_index_full_cycle_with_abort() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Full cycle: start -> end -> commit
+        manager.start_staging(0);
+        manager.end_staging();
+        manager.commit_staging();
+        let active1 = manager.active_code_ix();
+        
+        // Another cycle with abort
+        manager.start_staging(0);
+        manager.abort_staging();
+        assert_eq!(manager.active_code_ix(), active1); // Should not change
+        
+        // Another full cycle
+        manager.start_staging(0);
+        manager.end_staging();
+        manager.commit_staging();
+        let active2 = manager.active_code_ix();
+        assert_ne!(active1, active2);
+    }
+
+    #[test]
+    fn test_code_index_constants() {
+        // Test that NUM_CODE_IX constant is accessible
+        assert_eq!(NUM_CODE_IX, 3);
+        
+        // Test CodeIndex type
+        let _index: CodeIndex = 0;
+        let _index2: CodeIndex = NUM_CODE_IX as u32;
+    }
+
+    #[test]
+    fn test_code_index_global_initialization() {
+        // Test that global code ix is properly initialized
+        let global = get_global_code_ix();
+        
+        // Should be initialized to 0
+        assert_eq!(global.active_code_ix(), 0);
+        assert_eq!(global.staging_code_ix(), 0);
+        
+        // Should be usable
+        global.start_staging(0);
+        assert_eq!(global.staging_code_ix(), 1);
+    }
+
+    #[test]
+    fn test_code_index_concurrent_operations() {
+        let manager = CodeIndexManager::new();
+        manager.init();
+        
+        // Simulate rapid operations
+        for i in 0..20 {
+            if i % 3 == 0 {
+                manager.start_staging(0);
+            } else if i % 3 == 1 {
+                manager.end_staging();
+            } else {
+                manager.commit_staging();
+            }
+            
+            // Verify indices are always valid
+            let active = manager.active_code_ix();
+            let staging = manager.staging_code_ix();
+            assert!(active < NUM_CODE_IX as u32);
+            assert!(staging < NUM_CODE_IX as u32);
+        }
     }
 }
 
