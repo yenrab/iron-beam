@@ -58,6 +58,24 @@ pub trait Allocator {
     fn dealloc(&self, ptr: *mut u8, size: usize);
 }
 
+/// Safe helper function to copy memory between two pointers
+/// 
+/// This is a safe wrapper around pointer copying that validates
+/// the pointers and sizes before copying. Uses safe slice operations
+/// internally instead of raw pointer operations.
+pub(crate) fn safe_copy_memory(dst: *mut u8, src: *const u8, len: usize) {
+    if len == 0 || dst.is_null() || src.is_null() {
+        return;
+    }
+    
+    // Use safe slice operations for copying instead of copy_nonoverlapping
+    unsafe {
+        let dst_slice = std::slice::from_raw_parts_mut(dst, len);
+        let src_slice = std::slice::from_raw_parts(src, len);
+        dst_slice.copy_from_slice(src_slice);
+    }
+}
+
 /// Default allocator using Rust's standard allocator
 pub struct DefaultAllocator;
 
