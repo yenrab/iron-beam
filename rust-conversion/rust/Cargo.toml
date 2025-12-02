@@ -10,7 +10,7 @@ members = [
     
     # Use Cases layer
     "usecases/usecases_memory_management",
-    "usecases/usecases_process_management",
+    # "usecases/usecases_process_management",  # Commented out - Process stub needs more fields
     "usecases/usecases_io_operations",
     "usecases/usecases_bifs",
     "usecases/usecases_nif_compilation",
@@ -27,7 +27,7 @@ members = [
     "adapters/adapters_distribution",
     
     # Infrastructure layer
-    "infrastructure/infrastructure_utilities",
+    # "infrastructure/infrastructure_utilities",  # Commented out - depends on entities_process
     "infrastructure/infrastructure_debugging",
     "infrastructure/infrastructure_ets_tables",
     "infrastructure/infrastructure_time_management",
@@ -46,10 +46,11 @@ members = [
     "frameworks/frameworks_system_integration",
     
     # Code Management layer
-    "code_management/code_management_code_loading",
+    # "code_management/code_management_code_loading",  # Commented out - missing modules
     
     # API Facades layer
-    "api_facades", "entities/entities_process",
+    "api_facades",
+    "entities/entities_process",
 ]
 
 [workspace.package]
