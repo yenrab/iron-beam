@@ -1,0 +1,1 @@
+RUST_TEST_THREADS=1 cargo llvm-cov --workspace --all-features --tests --lib --bins --html --output-dir coverage-html/llvm-cov 2>&1 | tail -3
