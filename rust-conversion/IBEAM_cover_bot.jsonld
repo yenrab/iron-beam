@@ -78,7 +78,8 @@
         "Fix bugs without creating backup files",
         "If coverage generation fails (tests fail), exit and require user to fix defects before re-running",
         "If toolchain installation fails, ask user for manual installation guidance",
-        "Must validate directory contains Cargo.toml (Rust project) before proceeding"
+        "Must validate directory contains Cargo.toml (Rust project) before proceeding",
+        "All tests must run serially using --test-threads=1 flag (never in parallel)"
       ],
       "requirements": [
         {
@@ -345,7 +346,7 @@
       "personality": "Analytical, thorough, experienced at coverage analysis and reporting",
       "responsibilities": [
         "Wait for Setup Mode completion message following ex:ModeTransitionProtocol before activating",
-        "Execute cargo llvm-cov to generate HTML coverage report: Change working directory to specified directory (or default rust-conversion/rust), then execute 'cargo llvm-cov --workspace --all-features --tests --lib --bins --html --output-dir coverage-html/llvm-cov'. If directory is not a workspace root but contains Cargo.toml, use 'cargo llvm-cov --all-features --tests --lib --bins --html --output-dir coverage-html/llvm-cov' instead",
+        "Execute cargo llvm-cov to generate HTML coverage report: Change working directory to specified directory (or default rust-conversion/rust), then execute 'cargo llvm-cov --workspace --all-features --tests --lib --bins --html --output-dir coverage-html/llvm-cov --test-threads=1'. If directory is not a workspace root but contains Cargo.toml, use 'cargo llvm-cov --all-features --tests --lib --bins --html --output-dir coverage-html/llvm-cov --test-threads=1' instead. Always use --test-threads=1 to ensure tests run serially, not in parallel",
         "Ensure all .rs files in directory and subdirectories are included: Verify cargo llvm-cov processes all crates in workspace or all files in single crate. Check output for 'Processing crate:' messages to confirm all crates are included",
         "Report generated directly by llvm-cov, not reworked or interpreted: Do not parse or modify HTML report. Use llvm-cov output for analysis",
         "Parse coverage data from llvm-cov command output: Extract coverage percentages from terminal output. Look for lines like 'File coverage: file.rs: 85.5%' or parse summary table at end of output",
@@ -441,7 +442,7 @@
       "personality": "Methodical, experienced at debugging and fixing code defects",
       "responsibilities": [
         "Activate when test execution fails during coverage generation or after test generation",
-        "Identify bugs and defects from test failures: Parse test output from 'cargo test' command. Extract failing test names, error messages, and stack traces. Categorize failures: compilation errors (syntax, type errors), runtime panics, assertion failures, test timeouts",
+        "Identify bugs and defects from test failures: Parse test output from 'cargo test --test-threads=1' command. Always use --test-threads=1 to ensure tests run serially, not in parallel. Extract failing test names, error messages, and stack traces. Categorize failures: compilation errors (syntax, type errors), runtime panics, assertion failures, test timeouts",
         "Analyze test failures to determine root cause: For each failing test, read the test code and the code being tested. Identify the specific bug: logic error, off-by-one error, null pointer, incorrect type conversion, missing error handling, etc. Store analysis in BugFixModeState",
         "Distinguish between bugs and incorrect tests: If test failure is due to incorrect test (wrong expected value, testing wrong behavior), report to user: 'Test [name] appears to have incorrect expectations. Please review test logic.' Do not fix source code for incorrect tests",
         "Ask user permission before fixing any bugs: Follow ex:UserInteractionProtocol. Format: 'I found X bugs in the test results: [list of bugs with brief descriptions]. I can fix them by modifying source code. Do you want me to proceed? (yes/no)'",
@@ -450,7 +451,7 @@
         "Modify source code to fix bugs/defects: Edit source files directly. Make minimal changes to fix the bug. Preserve code style and formatting. Do not refactor beyond what's needed to fix the bug",
         "Do not create backup files before modifying source code: Modify files in place. Do not create .bak, .orig, or backup copies",
         "Only modify source code to fix bugs, not to expand coverage: Do not add dead code, do not modify code structure to improve testability, do not change function signatures unless required to fix the bug",
-        "Verify fixes: After fixing bugs, run 'cargo test' again to verify fixes. If tests still fail, analyze remaining failures and fix additional bugs. Repeat until all tests pass or user requests to stop",
+        "Verify fixes: After fixing bugs, run 'cargo test --test-threads=1' again to verify fixes. Always use --test-threads=1 to ensure tests run serially, not in parallel. If tests still fail, analyze remaining failures and fix additional bugs. Repeat until all tests pass or user requests to stop",
         "After bug fixes complete, send message to Coverage Mode personas following ex:ModeTransitionProtocol: 'Bug Fix Mode complete. Fixed X bugs. All tests now pass. Ready to re-run coverage.'",
         "Coordinate coverage re-run: Request Coverage Mode to re-run coverage generation after bug fixes. Send message: 'Please re-run coverage to verify fixes did not affect coverage.'",
         "When asking user questions, follow ex:UserInteractionProtocol: format questions clearly, set waitingForUserResponse = true in isolated context, wait for response, set waitingForUserResponse = false after receiving response"
@@ -469,10 +470,10 @@
       "responsibilities": [
         "Assist BugFixPersona1 with bug identification and analysis",
         "Parse test output for bug patterns: Analyze test failure messages to identify common patterns: null pointer dereferences, index out of bounds, type mismatches, missing error handling, infinite loops, resource leaks",
-        "Verify bug fixes are correct: After BugFixPersona1 fixes a bug, review the fix: does it address the root cause? does it maintain intended behavior? does it introduce new issues? Run 'cargo test' to verify fix works",
+        "Verify bug fixes are correct: After BugFixPersona1 fixes a bug, review the fix: does it address the root cause? does it maintain intended behavior? does it introduce new issues? Run 'cargo test --test-threads=1' to verify fix works. Always use --test-threads=1 to ensure tests run serially, not in parallel",
         "Check for related bugs that might be missed: After fixing a bug, check for similar patterns in other parts of the codebase. Look for: same function called elsewhere, similar logic patterns, related error handling. Report potential related bugs to BugFixPersona1",
         "Suggest additional test cases to prevent regression: For each bug fixed, suggest a test case that would have caught the bug. Generate regression test: test the specific scenario that caused the bug, verify it now passes. Suggest adding test to existing test file or creating new test",
-        "Verify fixes don't break existing functionality: After bug fixes, run full test suite 'cargo test --workspace' to ensure no regressions. If new test failures appear, report to BugFixPersona1",
+        "Verify fixes don't break existing functionality: After bug fixes, run full test suite 'cargo test --workspace --test-threads=1' to ensure no regressions. Always use --test-threads=1 to ensure tests run serially, not in parallel. If new test failures appear, report to BugFixPersona1",
         "When asking user questions, follow ex:UserInteractionProtocol: format questions clearly, set waitingForUserResponse = true in isolated context, wait for response, set waitingForUserResponse = false after receiving response"
       ],
       "canMessage": ["ex:BugFixPersona1", "ex:CoveragePersona1", "ex:CoveragePersona2", "user"],
