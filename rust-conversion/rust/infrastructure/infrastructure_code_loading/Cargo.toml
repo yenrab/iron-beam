@@ -9,4 +9,5 @@ authors = ["Erlang/OTP Rust Conversion"]
 [dependencies]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_io_operations = { path = "../../entities/entities_io_operations" }
+infrastructure_data_handling = { path = "../infrastructure_data_handling" }
 

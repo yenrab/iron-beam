@@ -324,7 +324,7 @@ pub fn make_hash(term: Term) -> u32 {
                 if n == 0 {
                     // Zero bignum
                     hash = h.wrapping_mul(HASH_MULT_POSITIVE);
-                } else {
+                    } else {
                     // Hash all limbs except the last one (4 bytes each)
                     for i in 0..(n - 1) {
                         let digit = limbs[i];
@@ -2234,7 +2234,7 @@ mod tests {
             result
         }
     }
-
+    
     #[test]
     fn test_internal_hash_big() {
         // Test positive bignum

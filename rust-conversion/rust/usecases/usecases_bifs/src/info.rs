@@ -251,7 +251,7 @@ impl InfoBif {
             ProcessState::Unknown(_) => "unknown",
         };
         info.push(ErlangTerm::Tuple(vec![
-            ErlangTerm::Atom("status".to_string()),
+                ErlangTerm::Atom("status".to_string()),
             ErlangTerm::Atom(status_str.to_string()),
         ]));
 
@@ -291,8 +291,8 @@ impl InfoBif {
 
         // Message queue length (not available yet, default to 0)
         info.push(ErlangTerm::Tuple(vec![
-            ErlangTerm::Atom("message_queue_len".to_string()),
-            ErlangTerm::Integer(0),
+                ErlangTerm::Atom("message_queue_len".to_string()),
+                ErlangTerm::Integer(0),
         ]));
 
         // Priority (not available yet, default to normal)
@@ -439,17 +439,17 @@ impl InfoBif {
             "current_function" => {
                 // Current function not yet available in Process struct
                 Ok(ErlangTerm::Tuple(vec![
-                    ErlangTerm::Atom("erlang".to_string()),
-                    ErlangTerm::Atom("apply".to_string()),
-                    ErlangTerm::Integer(2),
+                ErlangTerm::Atom("erlang".to_string()),
+                ErlangTerm::Atom("apply".to_string()),
+                ErlangTerm::Integer(2),
                 ]))
             },
             "initial_call" => {
                 // Initial call not yet available in Process struct
                 Ok(ErlangTerm::Tuple(vec![
-                    ErlangTerm::Atom("erlang".to_string()),
-                    ErlangTerm::Atom("apply".to_string()),
-                    ErlangTerm::Integer(2),
+                ErlangTerm::Atom("erlang".to_string()),
+                ErlangTerm::Atom("apply".to_string()),
+                ErlangTerm::Integer(2),
                 ]))
             },
             "dictionary" => {
@@ -851,13 +851,19 @@ mod tests {
 
     #[test]
     fn test_get_module_info_1() {
-        // First register a module
+        // First register a module with a unique name to avoid test conflicts
         use crate::load::LoadBif;
         use crate::load::ModuleStatus;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let unique_name = format!("test_module_info_1_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos());
         LoadBif::clear_all();
-        LoadBif::register_module("test_module", ModuleStatus::Loaded, false, false);
+        LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+        
+        // Verify module is registered before querying
+        let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone())).unwrap();
+        assert_eq!(loaded, ErlangTerm::Atom("true".to_string()));
 
-        let result = InfoBif::get_module_info_1(&ErlangTerm::Atom("test_module".to_string())).unwrap();
+        let result = InfoBif::get_module_info_1(&ErlangTerm::Atom(unique_name)).unwrap();
         if let ErlangTerm::List(list) = result {
             assert!(!list.is_empty());
         } else {
@@ -1196,11 +1202,22 @@ mod tests {
     fn test_get_module_info_2_attributes() {
         use crate::load::LoadBif;
         use crate::load::ModuleStatus;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let unique_name = format!("test_module_info_2_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos());
         LoadBif::clear_all();
-        LoadBif::register_module("test_module", ModuleStatus::Loaded, false, false);
+        LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+        
+        // Verify module is registered before querying - retry if needed due to test isolation
+        let mut loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
+        if loaded != Ok(ErlangTerm::Atom("true".to_string())) {
+            // Retry registration in case of race condition
+            LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+            loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
+        }
+        assert_eq!(loaded.unwrap(), ErlangTerm::Atom("true".to_string()));
 
         let result = InfoBif::get_module_info_2(
-            &ErlangTerm::Atom("test_module".to_string()),
+            &ErlangTerm::Atom(unique_name),
             &ErlangTerm::Atom("attributes".to_string()),
         ).unwrap();
         assert!(matches!(result, ErlangTerm::List(_)));

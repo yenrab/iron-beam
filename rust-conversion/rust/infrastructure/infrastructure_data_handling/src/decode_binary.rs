@@ -67,7 +67,7 @@ mod tests {
         let result = decode_binary(&buf, 0);
         assert!(result.is_ok());
         let (data, pos) = result.unwrap();
-        assert_eq!(data, vec![1, 2, 3, 4]);
+        assert_eq!(data, vec![1u8, 2, 3, 4]);
         assert_eq!(pos, 9);
     }
 
@@ -77,7 +77,7 @@ mod tests {
         let result = decode_binary(&buf, 0);
         assert!(result.is_ok());
         let (data, pos) = result.unwrap();
-        assert_eq!(data, vec![]);
+        assert_eq!(data, Vec::<u8>::new());
         assert_eq!(pos, 5);
     }
 

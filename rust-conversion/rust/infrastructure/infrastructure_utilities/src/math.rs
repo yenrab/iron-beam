@@ -542,7 +542,7 @@ impl RationalUtils {
     /// * `Some(i64)` - If the rational is a whole number
     /// * `None` - If it's not a whole number
     pub fn to_integer(r: &BigRational) -> Option<i64> {
-        r.to_i64()
+            r.to_i64()
     }
 
     /// Convert rational to float

@@ -273,7 +273,7 @@ mod tests {
         let (term, pos) = result.unwrap();
         match term {
             Term::Binary { data, bit_offset, bit_size } => {
-                assert_eq!(data, vec![]);
+                assert_eq!(data, Vec::<u8>::new());
                 assert_eq!(bit_offset, 0);
                 assert_eq!(bit_size, 0);
             }

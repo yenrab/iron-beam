@@ -26,8 +26,6 @@ pub enum LoadError {
 mod tests {
     use super::*;
     use std::fs;
-    use std::io::Write;
-    use std::path::PathBuf;
 
     #[test]
     fn test_code_loader() {
