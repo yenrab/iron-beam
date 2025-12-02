@@ -92,11 +92,13 @@ fn test_export_table_get_or_make_stub() {
     assert_eq!(stub1.mfa.module, 10);
     assert_eq!(stub1.mfa.function, 20);
     assert_eq!(stub1.mfa.arity, 30);
+    assert!(stub1.is_stub); // Should be marked as stub
     
-    // Get or make stub for existing export - should return existing
+    // Get or make stub for existing export - should return existing stub
     let stub2 = table.get_or_make_stub(10, 20, 30);
     assert_eq!(table.table_size(), 1); // Still only one
     assert_eq!(stub1.mfa, stub2.mfa);
+    assert!(stub2.is_stub); // Should still be a stub
 }
 
 #[test]

@@ -13,6 +13,7 @@ entities_io_operations = { path = "../../entities/entities_io_operations" }
 entities_process = { path = "../../entities/entities_process" }
 usecases_process_management = { path = "../usecases_process_management" }
 infrastructure_utilities = { path = "../../infrastructure/infrastructure_utilities" }
+code_management_code_loading = { path = "../../code_management/code_management_code_loading" }
 # Checksum algorithms
 crc32fast = "1.3"
 adler = "1.0"

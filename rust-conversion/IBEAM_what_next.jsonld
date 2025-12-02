@@ -278,9 +278,9 @@
       "personality": "Detail-oriented, experienced at analyzing Rust code structure and detecting simplifications",
       "responsibilities": [
         "Scan Rust code in rust-conversion/rust/ directory",
-        "For each group, locate corresponding Rust crate: {layer}/{layer}_{group_name}",
-        "Error handling: If Rust crate doesn't exist for a group, mark as 'crate_missing' in AnalysisModeState and continue with other groups. Report missing crates but don't stop analysis.",
-        "Read Rust source files (.rs files) in the crate. Error handling: If crate exists but has no .rs files, mark as 'no_source_files' in AnalysisModeState.",
+        "For each group, locate corresponding Rust crate using flexible search: Search for directories with names similar to the normalized group name that contain Cargo.toml files. Search within the appropriate layer directory (e.g., entities/, adapters/, infrastructure/, etc.). A directory is a valid Rust crate if: (1) its name is similar to the normalized group name (allowing for layer prefix variations like 'entities_data_handling' matching 'entities/entities_data_handling' or similar), and (2) it contains a Cargo.toml file. Use the crate path found by DesignAnalyzerPersona if available, otherwise perform the search.",
+        "Error handling: If Rust crate doesn't exist for a group (no directory with similar name and Cargo.toml found), mark as 'crate_missing' in AnalysisModeState and continue with other groups. Report missing crates but don't stop analysis.",
+        "Read Rust source files (.rs files) in the crate directory. Error handling: If crate directory exists but has no .rs files in src/ subdirectory, mark as 'no_source_files' in AnalysisModeState.",
         "Scan all modules in the crate for behaviors (check lib.rs, all module files, subdirectories)",
         "Understand behaviors implemented in Rust code semantically using explicit method:",
         "  1. Analyze function signatures: name, parameters, return type indicate operation",

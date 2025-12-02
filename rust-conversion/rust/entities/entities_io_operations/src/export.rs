@@ -71,6 +71,8 @@ pub struct Export {
     pub bif_number: i32,
     /// Whether this is a traced BIF
     pub is_bif_traced: bool,
+    /// Whether this is a stub entry (placeholder for not-yet-loaded function)
+    pub is_stub: bool,
 }
 
 impl Export {
@@ -80,6 +82,7 @@ impl Export {
             mfa: Mfa::new(module, function, arity),
             bif_number: -1,
             is_bif_traced: false,
+            is_stub: false,
         }
     }
 
@@ -89,8 +92,23 @@ impl Export {
             mfa: Mfa::new(module, function, arity),
             bif_number,
             is_bif_traced: false,
+            is_stub: false,
         }
     }
+
+    /// Create a new stub export entry
+    ///
+    /// Stub entries are placeholders for functions that are referenced but not yet loaded.
+    /// Calling a stub will trigger an error handler.
+    pub fn new_stub(module: u32, function: u32, arity: u32) -> Self {
+        Self {
+            mfa: Mfa::new(module, function, arity),
+            bif_number: -1,
+            is_bif_traced: false,
+            is_stub: true,
+        }
+    }
+
 
     /// Check if this is a BIF
     pub fn is_bif(&self) -> bool {
@@ -167,14 +185,69 @@ impl ExportTable {
 
     /// Create or get export entry for MFA
     ///
+    /// If a stub exists for this MFA, it will be replaced with a regular export.
+    /// This is used when loading a module - stubs are upgraded to regular exports.
+    ///
     /// # Arguments
     /// * `module` - Module atom index
     /// * `function` - Function atom index
     /// * `arity` - Function arity
     ///
     /// # Returns
-    /// Export entry (existing or newly created)
+    /// Export entry (existing regular export, or newly created/upgraded from stub)
     pub fn put(&self, module: u32, function: u32, arity: u32) -> Export {
+        let mfa = Mfa::new(module, function, arity);
+        let hash = mfa.hash();
+
+        let mut exports = self.exports.write().unwrap();
+        let mut export_list = self.export_list.write().unwrap();
+        let mut size = self.size.write().unwrap();
+
+        // Check if already exists
+        if let Some(existing) = exports.get(&hash) {
+            // If it's already a regular export (not a stub), return it
+            if !existing.is_stub {
+                return existing.clone();
+            }
+            // If it's a stub, we need to replace it with a regular export
+            // Remove the stub from the list first
+            export_list.retain(|e| e.mfa != mfa);
+        }
+
+        // Create new regular export (or upgrade from stub)
+        let export = Export::new(module, function, arity);
+        
+        // Check limit before inserting (only if we're adding a new entry, not replacing)
+        let is_new_entry = !exports.contains_key(&hash);
+        if is_new_entry && *size >= self.limit {
+            // Limit reached and export doesn't exist - cannot add new entry
+            // Return the export we would have created (caller should handle limit error)
+            return export;
+        }
+
+        // Insert or replace the export
+        if is_new_entry {
+            *size += 1;
+        }
+        exports.insert(hash, export.clone());
+        export_list.push(export.clone());
+
+        export
+    }
+
+    /// Get existing export entry or create a stub entry
+    ///
+    /// Stub entries are used when a function is referenced but not yet loaded.
+    /// Stubs are placeholders that will trigger an error handler if called.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `function` - Function atom index
+    /// * `arity` - Function arity
+    ///
+    /// # Returns
+    /// Export entry (existing or newly created stub)
+    pub fn get_or_make_stub(&self, module: u32, function: u32, arity: u32) -> Export {
         let mfa = Mfa::new(module, function, arity);
         let hash = mfa.hash();
 
@@ -186,39 +259,28 @@ impl ExportTable {
             }
         }
 
-        // Create new export
-        let export = Export::new(module, function, arity);
+        // Create new stub export
+        let stub = Export::new_stub(module, function, arity);
         let mut exports = self.exports.write().unwrap();
         let mut export_list = self.export_list.write().unwrap();
         let mut size = self.size.write().unwrap();
 
-        // Check limit
+        // Check limit before inserting
         if *size >= self.limit {
-            // Return existing if at limit (shouldn't happen in practice)
-            return exports.get(&hash).cloned().unwrap_or(export.clone());
+            // At limit - check if this exact export already exists
+            if let Some(existing) = exports.get(&hash) {
+                return existing.clone();
+            }
+            // Limit reached and export doesn't exist - cannot add new stub
+            // Return the stub we would have created (caller should handle limit error)
+            return stub;
         }
 
-        exports.insert(hash, export.clone());
-        export_list.push(export.clone());
+        exports.insert(hash, stub.clone());
+        export_list.push(stub.clone());
         *size += 1;
 
-        export
-    }
-
-    /// Get existing export entry or create a stub entry
-    ///
-    /// Stub entries are used when a function is referenced but not yet loaded.
-    ///
-    /// # Arguments
-    /// * `module` - Module atom index
-    /// * `function` - Function atom index
-    /// * `arity` - Function arity
-    ///
-    /// # Returns
-    /// Export entry (existing or newly created stub)
-    pub fn get_or_make_stub(&self, module: u32, function: u32, arity: u32) -> Export {
-        // Same as put for now - in full implementation, stub would have special handling
-        self.put(module, function, arity)
+        stub
     }
 
     /// List all exports
@@ -251,8 +313,8 @@ impl ExportTable {
     /// # Returns
     /// Approximate size in bytes
     pub fn entry_bytes(&self) -> usize {
-        // Approximate size: MFA (12 bytes) + bif_number (4 bytes) + is_bif_traced (1 byte) + overhead
-        const ENTRY_SIZE: usize = 20; // Approximate
+        // Approximate size: MFA (12 bytes) + bif_number (4 bytes) + is_bif_traced (1 byte) + is_stub (1 byte) + overhead
+        const ENTRY_SIZE: usize = 20; // Approximate (actual size depends on struct alignment)
         self.table_size() * ENTRY_SIZE
     }
 
@@ -371,6 +433,7 @@ mod tests {
         assert_eq!(export.mfa.arity, 3);
         assert_eq!(export.bif_number, -1);
         assert!(!export.is_bif());
+        assert!(!export.is_stub);
     }
 
     #[test]
@@ -381,6 +444,18 @@ mod tests {
         assert_eq!(export.mfa.arity, 3);
         assert_eq!(export.bif_number, 42);
         assert!(export.is_bif());
+        assert!(!export.is_stub);
+    }
+
+    #[test]
+    fn test_export_stub() {
+        let stub = Export::new_stub(1, 2, 3);
+        assert_eq!(stub.mfa.module, 1);
+        assert_eq!(stub.mfa.function, 2);
+        assert_eq!(stub.mfa.arity, 3);
+        assert_eq!(stub.bif_number, -1);
+        assert!(!stub.is_bif());
+        assert!(stub.is_stub);
     }
 
     #[test]
@@ -443,11 +518,60 @@ mod tests {
         assert_eq!(stub.mfa.module, 1);
         assert_eq!(stub.mfa.function, 2);
         assert_eq!(stub.mfa.arity, 3);
+        assert!(stub.is_stub);
 
-        // Get existing - should return existing
+        // Get existing - should return existing stub
         let existing = table.get_or_make_stub(1, 2, 3);
         assert_eq!(table.table_size(), 1);
         assert_eq!(stub.mfa, existing.mfa);
+        assert!(existing.is_stub);
+    }
+
+    #[test]
+    fn test_export_table_stub_vs_regular() {
+        let table = ExportTable::new();
+        
+        // Create a stub
+        let stub = table.get_or_make_stub(1, 2, 3);
+        assert!(stub.is_stub);
+        assert_eq!(table.table_size(), 1);
+        
+        // Create a regular export with same MFA - should replace the stub
+        let regular = table.put(1, 2, 3);
+        // Should replace stub with regular export
+        assert_eq!(table.table_size(), 1); // Size unchanged (replaced, not added)
+        assert!(!regular.is_stub); // Now a regular export
+        
+        // Verify the table now has a regular export, not a stub
+        let retrieved = table.get(1, 2, 3).unwrap();
+        assert!(!retrieved.is_stub);
+        
+        // Create a regular export with different MFA
+        let regular2 = table.put(4, 5, 6);
+        assert_eq!(table.table_size(), 2);
+        assert!(!regular2.is_stub);
+    }
+
+    #[test]
+    fn test_export_table_stub_replacement() {
+        let table = ExportTable::new();
+        
+        // Create a stub for a function that will be loaded later
+        let stub = table.get_or_make_stub(10, 20, 30);
+        assert!(stub.is_stub);
+        assert_eq!(table.table_size(), 1);
+        
+        // Simulate module loading - put() should replace stub with regular export
+        let regular = table.put(10, 20, 30);
+        assert!(!regular.is_stub);
+        assert_eq!(table.table_size(), 1); // Still one entry (replaced)
+        
+        // Verify stub is gone and regular export is in place
+        let retrieved = table.get(10, 20, 30).unwrap();
+        assert!(!retrieved.is_stub);
+        assert_eq!(retrieved.mfa.module, 10);
+        assert_eq!(retrieved.mfa.function, 20);
+        assert_eq!(retrieved.mfa.arity, 30);
     }
 
     #[test]
@@ -575,12 +699,19 @@ mod tests {
         
         assert_eq!(table.table_size(), 10);
         
-        // Adding one more when at limit - the current implementation allows it
-        // (limit check happens but doesn't prevent insertion)
-        table.put(10, 110, 10);
+        // Adding one more when at limit - should not increase size
+        let export_at_limit = table.put(10, 110, 10);
         // The limit check prevents insertion, so size stays at 10
-        // In a full implementation, this might raise an error or handle differently
         assert_eq!(table.table_size(), 10);
+        // The export was created but not inserted
+        assert_eq!(export_at_limit.mfa.module, 10);
+        // Verify it's not in the table
+        assert!(!table.contains(10, 110, 10));
+        
+        // But we can still get existing exports at limit
+        let _existing = table.put(0, 100, 0);
+        assert_eq!(table.table_size(), 10);
+        assert!(table.contains(0, 100, 0));
     }
 
     #[test]

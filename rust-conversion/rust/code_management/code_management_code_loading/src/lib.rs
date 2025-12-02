@@ -21,7 +21,7 @@ pub mod beam_debug;
 
 pub use code_loader::CodeLoader;
 pub use unicode::UnicodeHandler;
-pub use module_management::{ModuleTableManager, ModuleTable, Module, ModuleInstance};
+pub use module_management::{ModuleTableManager, ModuleTable, Module, ModuleInstance, get_global_module_manager};
 pub use code_index::{CodeIndexManager, CodeIndex, get_global_code_ix, NUM_CODE_IX};
 pub use beam_loader::{BeamLoader, BeamFile, BeamFileReadResult, BeamLoadError};
 pub use code_permissions::{CodePermissionManager, ProcessId, get_global_code_permissions};

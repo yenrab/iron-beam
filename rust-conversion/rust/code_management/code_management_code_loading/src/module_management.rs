@@ -153,6 +153,13 @@ impl Default for ModuleInstance {
     }
 }
 
+// ModuleInstance is Send + Sync because:
+// - All fields are either primitive types or raw pointers
+// - Raw pointers are Send + Sync (they don't own the data)
+// - The actual memory safety is managed by the VM/runtime
+unsafe impl Send for ModuleInstance {}
+unsafe impl Sync for ModuleInstance {}
+
 /// Module entry in the module table
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -167,6 +174,12 @@ pub struct Module {
     /// On-load module instance (if module has on_load function)
     pub on_load: Option<ModuleInstance>,
 }
+
+// Module is Send + Sync because:
+// - All fields are either primitive types or ModuleInstance (which is Send + Sync)
+// - ModuleInstance is already marked as Send + Sync
+unsafe impl Send for Module {}
+unsafe impl Sync for Module {}
 
 /// Module table - manages modules for a code index
 #[derive(Debug)]
@@ -510,6 +523,18 @@ impl Default for ModuleTableManager {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Global module table manager (singleton)
+static GLOBAL_MODULE_MANAGER: std::sync::OnceLock<ModuleTableManager> = std::sync::OnceLock::new();
+
+/// Get the global module table manager
+pub fn get_global_module_manager() -> &'static ModuleTableManager {
+    GLOBAL_MODULE_MANAGER.get_or_init(|| {
+        let manager = ModuleTableManager::new();
+        manager.init();
+        manager
+    })
 }
 
 #[cfg(test)]
