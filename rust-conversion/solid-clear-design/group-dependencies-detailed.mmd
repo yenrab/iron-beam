@@ -1,0 +1,181 @@
+graph TD
+    subgraph api_facades["API Facades Layer (NEW)"]
+        AdaptersDebuggingApi["Adapters Debugging API<br/>(Facade)"]
+        style AdaptersDebuggingApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        AdaptersDriversApi["Adapters Drivers API<br/>(Facade)"]
+        style AdaptersDriversApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        AdaptersIoOperationsApi["Adapters Io Operations API<br/>(Facade)"]
+        style AdaptersIoOperationsApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        AdaptersNifsApi["Adapters Nifs API<br/>(Facade)"]
+        style AdaptersNifsApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        AdaptersTimeManagementApi["Adapters Time Management API<br/>(Facade)"]
+        style AdaptersTimeManagementApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        EntitiesDataHandlingApi["Entities Data Handling API<br/>(Facade)"]
+        style EntitiesDataHandlingApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        InfrastructureDebuggingApi["Infrastructure Debugging API<br/>(Facade)"]
+        style InfrastructureDebuggingApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        InfrastructureEtsTablesApi["Infrastructure Ets Tables API<br/>(Facade)"]
+        style InfrastructureEtsTablesApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        InfrastructureTimeManagementApi["Infrastructure Time Management API<br/>(Facade)"]
+        style InfrastructureTimeManagementApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        InfrastructureUtilitiesApi["Infrastructure Utilities API<br/>(Facade)"]
+        style InfrastructureUtilitiesApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+        UsecasesMemoryManagementApi["Usecases Memory Management API<br/>(Facade)"]
+        style UsecasesMemoryManagementApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
+    end
+    subgraph entities["Entities Layer"]
+        EntitiesIoOperations["Entities Io Operations<br/>9 funcs, 1 files"]
+        EntitiesProcess["✅ [Erlang] Entities Process<br/>Process struct and types"]
+        style EntitiesProcess fill:#90EE90,stroke:#006400,stroke-width:2px
+        EntitiesSystemIntegrationCommon["Entities System Integration Common<br/>22 funcs, 1 files"]
+        EntitiesSystemIntegrationWin32["Entities System Integration Win32<br/>1 funcs, 1 files"]
+        EntitiesUtilities["Entities Utilities<br/>65 funcs, 2 files"]
+        EntitiesDataHandling["✅ [Erlang] Entities Data Handling<br/>379 funcs, 13 files"]
+        style EntitiesDataHandling fill:#90EE90,stroke:#006400,stroke-width:2px
+    end
+    subgraph usecases["Usecases Layer"]
+        UsecasesBifs["Usecases Bifs<br/>282 funcs, 13 files"]
+        UsecasesIoOperations["Usecases Io Operations<br/>21 funcs, 2 files"]
+        UsecasesProcessManagement["Usecases Process Management<br/>50 funcs, 6 files"]
+        UsecasesMemoryManagement["✅ [Erlang] Usecases Memory Management<br/>107 funcs, 15 files"]
+        style UsecasesMemoryManagement fill:#90EE90,stroke:#006400,stroke-width:2px
+    end
+    subgraph adapters["Adapters Layer"]
+        AdaptersDistribution["Adapters Distribution<br/>91 funcs, 3 files"]
+        AdaptersEtsTables["Adapters Ets Tables<br/>2 funcs, 1 files"]
+        AdaptersSystemIntegrationCommon["Adapters System Integration Common<br/>11 funcs, 1 files"]
+        AdaptersSystemIntegrationUnix["Adapters System Integration Unix<br/>21 funcs, 1 files"]
+        AdaptersDebugging["✅ [Erlang] Adapters Debugging<br/>10 funcs, 2 files"]
+        style AdaptersDebugging fill:#90EE90,stroke:#006400,stroke-width:2px
+        AdaptersDrivers["✅ [Erlang] Adapters Drivers<br/>179 funcs, 16 files"]
+        style AdaptersDrivers fill:#90EE90,stroke:#006400,stroke-width:2px
+        AdaptersIoOperations["✅ [Erlang] Adapters Io Operations<br/>226 funcs, 34 files"]
+        style AdaptersIoOperations fill:#90EE90,stroke:#006400,stroke-width:2px
+        AdaptersNifs["✅ [Erlang] Adapters Nifs<br/>755 funcs, 26 files"]
+        style AdaptersNifs fill:#90EE90,stroke:#006400,stroke-width:2px
+        AdaptersTimeManagement["✅ [Erlang] Adapters Time Management<br/>13 funcs, 4 files"]
+        style AdaptersTimeManagement fill:#90EE90,stroke:#006400,stroke-width:2px
+    end
+    subgraph frameworks["Frameworks Layer"]
+        FrameworksSystemIntegration["Frameworks System Integration<br/>1 funcs, 1 files"]
+        FrameworksSystemIntegrationCommon["Frameworks System Integration Common<br/>43 funcs, 4 files"]
+        FrameworksSystemIntegrationUnix["Frameworks System Integration Unix<br/>72 funcs, 6 files"]
+        FrameworksSystemIntegrationWin32["Frameworks System Integration Win32<br/>79 funcs, 7 files"]
+        FrameworksUtilities["Frameworks Utilities<br/>163 funcs, 21 files"]
+    end
+    subgraph infrastructure["Infrastructure Layer"]
+        InfrastructureBifs["Infrastructure Bifs<br/>113 funcs, 1 files"]
+        InfrastructureBignumEncoding["Infrastructure Bignum Encoding<br/>15 funcs, 4 files"]
+        InfrastructureCodeLoading["Infrastructure Code Loading<br/>94 funcs, 31 files"]
+        InfrastructureDataHandling["Infrastructure Data Handling<br/>16 funcs, 6 files"]
+        InfrastructureTraceEncoding["Infrastructure Trace Encoding<br/>2 funcs, 2 files"]
+        InfrastructureDebugging["✅ [Erlang] Infrastructure Debugging<br/>60 funcs, 9 files"]
+        style InfrastructureDebugging fill:#90EE90,stroke:#006400,stroke-width:2px
+        InfrastructureEtsTables["✅ [Erlang] Infrastructure Ets Tables<br/>345 funcs, 11 files"]
+        style InfrastructureEtsTables fill:#90EE90,stroke:#006400,stroke-width:2px
+        InfrastructureTimeManagement["✅ [Erlang] Infrastructure Time Management<br/>94 funcs, 6 files"]
+        style InfrastructureTimeManagement fill:#90EE90,stroke:#006400,stroke-width:2px
+        InfrastructureUtilities["✅ [Erlang] Infrastructure Utilities<br/>1754 funcs, 224 files"]
+        style InfrastructureUtilities fill:#90EE90,stroke:#006400,stroke-width:2px
+    end
+    subgraph code_management["Code Management Layer"]
+        CodeManagementCodeLoading["Code Management Code Loading<br/>109 funcs, 9 files"]
+    end
+    AdaptersDriversApi --> AdaptersDrivers
+    AdaptersDebuggingApi --> AdaptersDebugging
+    AdaptersNifsApi --> AdaptersNifs
+    EntitiesDataHandlingApi --> EntitiesDataHandling
+    AdaptersTimeManagementApi --> AdaptersTimeManagement
+    InfrastructureUtilitiesApi --> InfrastructureUtilities
+    InfrastructureTimeManagementApi --> InfrastructureTimeManagement
+    InfrastructureDebuggingApi --> InfrastructureDebugging
+    UsecasesMemoryManagementApi --> UsecasesMemoryManagement
+    AdaptersIoOperationsApi --> AdaptersIoOperations
+    InfrastructureEtsTablesApi --> InfrastructureEtsTables
+    FrameworksUtilities --> UsecasesProcessManagement
+    FrameworksSystemIntegrationWin32 --> InfrastructureUtilities
+    FrameworksSystemIntegrationWin32 --> UsecasesMemoryManagement
+    FrameworksSystemIntegrationWin32 --> AdaptersNifs
+    FrameworksSystemIntegrationUnix --> InfrastructureUtilities
+    FrameworksSystemIntegrationUnix --> UsecasesMemoryManagement
+    FrameworksSystemIntegrationUnix --> InfrastructureBifs
+    FrameworksSystemIntegrationUnix --> AdaptersSystemIntegrationCommon
+    FrameworksSystemIntegrationCommon --> EntitiesUtilities
+    FrameworksSystemIntegrationCommon --> UsecasesMemoryManagement
+    FrameworksSystemIntegrationCommon --> UsecasesProcessManagement
+    FrameworksSystemIntegrationCommon --> InfrastructureUtilities
+    AdaptersNifs --> EntitiesUtilities
+    AdaptersNifs --> UsecasesProcessManagement
+    AdaptersNifs --> EntitiesDataHandling
+    AdaptersNifs --> UsecasesBifs
+    AdaptersIoOperations --> EntitiesUtilities
+    AdaptersIoOperations --> UsecasesProcessManagement
+    AdaptersIoOperations --> EntitiesDataHandling
+    AdaptersIoOperations --> UsecasesBifs
+    AdaptersSystemIntegrationCommon --> UsecasesBifs
+    AdaptersDistribution --> EntitiesUtilities
+    AdaptersDistribution --> UsecasesProcessManagement
+    AdaptersDistribution --> EntitiesDataHandling
+    UsecasesMemoryManagement --> EntitiesUtilities
+    UsecasesMemoryManagement --> EntitiesSystemIntegrationCommon
+    UsecasesMemoryManagement --> EntitiesDataHandling
+    UsecasesProcessManagement --> EntitiesUtilities
+    UsecasesProcessManagement --> EntitiesDataHandling
+    UsecasesProcessManagement --> EntitiesProcess
+    UsecasesProcessManagement --> InfrastructureUtilities
+    UsecasesIoOperations --> EntitiesUtilities
+    UsecasesIoOperations --> EntitiesDataHandling
+    UsecasesBifs --> EntitiesUtilities
+    UsecasesBifs --> EntitiesDataHandling
+    UsecasesBifs --> EntitiesIoOperations
+    InfrastructureUtilities --> EntitiesUtilities
+    InfrastructureUtilities --> AdaptersIoOperations
+    InfrastructureUtilities --> AdaptersNifs
+    InfrastructureUtilities --> EntitiesSystemIntegrationCommon
+    InfrastructureUtilities --> EntitiesDataHandling
+    InfrastructureUtilities --> EntitiesProcess
+    InfrastructureUtilities --> InfrastructureTimeManagement
+    InfrastructureUtilities --> InfrastructureDataHandling
+    InfrastructureUtilities --> UsecasesMemoryManagement
+    InfrastructureUtilities --> UsecasesBifs
+    InfrastructureUtilities --> InfrastructureBifs
+    InfrastructureUtilities --> InfrastructureDebugging
+    InfrastructureUtilities --> AdaptersSystemIntegrationCommon
+    InfrastructureUtilities --> CodeManagementCodeLoading
+    InfrastructureUtilities --> AdaptersDistribution
+    InfrastructureUtilities --> InfrastructureEtsTables
+    InfrastructureDebugging --> EntitiesUtilities
+    InfrastructureDebugging --> AdaptersNifs
+    InfrastructureDebugging --> EntitiesDataHandling
+    InfrastructureDebugging --> UsecasesBifs
+    InfrastructureDebugging --> InfrastructureBifs
+    InfrastructureDebugging --> UsecasesProcessManagement
+    InfrastructureDebugging --> AdaptersDistribution
+    InfrastructureEtsTables --> EntitiesUtilities
+    InfrastructureEtsTables --> AdaptersNifs
+    InfrastructureEtsTables --> EntitiesDataHandling
+    InfrastructureEtsTables --> InfrastructureBifs
+    InfrastructureEtsTables --> EntitiesIoOperations
+    InfrastructureEtsTables --> UsecasesProcessManagement
+    InfrastructureTimeManagement --> EntitiesUtilities
+    InfrastructureTimeManagement --> AdaptersNifs
+    InfrastructureTimeManagement --> UsecasesBifs
+    InfrastructureTimeManagement --> InfrastructureBifs
+    InfrastructureBifs --> EntitiesUtilities
+    InfrastructureBifs --> EntitiesDataHandling
+    InfrastructureBifs --> UsecasesBifs
+    InfrastructureBifs --> UsecasesProcessManagement
+    InfrastructureBifs --> CodeManagementCodeLoading
+    InfrastructureBifs --> AdaptersDistribution
+    InfrastructureCodeLoading --> InfrastructureUtilities
+    InfrastructureCodeLoading --> UsecasesMemoryManagement
+    InfrastructureDataHandling --> UsecasesMemoryManagement
+    InfrastructureBignumEncoding --> InfrastructureCodeLoading
+    CodeManagementCodeLoading --> EntitiesUtilities
+    CodeManagementCodeLoading --> UsecasesProcessManagement
+    CodeManagementCodeLoading --> EntitiesDataHandling
+
+    %% GROUP-LEVEL dependencies (from cycle-minimizing grouper)
+    %% Dependencies follow CLEAN architecture: outer layers depend on inner layers
+    %% API Facades Layer (NEW): Facades that Erlang calls, which then call Rust modules
+    %% Total: 92 dependencies, 0 circular
