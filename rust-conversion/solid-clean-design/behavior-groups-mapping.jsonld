@@ -117688,9 +117688,9 @@
     },
     {
       "@id": "ex:BehaviorGroup_32",
-      "name": "infrastructure_bignum_encoding_gmp",
+      "name": "infrastructure_bignum_encoding",
       "cleanLayer": "infrastructure",
-      "solidResponsibility": "bignum_encoding_gmp",
+      "solidResponsibility": "bignum_encoding",
       "files": [
         "lib/erl_interface/src/decode/decode_bignum.c",
         "lib/erl_interface/src/encode/encode_bignum.c"
@@ -117731,10 +117731,10 @@
         }
       ],
       "rationale": {
-        "codeRationale": "Functions grouped by CLEAN layer (infrastructure) and SOLID responsibility (bignum_encoding_gmp)",
-        "solidRationale": "Single Responsibility: All functions handle bignum_encoding_gmp",
+        "codeRationale": "Functions grouped by CLEAN layer (infrastructure) and SOLID responsibility (bignum_encoding)",
+        "solidRationale": "Single Responsibility: All functions handle bignum_encoding",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
-        "rustRationale": "Rust module: infrastructure_bignum_encoding_gmp as separate module with clear dependency boundaries"
+        "rustRationale": "Rust module: infrastructure_bignum_encoding as separate module with clear dependency boundaries"
       }
     },
     {
@@ -120652,10 +120652,10 @@
       "@id": "ex:BehaviorGroup_32_rationale",
       "@type": "ex:GroupingRationale",
       "behaviorGroup": "ex:BehaviorGroup_32",
-      "solidRationale": "Single Responsibility: All functions handle bignum_encoding_gmp",
+      "solidRationale": "Single Responsibility: All functions handle bignum_encoding",
       "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
-      "rustRationale": "Rust module: infrastructure_bignum_encoding_gmp as separate module with clear dependency boundaries",
-      "codeRationale": "Functions grouped by CLEAN layer (infrastructure) and SOLID responsibility (bignum_encoding_gmp)"
+      "rustRationale": "Rust module: infrastructure_bignum_encoding as separate module with clear dependency boundaries",
+      "codeRationale": "Functions grouped by CLEAN layer (infrastructure) and SOLID responsibility (bignum_encoding)"
     },
     {
       "@id": "ex:BehaviorGroup_33_rationale",

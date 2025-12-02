@@ -119,11 +119,10 @@
   - ✅ infrastructure_bifs (1 file, 113 functions)
   - ✅ infrastructure_code_loading (31 files, 94 functions)
   - ✅ infrastructure_data_handling (6 files, 16 functions)
-  - ✅ infrastructure_bignum_encoding (2 files, 12 functions)
-  - ✅ infrastructure_bignum_encoding_gmp (2 files, 3 functions)
+  - ✅ infrastructure_bignum_encoding (4 files, 15 functions)  # Includes bignum_codec and rational_codec
   - ✅ infrastructure_trace_encoding (2 files, 2 functions)
 - Dependencies satisfied: ✅ Entities and Use Cases layers complete
-- Rust crates generated: 10
+- Rust crates generated: 9
   - infrastructure_utilities
   - infrastructure_debugging
   - infrastructure_ets_tables
@@ -132,7 +131,6 @@
   - infrastructure_code_loading
   - infrastructure_data_handling
   - infrastructure_bignum_encoding
-  - infrastructure_bignum_encoding_gmp
   - infrastructure_trace_encoding
 - Compilation status: All crates compile successfully (warnings only)
 

@@ -1109,15 +1109,7 @@ version = "0.1.0"
 dependencies = [
  "entities_data_handling",
  "entities_utilities",
-]
-
-[[package]]
-name = "infrastructure_bignum_encoding_gmp"
-version = "0.1.0"
-dependencies = [
- "entities_data_handling",
- "entities_utilities",
- "infrastructure_bignum_encoding",
+ "malachite 0.7.1",
 ]
 
 [[package]]

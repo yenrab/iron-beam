@@ -65,8 +65,7 @@ graph TD
     end
     subgraph infrastructure["Infrastructure Layer"]
         InfrastructureBifs["Infrastructure Bifs<br/>113 funcs, 1 files"]
-        InfrastructureBignumEncoding["Infrastructure Bignum Encoding<br/>12 funcs, 2 files"]
-        InfrastructureBignumEncodingGmp["Infrastructure Bignum Encoding Gmp<br/>3 funcs, 2 files"]
+        InfrastructureBignumEncoding["Infrastructure Bignum Encoding<br/>15 funcs, 4 files"]
         InfrastructureCodeLoading["Infrastructure Code Loading<br/>94 funcs, 31 files"]
         InfrastructureDataHandling["Infrastructure Data Handling<br/>16 funcs, 6 files"]
         InfrastructureTraceEncoding["Infrastructure Trace Encoding<br/>2 funcs, 2 files"]
@@ -172,7 +171,6 @@ graph TD
     InfrastructureCodeLoading --> UsecasesMemoryManagement
     InfrastructureDataHandling --> UsecasesMemoryManagement
     InfrastructureBignumEncoding --> InfrastructureCodeLoading
-    InfrastructureBignumEncodingGmp --> InfrastructureCodeLoading
     CodeManagementCodeLoading --> EntitiesUtilities
     CodeManagementCodeLoading --> UsecasesProcessManagement
     CodeManagementCodeLoading --> EntitiesDataHandling
