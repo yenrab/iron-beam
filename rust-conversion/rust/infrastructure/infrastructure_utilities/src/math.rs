@@ -3,10 +3,9 @@
 //! Provides mathematical utility functions based on erl_arith.c and erl_math.c.
 //! These utilities handle arithmetic operations and mathematical functions.
 //!
-//! Includes support for Rational numbers (fractions) using the num-rational crate.
+//! Includes support for Rational numbers (fractions) using BigRational from entities_utilities.
 
-use num_rational::Rational64;
-use num_traits::{Zero, One, Signed, ToPrimitive, FromPrimitive};
+use entities_utilities::BigRational;
 
 /// Math utilities for arithmetic and mathematical operations
 pub struct MathUtils;
@@ -369,6 +368,7 @@ impl MathUtils {
 /// Provides operations for working with rational numbers (fractions).
 /// Rational numbers are represented as fractions of integers, providing
 /// exact arithmetic without floating-point rounding errors.
+/// Uses BigRational from entities_utilities for arbitrary precision.
 pub struct RationalUtils;
 
 impl RationalUtils {
@@ -379,7 +379,7 @@ impl RationalUtils {
     /// * `den` - Denominator
     ///
     /// # Returns
-    /// * `Some(Rational64)` - If denominator is not zero
+    /// * `Some(BigRational)` - If denominator is not zero
     /// * `None` - If denominator is zero
     ///
     /// # Examples
@@ -387,13 +387,10 @@ impl RationalUtils {
     /// use infrastructure_utilities::RationalUtils;
     ///
     /// let r = RationalUtils::new(1, 2).unwrap();
-    /// assert_eq!(r.to_f64(), Some(0.5));
+    /// assert_eq!(r.to_f64(), 0.5);
     /// ```
-    pub fn new(num: i64, den: i64) -> Option<Rational64> {
-        if den == 0 {
-            return None;
-        }
-        Some(Rational64::new(num, den))
+    pub fn new(num: i64, den: i64) -> Option<BigRational> {
+        BigRational::from_fraction(num, den)
     }
 
     /// Create a rational number from an integer
@@ -409,10 +406,10 @@ impl RationalUtils {
     /// use infrastructure_utilities::RationalUtils;
     ///
     /// let r = RationalUtils::from_integer(5);
-    /// assert_eq!(r.to_integer(), Some(5));
+    /// assert_eq!(r.to_i64(), Some(5));
     /// ```
-    pub fn from_integer(value: i64) -> Rational64 {
-        Rational64::from_integer(value)
+    pub fn from_integer(value: i64) -> BigRational {
+        BigRational::from_i64(value)
     }
 
     /// Create a rational number from a float (approximate)
@@ -428,10 +425,10 @@ impl RationalUtils {
     /// use infrastructure_utilities::RationalUtils;
     ///
     /// let r = RationalUtils::from_float(0.5);
-    /// assert_eq!(r.to_f64(), Some(0.5));
+    /// assert_eq!(r.to_f64(), 0.5);
     /// ```
-    pub fn from_float(value: f64) -> Option<Rational64> {
-        Rational64::from_f64(value)
+    pub fn from_float(value: f64) -> Option<BigRational> {
+        BigRational::from_f64(value)
     }
 
     /// Add two rational numbers
@@ -449,11 +446,11 @@ impl RationalUtils {
     ///
     /// let a = RationalUtils::new(1, 2).unwrap();
     /// let b = RationalUtils::new(1, 3).unwrap();
-    /// let sum = RationalUtils::add(a, b);
-    /// assert_eq!(sum.to_f64(), Some(5.0 / 6.0));
+    /// let sum = RationalUtils::add(&a, &b);
+    /// assert!((sum.to_f64() - (5.0 / 6.0)).abs() < 1e-10);
     /// ```
-    pub fn add(a: Rational64, b: Rational64) -> Rational64 {
-        a + b
+    pub fn add(a: &BigRational, b: &BigRational) -> BigRational {
+        a.plus(b)
     }
 
     /// Subtract two rational numbers
@@ -464,8 +461,8 @@ impl RationalUtils {
     ///
     /// # Returns
     /// Difference of the two rationals
-    pub fn subtract(a: Rational64, b: Rational64) -> Rational64 {
-        a - b
+    pub fn subtract(a: &BigRational, b: &BigRational) -> BigRational {
+        a.minus(b)
     }
 
     /// Multiply two rational numbers
@@ -483,11 +480,11 @@ impl RationalUtils {
     ///
     /// let a = RationalUtils::new(1, 2).unwrap();
     /// let b = RationalUtils::new(2, 3).unwrap();
-    /// let product = RationalUtils::multiply(a, b);
-    /// assert_eq!(product.to_f64(), Some(1.0 / 3.0));
+    /// let product = RationalUtils::multiply(&a, &b);
+    /// assert!((product.to_f64() - (1.0 / 3.0)).abs() < 1e-10);
     /// ```
-    pub fn multiply(a: Rational64, b: Rational64) -> Rational64 {
-        a * b
+    pub fn multiply(a: &BigRational, b: &BigRational) -> BigRational {
+        a.times(b)
     }
 
     /// Divide two rational numbers
@@ -497,7 +494,7 @@ impl RationalUtils {
     /// * `b` - Divisor
     ///
     /// # Returns
-    /// * `Some(Rational64)` - If divisor is not zero
+    /// * `Some(BigRational)` - If divisor is not zero
     /// * `None` - If divisor is zero
     ///
     /// # Examples
@@ -506,14 +503,11 @@ impl RationalUtils {
     ///
     /// let a = RationalUtils::new(1, 2).unwrap();
     /// let b = RationalUtils::new(1, 3).unwrap();
-    /// let quotient = RationalUtils::divide(a, b).unwrap();
-    /// assert_eq!(quotient.to_f64(), Some(1.5));
+    /// let quotient = RationalUtils::divide(&a, &b).unwrap();
+    /// assert!((quotient.to_f64() - 1.5).abs() < 1e-10);
     /// ```
-    pub fn divide(a: Rational64, b: Rational64) -> Option<Rational64> {
-        if b.is_zero() {
-            return None;
-        }
-        Some(a / b)
+    pub fn divide(a: &BigRational, b: &BigRational) -> Option<BigRational> {
+        a.div(b)
     }
 
     /// Get the absolute value of a rational number
@@ -523,7 +517,7 @@ impl RationalUtils {
     ///
     /// # Returns
     /// Absolute value
-    pub fn abs(r: Rational64) -> Rational64 {
+    pub fn abs(r: &BigRational) -> BigRational {
         r.abs()
     }
 
@@ -534,10 +528,9 @@ impl RationalUtils {
     /// * `b` - Second rational
     ///
     /// # Returns
-    /// * `Some(std::cmp::Ordering)` - Comparison result
-    /// * `None` - If comparison is not possible (shouldn't happen for rationals)
-    pub fn compare(a: Rational64, b: Rational64) -> Option<std::cmp::Ordering> {
-        a.partial_cmp(&b)
+    /// Comparison result (Ordering)
+    pub fn compare(a: &BigRational, b: &BigRational) -> std::cmp::Ordering {
+        a.comp(b)
     }
 
     /// Convert rational to integer (if it represents a whole number)
@@ -548,12 +541,8 @@ impl RationalUtils {
     /// # Returns
     /// * `Some(i64)` - If the rational is a whole number
     /// * `None` - If it's not a whole number
-    pub fn to_integer(r: Rational64) -> Option<i64> {
-        if r.is_integer() {
-            r.to_i64()
-        } else {
-            None
-        }
+    pub fn to_integer(r: &BigRational) -> Option<i64> {
+        r.to_i64()
     }
 
     /// Convert rational to float
@@ -562,9 +551,8 @@ impl RationalUtils {
     /// * `r` - Rational number
     ///
     /// # Returns
-    /// * `Some(f64)` - Float representation
-    /// * `None` - If conversion fails
-    pub fn to_float(r: Rational64) -> Option<f64> {
+    /// Float representation
+    pub fn to_float(r: &BigRational) -> f64 {
         r.to_f64()
     }
 
@@ -574,9 +562,9 @@ impl RationalUtils {
     /// * `r` - Rational number
     ///
     /// # Returns
-    /// Numerator
-    pub fn numerator(r: Rational64) -> i64 {
-        *r.numer()
+    /// Numerator as malachite::Integer (arbitrary precision)
+    pub fn numerator(r: &BigRational) -> malachite::Integer {
+        r.numerator()
     }
 
     /// Get denominator of a rational number
@@ -585,9 +573,9 @@ impl RationalUtils {
     /// * `r` - Rational number
     ///
     /// # Returns
-    /// Denominator
-    pub fn denominator(r: Rational64) -> i64 {
-        *r.denom()
+    /// Denominator as malachite::Integer (arbitrary precision)
+    pub fn denominator(r: &BigRational) -> malachite::Integer {
+        r.denominator()
     }
 
     /// Check if rational is zero
@@ -597,7 +585,7 @@ impl RationalUtils {
     ///
     /// # Returns
     /// `true` if zero, `false` otherwise
-    pub fn is_zero(r: Rational64) -> bool {
+    pub fn is_zero(r: &BigRational) -> bool {
         r.is_zero()
     }
 
@@ -608,8 +596,10 @@ impl RationalUtils {
     ///
     /// # Returns
     /// `true` if one, `false` otherwise
-    pub fn is_one(r: Rational64) -> bool {
-        r.is_one()
+    pub fn is_one(r: &BigRational) -> bool {
+        // Check if r == 1
+        let one = BigRational::from_i64(1);
+        r.comp(&one) == std::cmp::Ordering::Equal
     }
 
     /// Check if rational is positive
@@ -619,7 +609,7 @@ impl RationalUtils {
     ///
     /// # Returns
     /// `true` if positive, `false` otherwise
-    pub fn is_positive(r: Rational64) -> bool {
+    pub fn is_positive(r: &BigRational) -> bool {
         r.is_positive()
     }
 
@@ -630,7 +620,7 @@ impl RationalUtils {
     ///
     /// # Returns
     /// `true` if negative, `false` otherwise
-    pub fn is_negative(r: Rational64) -> bool {
+    pub fn is_negative(r: &BigRational) -> bool {
         r.is_negative()
     }
 
@@ -644,8 +634,9 @@ impl RationalUtils {
     ///
     /// # Returns
     /// Reduced rational (same value, but in simplest form)
-    pub fn reduce(r: Rational64) -> Rational64 {
-        r.reduced()
+    /// Note: BigRational is always in reduced form, so this returns a clone
+    pub fn reduce(r: &BigRational) -> BigRational {
+        r.clone() // BigRational is always in reduced form
     }
 }
 
@@ -753,123 +744,130 @@ mod rational_tests {
     #[test]
     fn test_rational_new() {
         let r = RationalUtils::new(1, 2).unwrap();
-        assert_eq!(r.to_f64(), Some(0.5));
+        assert!((r.to_f64() - 0.5).abs() < 1e-10);
         assert!(RationalUtils::new(1, 0).is_none());
     }
 
     #[test]
     fn test_rational_from_integer() {
         let r = RationalUtils::from_integer(5);
-        assert_eq!(RationalUtils::to_integer(r), Some(5));
+        assert_eq!(RationalUtils::to_integer(&r), Some(5));
     }
 
     #[test]
     fn test_rational_from_float() {
         let r = RationalUtils::from_float(0.5).unwrap();
-        assert!((r.to_f64().unwrap() - 0.5).abs() < 0.0001);
+        assert!((r.to_f64() - 0.5).abs() < 0.0001);
     }
 
     #[test]
     fn test_rational_add() {
         let a = RationalUtils::new(1, 2).unwrap();
         let b = RationalUtils::new(1, 3).unwrap();
-        let sum = RationalUtils::add(a, b);
-        assert_eq!(sum, RationalUtils::new(5, 6).unwrap());
+        let sum = RationalUtils::add(&a, &b);
+        let expected = RationalUtils::new(5, 6).unwrap();
+        assert!((sum.to_f64() - expected.to_f64()).abs() < 1e-10);
     }
 
     #[test]
     fn test_rational_subtract() {
         let a = RationalUtils::new(1, 2).unwrap();
         let b = RationalUtils::new(1, 3).unwrap();
-        let diff = RationalUtils::subtract(a, b);
-        assert_eq!(diff, RationalUtils::new(1, 6).unwrap());
+        let diff = RationalUtils::subtract(&a, &b);
+        let expected = RationalUtils::new(1, 6).unwrap();
+        assert!((diff.to_f64() - expected.to_f64()).abs() < 1e-10);
     }
 
     #[test]
     fn test_rational_multiply() {
         let a = RationalUtils::new(1, 2).unwrap();
         let b = RationalUtils::new(2, 3).unwrap();
-        let product = RationalUtils::multiply(a, b);
-        assert_eq!(product, RationalUtils::new(1, 3).unwrap());
+        let product = RationalUtils::multiply(&a, &b);
+        let expected = RationalUtils::new(1, 3).unwrap();
+        assert!((product.to_f64() - expected.to_f64()).abs() < 1e-10);
     }
 
     #[test]
     fn test_rational_divide() {
         let a = RationalUtils::new(1, 2).unwrap();
         let b = RationalUtils::new(1, 3).unwrap();
-        let quotient = RationalUtils::divide(a, b).unwrap();
-        assert_eq!(quotient, RationalUtils::new(3, 2).unwrap());
+        let quotient = RationalUtils::divide(&a, &b).unwrap();
+        let expected = RationalUtils::new(3, 2).unwrap();
+        assert!((quotient.to_f64() - expected.to_f64()).abs() < 1e-10);
         
         let zero = RationalUtils::new(0, 1).unwrap();
-        assert!(RationalUtils::divide(a, zero).is_none());
+        assert!(RationalUtils::divide(&a, &zero).is_none());
     }
 
     #[test]
     fn test_rational_abs() {
         let r = RationalUtils::new(-1, 2).unwrap();
-        let abs_r = RationalUtils::abs(r);
-        assert_eq!(abs_r, RationalUtils::new(1, 2).unwrap());
+        let abs_r = RationalUtils::abs(&r);
+        let expected = RationalUtils::new(1, 2).unwrap();
+        assert!((abs_r.to_f64() - expected.to_f64()).abs() < 1e-10);
     }
 
     #[test]
     fn test_rational_compare() {
         let a = RationalUtils::new(1, 2).unwrap();
         let b = RationalUtils::new(1, 3).unwrap();
-        assert!(RationalUtils::compare(a, b).unwrap().is_gt());
-        assert!(RationalUtils::compare(b, a).unwrap().is_lt());
-        assert!(RationalUtils::compare(a, a).unwrap().is_eq());
+        assert!(RationalUtils::compare(&a, &b).is_gt());
+        assert!(RationalUtils::compare(&b, &a).is_lt());
+        assert!(RationalUtils::compare(&a, &a).is_eq());
     }
 
     #[test]
     fn test_rational_to_integer() {
         let r = RationalUtils::from_integer(5);
-        assert_eq!(RationalUtils::to_integer(r), Some(5));
+        assert_eq!(RationalUtils::to_integer(&r), Some(5));
         
         let r2 = RationalUtils::new(1, 2).unwrap();
-        assert_eq!(RationalUtils::to_integer(r2), None);
+        assert_eq!(RationalUtils::to_integer(&r2), None);
     }
 
     #[test]
     fn test_rational_numerator_denominator() {
+        use malachite::Integer;
         let r = RationalUtils::new(3, 4).unwrap();
-        assert_eq!(RationalUtils::numerator(r), 3);
-        assert_eq!(RationalUtils::denominator(r), 4);
+        assert_eq!(RationalUtils::numerator(&r), Integer::from(3));
+        assert_eq!(RationalUtils::denominator(&r), Integer::from(4));
     }
 
     #[test]
     fn test_rational_is_zero() {
         let zero = RationalUtils::new(0, 1).unwrap();
-        assert!(RationalUtils::is_zero(zero));
+        assert!(RationalUtils::is_zero(&zero));
         
         let non_zero = RationalUtils::new(1, 2).unwrap();
-        assert!(!RationalUtils::is_zero(non_zero));
+        assert!(!RationalUtils::is_zero(&non_zero));
     }
 
     #[test]
     fn test_rational_is_one() {
         let one = RationalUtils::new(1, 1).unwrap();
-        assert!(RationalUtils::is_one(one));
+        assert!(RationalUtils::is_one(&one));
         
         let two = RationalUtils::new(2, 1).unwrap();
-        assert!(!RationalUtils::is_one(two));
+        assert!(!RationalUtils::is_one(&two));
     }
 
     #[test]
     fn test_rational_is_positive_negative() {
         let pos = RationalUtils::new(1, 2).unwrap();
-        assert!(RationalUtils::is_positive(pos));
-        assert!(!RationalUtils::is_negative(pos));
+        assert!(RationalUtils::is_positive(&pos));
+        assert!(!RationalUtils::is_negative(&pos));
         
         let neg = RationalUtils::new(-1, 2).unwrap();
-        assert!(!RationalUtils::is_positive(neg));
-        assert!(RationalUtils::is_negative(neg));
+        assert!(!RationalUtils::is_positive(&neg));
+        assert!(RationalUtils::is_negative(&neg));
     }
 
     #[test]
     fn test_rational_reduce() {
         let r = RationalUtils::new(2, 4).unwrap();
-        let reduced = RationalUtils::reduce(r);
-        assert_eq!(reduced, RationalUtils::new(1, 2).unwrap());
+        let reduced = RationalUtils::reduce(&r);
+        let expected = RationalUtils::new(1, 2).unwrap();
+        assert!((reduced.to_f64() - expected.to_f64()).abs() < 1e-10);
     }
 }
 

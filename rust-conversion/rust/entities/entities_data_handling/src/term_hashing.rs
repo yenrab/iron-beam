@@ -30,6 +30,8 @@
  * %CopyrightEnd%
  */
 
+use entities_utilities::BigNumber;
+
 /// Hash value type (32-bit or 64-bit depending on platform)
 pub type HashValue = u64;
 
@@ -298,33 +300,34 @@ pub fn make_hash(term: Term) -> u32 {
             
             Term::Big(bignum) => {
                 // Hash bignum byte-wise, matching C implementation exactly
-                // C algorithm:
-                //   1. Hash all digits except last with sizeof(ErtsDigit) bytes each
-                //   2. For last digit: k = sizeof(ErtsDigit)
-                //      On 64-bit systems: if upper 32 bits are zero, k /= 2 (hash 4 bytes instead of 8)
-                //   3. Hash last digit with k bytes
-                //   4. Multiply by sign-dependent constant
-                //
-                // Our implementation:
-                //   - Digits are u32 (always 32 bits = 4 bytes)
-                //   - This matches C's behavior when last digit's upper 32 bits are zero on 64-bit systems
-                //   - We always hash 4 bytes per digit, which is correct for our representation
+                // Extract bytes from BigNumber using malachite's Integer representation
+                use malachite::Integer;
+                
+                let integer = bignum.as_integer();
+                let is_negative = !bignum.is_positive() && !bignum.is_zero();
+                
+                // Get the absolute value for byte extraction
+                // Use abs() method and then convert to limbs
+                let abs_value = if is_negative {
+                    -integer.clone()
+                } else {
+                    integer.clone()
+                };
+                
+                // Convert to bytes (little-endian, matching C's digit order)
+                // Use to_twos_complement_limbs_asc to get u32 limbs
+                let limbs = abs_value.to_twos_complement_limbs_asc();
+                let n = limbs.len();
+                
                 let mut h = hash;
-                let n = bignum.digits.len();
                 
                 if n == 0 {
-                    // Empty bignum (shouldn't happen, but handle gracefully)
-                    hash = if bignum.sign {
-                        h.wrapping_mul(HASH_MULT_NEGATIVE)
-                    } else {
-                        h.wrapping_mul(HASH_MULT_POSITIVE)
-                    };
+                    // Zero bignum
+                    hash = h.wrapping_mul(HASH_MULT_POSITIVE);
                 } else {
-                    // Hash all digits except the last one
-                    // C: for (i = 0; i < k; i++) hash all sizeof(ErtsDigit) bytes
-                    // Our digits are u32 (4 bytes), so hash all 4 bytes
+                    // Hash all limbs except the last one (4 bytes each)
                     for i in 0..(n - 1) {
-                        let digit = bignum.digits[i];
+                        let digit = limbs[i];
                         // Hash all 4 bytes of the digit (least significant byte first)
                         for byte_offset in 0..4 {
                             let byte = ((digit >> (byte_offset * 8)) & 0xFF) as u32;
@@ -332,20 +335,18 @@ pub fn make_hash(term: Term) -> u32 {
                         }
                     }
                     
-                    // Hash the last digit with optimization
+                    // Hash the last limb with optimization
                     // C: k = sizeof(ErtsDigit); if (ARCH_64 && !(d >> 32)) k /= 2;
-                    // Since our digits are u32, they always have upper 32 bits zero
-                    // So we always hash 4 bytes, matching C's optimized case
-                    let last_digit = bignum.digits[n - 1];
+                    let last_digit = limbs[n - 1];
                     let bytes_to_hash = {
-                        // C checks: if (ARCH_64 && !(d >> 32)) k /= 2;
-                        // For u32 digits, (d >> 32) is always 0, so we hash 4 bytes
                         #[cfg(target_pointer_width = "64")]
                         {
-                            // On 64-bit systems, C would check if upper 32 bits are zero
-                            // Since last_digit is u32, upper 32 bits are always zero
-                            // So we hash 4 bytes (matching C's optimized case)
-                            4
+                            // On 64-bit systems, check if upper 32 bits are zero
+                            if (last_digit >> 32) == 0 {
+                                4  // Hash 4 bytes if upper 32 bits are zero
+                            } else {
+                                8  // Hash 8 bytes if upper 32 bits are non-zero
+                            }
                         }
                         #[cfg(not(target_pointer_width = "64"))]
                         {
@@ -355,15 +356,13 @@ pub fn make_hash(term: Term) -> u32 {
                     };
                     
                     // Hash the last digit (bytes_to_hash bytes, least significant byte first)
-                    // C: for(j = 0; j < (int)k; ++j) { hash = (hash*HASH_MULT_NUMBER) + (d & 0xff); d >>= 8; }
                     for byte_offset in 0..bytes_to_hash {
                         let byte = ((last_digit >> (byte_offset * 8)) & 0xFF) as u32;
                         h = h.wrapping_mul(HASH_MULT_NUMBER).wrapping_add(byte);
                     }
                     
                     // Multiply by sign-dependent constant
-                    // C: hash *= is_neg ? HASH_MULT_NEGATIVE : HASH_MULT_POSITIVE;
-                    hash = if bignum.sign {
+                    hash = if is_negative {
                         h.wrapping_mul(HASH_MULT_NEGATIVE)
                     } else {
                         h.wrapping_mul(HASH_MULT_POSITIVE)
@@ -652,11 +651,20 @@ pub fn make_hash2(term: Term) -> u32 {
             
             Term::Big(bignum) => {
                 // C: Hash bignum using block hashing
-                // Simplified: hash all digits
-                for digit in &bignum.digits {
-                    hash = mix_hash(hash, HCONST, *digit);
+                // Extract limbs from BigNumber and hash them
+                let integer = bignum.as_integer();
+                let is_negative = !bignum.is_positive() && !bignum.is_zero();
+                let abs_value = if is_negative {
+                    -integer.clone()
+                } else {
+                    integer.clone()
+                };
+                let limbs = abs_value.to_twos_complement_limbs_asc();
+                
+                for &digit in &limbs {
+                    hash = mix_hash(hash, HCONST, digit as u32);
                 }
-                if bignum.sign {
+                if is_negative {
                     hash = mix_hash(hash, HCONST_10, 0);
                 } else {
                     hash = mix_hash(hash, HCONST_11, 0);
@@ -1193,8 +1201,17 @@ fn make_internal_hash_impl(term: Term, salt: HashValue) -> HashValue {
             
             Term::Big(bignum) => {
                 // Hash bignum (matches C's POS_BIG_SUBTAG/NEG_BIG_SUBTAG case)
-                let n = bignum.digits.len();
-                let hash_type = if bignum.sign {
+                let integer = bignum.as_integer();
+                let is_negative = !bignum.is_positive() && !bignum.is_zero();
+                let abs_value = if is_negative {
+                    -integer.clone()
+                } else {
+                    integer.clone()
+                };
+                let limbs = abs_value.to_twos_complement_limbs_asc();
+                let n = limbs.len();
+                
+                let hash_type = if is_negative {
                     IHASH_TYPE_NEG_BIGNUM as u32
                 } else {
                     IHASH_TYPE_POS_BIGNUM as u32
@@ -1204,13 +1221,13 @@ fn make_internal_hash_impl(term: Term, salt: HashValue) -> HashValue {
                 // Process digits in pairs (matches C exactly)
                 let mut i = 0;
                 while i + 2 <= n {
-                    mix_alpha(&mut hash_alpha, hash_beta, &mut hash_ticks, bignum.digits[i] as u64);
-                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, bignum.digits[i+1] as u64);
+                    mix_alpha(&mut hash_alpha, hash_beta, &mut hash_ticks, limbs[i] as u64);
+                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, limbs[i+1] as u64);
                     i += 2;
                 }
                 
                 if i < n {
-                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, bignum.digits[i] as u64);
+                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, limbs[i] as u64);
                 }
             }
             
@@ -1688,13 +1705,7 @@ pub enum Term {
     },
 }
 
-// Placeholder for BigNumber - will be imported from entities_utilities later
-// For now, using a simple representation
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct BigNumber {
-    digits: Vec<u32>, // digits in base 2^32
-    sign: bool,       // true if negative
-}
+// BigNumber is now imported from entities_utilities
 
 /// Term hash trait (placeholder for future use)
 pub trait TermHash {
@@ -2200,40 +2211,50 @@ mod tests {
         assert_ne!(hash3, hash2);
     }
     
+    // Helper function to construct BigNumber from u32 digits (most significant first)
+    // This is used in tests to create BigNumber values with specific digit patterns
+    fn big_from_digits(digits: &[u32], is_negative: bool) -> BigNumber {
+        if digits.is_empty() {
+            return BigNumber::from_u64(0);
+        }
+        
+        let base = BigNumber::from_u64(1u64 << 32);
+        let mut result = BigNumber::from_u64(0);
+        
+        // Build from most significant to least significant
+        for &digit in digits.iter().rev() {
+            result = result.times(&base);
+            result = result.plus(&BigNumber::from_u32(digit));
+        }
+        
+        if is_negative {
+            // Negate by subtracting from zero
+            BigNumber::from_u64(0).minus(&result)
+        } else {
+            result
+        }
+    }
+
     #[test]
     fn test_internal_hash_big() {
-        // BigNumber is defined locally in this module
-        
         // Test positive bignum
-        let big_pos = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x12345678, 0x9ABCDEF0],
-        });
+        let big_pos = Term::Big(big_from_digits(&[0x12345678, 0x9ABCDEF0], false));
         let hash1 = erts_internal_hash(big_pos);
         assert_ne!(hash1, 0);
         
         // Test negative bignum
-        let big_neg = Term::Big(BigNumber {
-            sign: true,
-            digits: vec![0x12345678],
-        });
+        let big_neg = Term::Big(big_from_digits(&[0x12345678], true));
         let hash2 = erts_internal_hash(big_neg);
         assert_ne!(hash2, 0);
         assert_ne!(hash2, hash1);
         
         // Test bignum with odd number of digits
-        let big_odd = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x11111111, 0x22222222, 0x33333333],
-        });
+        let big_odd = Term::Big(big_from_digits(&[0x11111111, 0x22222222, 0x33333333], false));
         let hash3 = erts_internal_hash(big_odd);
         assert_ne!(hash3, 0);
         
         // Test single digit bignum
-        let big_single = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x12345678],
-        });
+        let big_single = Term::Big(big_from_digits(&[0x12345678], false));
         let hash4 = erts_internal_hash(big_single);
         assert_ne!(hash4, 0);
     }
@@ -2465,21 +2486,13 @@ mod tests {
     
     #[test]
     fn test_make_hash_big() {
-        // BigNumber is defined locally in this module
-        
         // Test positive bignum
-        let big_pos = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x12345678, 0x9ABCDEF0],
-        });
+        let big_pos = Term::Big(big_from_digits(&[0x12345678, 0x9ABCDEF0], false));
         let hash1 = make_hash(big_pos);
         assert_ne!(hash1, 0);
         
         // Test negative bignum
-        let big_neg = Term::Big(BigNumber {
-            sign: true,
-            digits: vec![0x12345678],
-        });
+        let big_neg = Term::Big(big_from_digits(&[0x12345678], true));
         let hash2 = make_hash(big_neg);
         assert_ne!(hash2, 0);
         assert_ne!(hash2, hash1);
@@ -2974,38 +2987,23 @@ mod tests {
         // Test bignum with various digit counts to cover all paths
         
         // Test with 1 digit (odd, covers the i < n path)
-        let big1 = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x11111111],
-        });
+        let big1 = Term::Big(big_from_digits(&[0x11111111], false));
         let _ = erts_internal_hash(big1);
         
         // Test with 2 digits (even, no remaining)
-        let big2 = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x11111111, 0x22222222],
-        });
+        let big2 = Term::Big(big_from_digits(&[0x11111111, 0x22222222], false));
         let _ = erts_internal_hash(big2);
         
         // Test with 3 digits (odd, covers the i < n path)
-        let big3 = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x11111111, 0x22222222, 0x33333333],
-        });
+        let big3 = Term::Big(big_from_digits(&[0x11111111, 0x22222222, 0x33333333], false));
         let _ = erts_internal_hash(big3);
         
         // Test with 4 digits (even, no remaining)
-        let big4 = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x11111111, 0x22222222, 0x33333333, 0x44444444],
-        });
+        let big4 = Term::Big(big_from_digits(&[0x11111111, 0x22222222, 0x33333333, 0x44444444], false));
         let _ = erts_internal_hash(big4);
         
         // Test with 5 digits (odd, covers the i < n path)
-        let big5 = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555],
-        });
+        let big5 = Term::Big(big_from_digits(&[0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555], false));
         let _ = erts_internal_hash(big5);
     }
     
@@ -3458,18 +3456,12 @@ mod tests {
     #[test]
     fn test_internal_hash_big_edge_cases() {
         // Test bignum with single digit (odd number of digits)
-        let big1 = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x12345678],
-        });
+        let big1 = Term::Big(big_from_digits(&[0x12345678], false));
         let hash1 = erts_internal_hash(big1);
         // hash1 might be 0, which is acceptable
         
         // Test bignum with two digits (even number, no remaining)
-        let big2 = Term::Big(BigNumber {
-            sign: false,
-            digits: vec![0x11111111, 0x22222222],
-        });
+        let big2 = Term::Big(big_from_digits(&[0x11111111, 0x22222222], false));
         let hash2 = erts_internal_hash(big2);
         // hash2 might be 0, which is acceptable
     }

@@ -442,6 +442,30 @@ impl BigRational {
     pub fn from_rational(value: Rational) -> Self {
         Self { value }
     }
+
+    /// Get the numerator of the rational number.
+    ///
+    /// Returns the numerator as an Integer (converted from Natural).
+    /// For converting to i64, use `to_i64()` on the numerator if it fits.
+    ///
+    /// # Returns
+    ///
+    /// The numerator (Integer)
+    pub fn numerator(&self) -> malachite::Integer {
+        self.value.to_numerator().into()
+    }
+
+    /// Get the denominator of the rational number.
+    ///
+    /// Returns the denominator as an Integer (converted from Natural).
+    /// For converting to i64, use `to_i64()` on the denominator if it fits.
+    ///
+    /// # Returns
+    ///
+    /// The denominator (Integer)
+    pub fn denominator(&self) -> malachite::Integer {
+        self.value.to_denominator().into()
+    }
 }
 
 impl std::fmt::Display for BigRational {

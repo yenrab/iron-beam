@@ -2,7 +2,7 @@
 name = "entities_process"
 version = "0.1.0"
 edition = "2021"
-description = "Entities layer: Process management (stub)"
+description = "Entities layer: Process management (minimal implementation)"
 license = "Apache-2.0"
 authors = ["Erlang/OTP Rust Conversion"]
 
