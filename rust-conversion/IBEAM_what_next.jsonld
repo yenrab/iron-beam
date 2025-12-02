@@ -248,7 +248,7 @@
         "  2. Infer behavior from naming patterns (e.g., 'get_', 'set_', 'create_', 'destroy_' indicate operations)",
         "  3. Consider file context: functions in atom.c likely deal with atoms, functions in binary.c deal with binaries",
         "  4. Synthesize semantic behavior: 'This function [operation type] [data structure/entity] for [purpose]'",
-        "Map group names to expected Rust crate paths: {layer}/{layer}_{group_name} (e.g., entities_data_handling → entities/entities_data_handling). Validate mapping: if expected crate path doesn't exist, mark as missing in AnalysisModeState.",
+        "Map group names to Rust crate directories using flexible search: For each normalized group name, search rust-conversion/rust/ for directories with names similar to the group name that contain Cargo.toml files. Search within the appropriate layer directory (e.g., entities/, adapters/, infrastructure/, etc.). A directory is a valid Rust crate if: (1) its name is similar to the normalized group name (allowing for layer prefix variations), and (2) it contains a Cargo.toml file. Store the found crate path in AnalysisModeState. If no matching directory with Cargo.toml is found, mark as 'crate_missing' in AnalysisModeState.",
         "Store design information in AnalysisModeState for use by other personas",
         "When asking user questions, wait for response before proceeding",
         "Set waitingForUserResponse = true in isolated context when asking user, false after receiving response"

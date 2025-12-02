@@ -87,12 +87,32 @@ cargo test -p entities_data_handling
 
 ## Code Coverage
 
-To check code coverage (requires `cargo-tarpaulin`):
+To generate code coverage reports using `cargo-llvm-cov`:
 
 ```bash
-cargo install cargo-tarpaulin
-cargo tarpaulin --workspace
+# Setup environment (first time or when needed)
+source ./setup_llvm_cov.sh
+
+# Generate HTML coverage report
+./coverage.sh
+
+# Or generate LCOV format
+./coverage.sh --lcov
+
+# Or show summary only
+./coverage.sh --summary
+
+# Continue even if some tests fail
+./coverage.sh --no-fail-fast
 ```
+
+The coverage report will be generated in `coverage-html/llvm-cov/`.
+
+**Requirements:**
+- `cargo-llvm-cov` installed: `cargo install cargo-llvm-cov`
+- `llvm-tools-preview` component OR LLVM installed via Homebrew
+
+The `setup_llvm_cov.sh` script will automatically detect and configure LLVM tools.
 
 ## Requirements
 

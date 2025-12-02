@@ -118,5 +118,234 @@ mod tests {
         assert_eq!(decoded.serial, pid.serial);
         assert_eq!(decoded.creation, pid.creation);
     }
+
+    #[test]
+    fn test_decode_empty_buffer() {
+        let buf = vec![];
+        let mut index = 0;
+        let result = decode_pid(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_unexpected_tag() {
+        let buf = vec![0xFF, 1, 2, 3];
+        let mut index = 0;
+        let result = decode_pid(&buf, &mut index);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::InvalidFormat(msg) => {
+                assert!(msg.contains("Unexpected tag"));
+            }
+            _ => panic!("Expected InvalidFormat error"),
+        }
+    }
+
+    #[test]
+    fn test_decode_atom_error() {
+        // Create buffer with ERL_NEW_PID_EXT tag but invalid atom data
+        let mut buf = vec![ERL_NEW_PID_EXT];
+        // Add invalid atom tag (0xFF is not a valid atom tag)
+        buf.push(0xFF);
+        let mut index = 0;
+        let result = decode_pid(&buf, &mut index);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::AtomDecodeError(_) => {}
+            _ => panic!("Expected AtomDecodeError"),
+        }
+    }
+
+    #[test]
+    fn test_decode_buffer_too_short_for_num_serial() {
+        // Create buffer with valid tag and atom, but buffer too short for num/serial
+        let mut buf = vec![ERL_NEW_PID_EXT];
+        // Add valid small atom: SMALL_ATOM_EXT (115) + length 3 + "nod"
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        // Only add 7 bytes instead of 8 for num/serial
+        buf.extend_from_slice(&[0, 0, 0, 1, 0, 0, 0]);
+        let mut index = 0;
+        let result = decode_pid(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_pid_ext_old_format() {
+        // Test ERL_PID_EXT (old format) with 2-bit creation
+        let mut buf = vec![ERL_PID_EXT];
+        // Add valid small atom: SMALL_ATOM_EXT (115) + length 3 + "nod"
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        // num (4 bytes)
+        buf.extend_from_slice(&123u32.to_be_bytes());
+        // serial (4 bytes)
+        buf.extend_from_slice(&456u32.to_be_bytes());
+        // creation (1 byte, only 2 bits used: 0x03 = 3)
+        buf.push(0x03);
+        
+        let mut index = 0;
+        let decoded = decode_pid(&buf, &mut index).unwrap();
+        assert_eq!(decoded.num, 123);
+        assert_eq!(decoded.serial, 456);
+        assert_eq!(decoded.creation, 3); // Only 2 bits, so max is 3
+    }
+
+    #[test]
+    fn test_decode_pid_ext_buffer_too_short_for_creation() {
+        // Create buffer with valid tag, atom, num, serial, but no creation byte
+        let mut buf = vec![ERL_PID_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        buf.extend_from_slice(&123u32.to_be_bytes());
+        buf.extend_from_slice(&456u32.to_be_bytes());
+        // No creation byte
+        let mut index = 0;
+        let result = decode_pid(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_new_pid_ext_buffer_too_short_for_creation() {
+        // Create buffer with valid tag, atom, num, serial, but buffer too short for creation
+        let mut buf = vec![ERL_NEW_PID_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        buf.extend_from_slice(&123u32.to_be_bytes());
+        buf.extend_from_slice(&456u32.to_be_bytes());
+        // Only 3 bytes instead of 4 for creation
+        buf.extend_from_slice(&[0, 0, 0]);
+        let mut index = 0;
+        let result = decode_pid(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_new_pid_ext() {
+        // Test ERL_NEW_PID_EXT (new format) with 32-bit creation
+        let mut buf = vec![ERL_NEW_PID_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        buf.extend_from_slice(&123u32.to_be_bytes());
+        buf.extend_from_slice(&456u32.to_be_bytes());
+        // creation (4 bytes)
+        buf.extend_from_slice(&1000u32.to_be_bytes());
+        
+        let mut index = 0;
+        let decoded = decode_pid(&buf, &mut index).unwrap();
+        assert_eq!(decoded.num, 123);
+        assert_eq!(decoded.serial, 456);
+        assert_eq!(decoded.creation, 1000);
+    }
+
+    #[test]
+    fn test_decode_pid_ext_creation_mask() {
+        // Test that creation is properly masked to 2 bits
+        let mut buf = vec![ERL_PID_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        buf.extend_from_slice(&123u32.to_be_bytes());
+        buf.extend_from_slice(&456u32.to_be_bytes());
+        // creation byte with upper bits set: 0xFF should become 0x03
+        buf.push(0xFF);
+        
+        let mut index = 0;
+        let decoded = decode_pid(&buf, &mut index).unwrap();
+        assert_eq!(decoded.creation, 3); // Only 2 bits, so 0xFF & 0x03 = 3
+    }
+
+    #[test]
+    fn test_decode_error_debug() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let error3 = DecodeError::AtomDecodeError("atom_err".to_string());
+        
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        let debug_str3 = format!("{:?}", error3);
+        
+        assert!(debug_str1.contains("BufferTooShort"));
+        assert!(debug_str2.contains("InvalidFormat"));
+        assert!(debug_str3.contains("AtomDecodeError"));
+    }
+
+    #[test]
+    fn test_decode_error_clone() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let error3 = DecodeError::AtomDecodeError("atom_err".to_string());
+        
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        let cloned3 = error3.clone();
+        
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+        assert_eq!(error3, cloned3);
+    }
+
+    #[test]
+    fn test_decode_error_partial_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidFormat("test".to_string());
+        let error4 = DecodeError::InvalidFormat("test".to_string());
+        let error5 = DecodeError::InvalidFormat("different".to_string());
+        let error6 = DecodeError::AtomDecodeError("err".to_string());
+        
+        assert_eq!(error1, error2);
+        assert_eq!(error3, error4);
+        assert_ne!(error1, error3);
+        assert_ne!(error4, error5);
+        assert_ne!(error3, error6);
+    }
+
+    #[test]
+    fn test_decode_error_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidFormat("test".to_string());
+        
+        assert!(error1 == error2);
+        assert!(error1 != error3);
+    }
+
+    #[test]
+    fn test_decode_various_creations() {
+        // Test various creation values for old format
+        for creation in 0..=3 {
+            let mut buf = vec![ERL_PID_EXT];
+            buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+            buf.extend_from_slice(&123u32.to_be_bytes());
+            buf.extend_from_slice(&456u32.to_be_bytes());
+            buf.push(creation);
+            
+            let mut index = 0;
+            let decoded = decode_pid(&buf, &mut index).unwrap();
+            assert_eq!(decoded.creation, creation as u32);
+        }
+    }
+
+    #[test]
+    fn test_decode_various_num_serial() {
+        // Test various num and serial values
+        let test_cases = vec![
+            (0u32, 0u32),
+            (1u32, 1u32),
+            (u32::MAX, u32::MAX),
+            (123u32, 456u32),
+        ];
+        
+        for (num, serial) in test_cases {
+            let mut buf = vec![ERL_NEW_PID_EXT];
+            buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+            buf.extend_from_slice(&num.to_be_bytes());
+            buf.extend_from_slice(&serial.to_be_bytes());
+            buf.extend_from_slice(&1u32.to_be_bytes()); // creation
+            
+            let mut index = 0;
+            let decoded = decode_pid(&buf, &mut index).unwrap();
+            assert_eq!(decoded.num, num);
+            assert_eq!(decoded.serial, serial);
+        }
+    }
 }
 

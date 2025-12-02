@@ -46,7 +46,7 @@ members = [
     "frameworks/frameworks_system_integration",
     
     # Code Management layer
-    # "code_management/code_management_code_loading",  # Commented out - missing modules
+    "code_management/code_management_code_loading",
     
     # API Facades layer
     "api_facades",

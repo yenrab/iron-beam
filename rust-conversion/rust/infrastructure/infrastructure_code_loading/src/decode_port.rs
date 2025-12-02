@@ -119,5 +119,237 @@ mod tests {
         assert_eq!(decoded.id, port.id);
         assert_eq!(decoded.creation, port.creation);
     }
+
+    #[test]
+    fn test_decode_empty_buffer() {
+        let buf = vec![];
+        let mut index = 0;
+        let result = decode_port(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_unexpected_tag() {
+        let buf = vec![0xFF, 1, 2, 3];
+        let mut index = 0;
+        let result = decode_port(&buf, &mut index);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::InvalidFormat(msg) => {
+                assert!(msg.contains("Unexpected tag"));
+            }
+            _ => panic!("Expected InvalidFormat error"),
+        }
+    }
+
+    #[test]
+    fn test_decode_atom_error() {
+        // Create buffer with ERL_NEW_PORT_EXT tag but invalid atom data
+        let mut buf = vec![ERL_NEW_PORT_EXT];
+        // Add invalid atom tag (0xFF is not a valid atom tag)
+        buf.push(0xFF);
+        let mut index = 0;
+        let result = decode_port(&buf, &mut index);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::AtomDecodeError(_) => {}
+            _ => panic!("Expected AtomDecodeError"),
+        }
+    }
+
+    #[test]
+    fn test_decode_v4_port_ext() {
+        // Test ERL_V4_PORT_EXT format with 64-bit id and 32-bit creation
+        let mut buf = vec![ERL_V4_PORT_EXT];
+        // Add valid small atom: SMALL_ATOM_EXT (115) + length 3 + "nod"
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        // id (8 bytes)
+        buf.extend_from_slice(&12345678901234567890u64.to_be_bytes());
+        // creation (4 bytes)
+        buf.extend_from_slice(&1000u32.to_be_bytes());
+        
+        let mut index = 0;
+        let decoded = decode_port(&buf, &mut index).unwrap();
+        assert_eq!(decoded.id, 12345678901234567890);
+        assert_eq!(decoded.creation, 1000);
+    }
+
+    #[test]
+    fn test_decode_v4_port_ext_buffer_too_short() {
+        // Create buffer with valid tag and atom, but buffer too short for id/creation
+        let mut buf = vec![ERL_V4_PORT_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        // Only add 11 bytes instead of 12
+        buf.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        let mut index = 0;
+        let result = decode_port(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_new_port_ext_buffer_too_short() {
+        // Create buffer with valid tag and atom, but buffer too short for id/creation
+        let mut buf = vec![ERL_NEW_PORT_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        // Only add 7 bytes instead of 8
+        buf.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0]);
+        let mut index = 0;
+        let result = decode_port(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_port_ext() {
+        // Test ERL_PORT_EXT (old format) with 32-bit id and 2-bit creation
+        let mut buf = vec![ERL_PORT_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        // id (4 bytes)
+        buf.extend_from_slice(&123u32.to_be_bytes());
+        // creation (1 byte, only 2 bits used: 0x03 = 3)
+        buf.push(0x03);
+        
+        let mut index = 0;
+        let decoded = decode_port(&buf, &mut index).unwrap();
+        assert_eq!(decoded.id, 123);
+        assert_eq!(decoded.creation, 3); // Only 2 bits, so max is 3
+    }
+
+    #[test]
+    fn test_decode_port_ext_buffer_too_short() {
+        // Create buffer with valid tag and atom, but buffer too short for id/creation
+        let mut buf = vec![ERL_PORT_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        // Only add 4 bytes instead of 5
+        buf.extend_from_slice(&[0, 0, 0, 0]);
+        let mut index = 0;
+        let result = decode_port(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_port_ext_creation_mask() {
+        // Test that creation is properly masked to 2 bits
+        let mut buf = vec![ERL_PORT_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        buf.extend_from_slice(&123u32.to_be_bytes());
+        // creation byte with upper bits set: 0xFF should become 0x03
+        buf.push(0xFF);
+        
+        let mut index = 0;
+        let decoded = decode_port(&buf, &mut index).unwrap();
+        assert_eq!(decoded.creation, 3); // Only 2 bits, so 0xFF & 0x03 = 3
+    }
+
+    #[test]
+    fn test_decode_error_debug() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let error3 = DecodeError::AtomDecodeError("atom_err".to_string());
+        
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        let debug_str3 = format!("{:?}", error3);
+        
+        assert!(debug_str1.contains("BufferTooShort"));
+        assert!(debug_str2.contains("InvalidFormat"));
+        assert!(debug_str3.contains("AtomDecodeError"));
+    }
+
+    #[test]
+    fn test_decode_error_clone() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let error3 = DecodeError::AtomDecodeError("atom_err".to_string());
+        
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        let cloned3 = error3.clone();
+        
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+        assert_eq!(error3, cloned3);
+    }
+
+    #[test]
+    fn test_decode_error_partial_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidFormat("test".to_string());
+        let error4 = DecodeError::InvalidFormat("test".to_string());
+        let error5 = DecodeError::InvalidFormat("different".to_string());
+        let error6 = DecodeError::AtomDecodeError("err".to_string());
+        
+        assert_eq!(error1, error2);
+        assert_eq!(error3, error4);
+        assert_ne!(error1, error3);
+        assert_ne!(error4, error5);
+        assert_ne!(error3, error6);
+    }
+
+    #[test]
+    fn test_decode_error_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidFormat("test".to_string());
+        
+        assert!(error1 == error2);
+        assert!(error1 != error3);
+    }
+
+    #[test]
+    fn test_decode_various_creations() {
+        // Test various creation values for old format
+        for creation in 0..=3 {
+            let mut buf = vec![ERL_PORT_EXT];
+            buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+            buf.extend_from_slice(&123u32.to_be_bytes());
+            buf.push(creation);
+            
+            let mut index = 0;
+            let decoded = decode_port(&buf, &mut index).unwrap();
+            assert_eq!(decoded.creation, creation as u32);
+        }
+    }
+
+    #[test]
+    fn test_decode_various_ids() {
+        // Test various id values for different formats
+        let test_cases = vec![
+            (ERL_NEW_PORT_EXT, 0u32, 1u32),
+            (ERL_NEW_PORT_EXT, 123u32, 456u32),
+            (ERL_NEW_PORT_EXT, u32::MAX, u32::MAX),
+        ];
+        
+        for (tag, id, creation) in test_cases {
+            let mut buf = vec![tag];
+            buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+            buf.extend_from_slice(&id.to_be_bytes());
+            buf.extend_from_slice(&creation.to_be_bytes());
+            
+            let mut index = 0;
+            let decoded = decode_port(&buf, &mut index).unwrap();
+            assert_eq!(decoded.id, id as u64);
+            assert_eq!(decoded.creation, creation);
+        }
+    }
+
+    #[test]
+    fn test_decode_v4_port_ext_large_id() {
+        // Test ERL_V4_PORT_EXT with large 64-bit id
+        let large_id: u64 = u64::MAX;
+        let mut buf = vec![ERL_V4_PORT_EXT];
+        buf.extend_from_slice(&[115, 3, b'n', b'o', b'd']);
+        buf.extend_from_slice(&large_id.to_be_bytes());
+        buf.extend_from_slice(&1000u32.to_be_bytes());
+        
+        let mut index = 0;
+        let decoded = decode_port(&buf, &mut index).unwrap();
+        assert_eq!(decoded.id, large_id);
+        assert_eq!(decoded.creation, 1000);
+    }
 }
 

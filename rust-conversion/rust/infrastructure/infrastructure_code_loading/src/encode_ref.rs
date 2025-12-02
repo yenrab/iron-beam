@@ -98,5 +98,296 @@ mod tests {
         encode_ref(&mut Some(&mut buf), &mut index, &r#ref).unwrap();
         assert_eq!(buf[0], ERL_NEWER_REFERENCE_EXT);
     }
+
+    #[test]
+    fn test_encode_ref_multiple_ids() {
+        let r#ref = ErlangRef {
+            node: "node@host".to_string(),
+            len: 3,
+            creation: 1,
+            ids: vec![123, 456, 789],
+        };
+        let mut buf = vec![0u8; 100];
+        let mut index = 0;
+        encode_ref(&mut Some(&mut buf), &mut index, &r#ref).unwrap();
+        assert_eq!(buf[0], ERL_NEWER_REFERENCE_EXT);
+    }
+
+    #[test]
+    fn test_encode_ref_size_calculation() {
+        let r#ref = ErlangRef {
+            node: "node".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        let mut index = 0;
+        let mut buf_opt = None;
+        encode_ref(&mut buf_opt, &mut index, &r#ref).unwrap();
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_ref_invalid_length() {
+        let r#ref = ErlangRef {
+            node: "node@host".to_string(),
+            len: 2,
+            creation: 1,
+            ids: vec![123], // len is 2 but ids.len() is 1
+        };
+        let mut buf = vec![0u8; 100];
+        let mut index = 0;
+        let result = encode_ref(&mut Some(&mut buf), &mut index, &r#ref);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::InvalidLength => {}
+            _ => panic!("Expected InvalidLength"),
+        }
+    }
+
+    #[test]
+    fn test_encode_ref_invalid_length_too_many_ids() {
+        let r#ref = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123, 456], // len is 1 but ids.len() is 2
+        };
+        let mut buf = vec![0u8; 100];
+        let mut index = 0;
+        let result = encode_ref(&mut Some(&mut buf), &mut index, &r#ref);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::InvalidLength => {}
+            _ => panic!("Expected InvalidLength"),
+        }
+    }
+
+    #[test]
+    fn test_encode_ref_buffer_too_small_for_atom() {
+        let r#ref = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        // Calculate size needed
+        let mut size_index = 0;
+        encode_ref(&mut None, &mut size_index, &r#ref).unwrap();
+        // Use a buffer that's too small (only room for tag + length)
+        let mut buf = vec![0u8; 3];
+        let mut index = 0;
+        let mut buf_opt = Some(&mut buf[..]);
+        let result = encode_ref(&mut buf_opt, &mut index, &r#ref);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_ref_buffer_too_small_for_creation_ids() {
+        let r#ref = ErlangRef {
+            node: "node".to_string(), // Short node name
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        // Calculate size needed for tag + length + atom
+        let mut atom_buf = Vec::new();
+        let atom_bytes = encode_atom(&mut atom_buf, "node", AtomEncoding::Utf8).unwrap();
+        // Use a buffer that's too small (only room for tag + length + atom, not creation + ids)
+        let mut buf = vec![0u8; 3 + atom_bytes];
+        let mut index = 0;
+        let mut buf_opt = Some(&mut buf[..]);
+        let result = encode_ref(&mut buf_opt, &mut index, &r#ref);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_ref_various_values() {
+        let test_cases = vec![
+            (1u16, 0u32, vec![0u32]),
+            (1u16, 1u32, vec![1u32]),
+            (1u16, 100u32, vec![100u32]),
+            (1u16, u32::MAX, vec![u32::MAX]),
+            (2u16, 1u32, vec![1u32, 2u32]),
+            (3u16, 1u32, vec![1u32, 2u32, 3u32]),
+            (5u16, 1u32, vec![1u32, 2u32, 3u32, 4u32, 5u32]),
+        ];
+        
+        for (len, creation, ids) in test_cases {
+            let r#ref = ErlangRef {
+                node: "node@host".to_string(),
+                len,
+                creation,
+                ids: ids.clone(),
+            };
+            let mut buf = vec![0u8; 200];
+            let mut index = 0;
+            let mut buf_opt = Some(&mut buf[..]);
+            encode_ref(&mut buf_opt, &mut index, &r#ref).unwrap();
+            assert_eq!(buf[0], ERL_NEWER_REFERENCE_EXT);
+        }
+    }
+
+    #[test]
+    fn test_encode_error_debug() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::AtomEncodeError("atom_err".to_string());
+        let error3 = EncodeError::InvalidLength;
+        
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        let debug_str3 = format!("{:?}", error3);
+        
+        assert!(debug_str1.contains("BufferTooSmall"));
+        assert!(debug_str2.contains("AtomEncodeError"));
+        assert!(debug_str3.contains("InvalidLength"));
+    }
+
+    #[test]
+    fn test_encode_error_clone() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::AtomEncodeError("atom_err".to_string());
+        let error3 = EncodeError::InvalidLength;
+        
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        let cloned3 = error3.clone();
+        
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+        assert_eq!(error3, cloned3);
+    }
+
+    #[test]
+    fn test_encode_error_partial_eq() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::BufferTooSmall;
+        let error3 = EncodeError::AtomEncodeError("err".to_string());
+        let error4 = EncodeError::AtomEncodeError("err".to_string());
+        let error5 = EncodeError::AtomEncodeError("different".to_string());
+        let error6 = EncodeError::InvalidLength;
+        
+        assert_eq!(error1, error2);
+        assert_eq!(error3, error4);
+        assert_ne!(error3, error5);
+        assert_ne!(error1, error3);
+        assert_ne!(error1, error6);
+        assert_ne!(error6, error3);
+    }
+
+    #[test]
+    fn test_encode_error_eq() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::BufferTooSmall;
+        let error3 = EncodeError::InvalidLength;
+        
+        assert!(error1 == error2);
+        assert!(error1 != error3);
+    }
+
+    #[test]
+    fn test_erlang_ref_debug() {
+        let r#ref = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        
+        let debug_str = format!("{:?}", r#ref);
+        assert!(debug_str.contains("ErlangRef"));
+    }
+
+    #[test]
+    fn test_erlang_ref_clone() {
+        let r#ref = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        
+        let cloned = r#ref.clone();
+        assert_eq!(r#ref, cloned);
+    }
+
+    #[test]
+    fn test_erlang_ref_partial_eq() {
+        let ref1 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        let ref2 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        let ref3 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 2,
+            creation: 1,
+            ids: vec![123, 456],
+        };
+        let ref4 = ErlangRef {
+            node: "different@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        let ref5 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 2,
+            ids: vec![123],
+        };
+        let ref6 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![124],
+        };
+        
+        assert_eq!(ref1, ref2);
+        assert_ne!(ref1, ref3);
+        assert_ne!(ref1, ref4);
+        assert_ne!(ref1, ref5);
+        assert_ne!(ref1, ref6);
+    }
+
+    #[test]
+    fn test_erlang_ref_eq() {
+        let ref1 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        let ref2 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![123],
+        };
+        let ref3 = ErlangRef {
+            node: "node@host".to_string(),
+            len: 1,
+            creation: 1,
+            ids: vec![124],
+        };
+        
+        assert!(ref1 == ref2);
+        assert!(ref1 != ref3);
+    }
 }
 

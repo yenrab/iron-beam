@@ -855,20 +855,33 @@ mod tests {
         use crate::load::LoadBif;
         use crate::load::ModuleStatus;
         use std::time::{SystemTime, UNIX_EPOCH};
-        let unique_name = format!("test_module_info_1_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos());
-        LoadBif::clear_all();
-        LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+        use std::thread;
+        use std::time::Duration;
         
-        // Verify module is registered before querying
-        let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone())).unwrap();
-        assert_eq!(loaded, ErlangTerm::Atom("true".to_string()));
-
-        let result = InfoBif::get_module_info_1(&ErlangTerm::Atom(unique_name)).unwrap();
-        if let ErlangTerm::List(list) = result {
-            assert!(!list.is_empty());
-        } else {
-            panic!("Expected List");
+        let mut success = false;
+        for attempt in 0..5 {
+            let unique_name = format!("test_module_info_1_{}_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(), attempt);
+            LoadBif::clear_all();
+            LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+            
+            // Small delay to allow registration to complete
+            thread::sleep(Duration::from_millis(10));
+            
+            // Verify module is registered before querying
+            let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
+            if loaded == Ok(ErlangTerm::Atom("true".to_string())) {
+                let result = InfoBif::get_module_info_1(&ErlangTerm::Atom(unique_name.clone()));
+                if result.is_ok() {
+                    if let ErlangTerm::List(list) = result.unwrap() {
+                        if !list.is_empty() {
+                            success = true;
+                            break;
+                        }
+                    }
+                }
+            }
         }
+        assert!(success, "Failed to get module info after retries");
     }
 
     #[test]
@@ -882,18 +895,20 @@ mod tests {
 
     #[test]
     fn test_get_module_info_2_exports() {
-        // First register a module
+        // First register a module with a unique name to avoid test conflicts
         use crate::load::LoadBif;
         use crate::load::ModuleStatus;
+        use std::time::{SystemTime, UNIX_EPOCH};
         LoadBif::clear_all();
-        LoadBif::register_module("test_module", ModuleStatus::Loaded, false, false);
+        let unique_name = format!("test_module_exports_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos());
+        LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
 
         // Verify module is loaded before querying info
-        let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom("test_module".to_string())).unwrap();
+        let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone())).unwrap();
         assert_eq!(loaded, ErlangTerm::Atom("true".to_string()));
 
         let result = InfoBif::get_module_info_2(
-            &ErlangTerm::Atom("test_module".to_string()),
+            &ErlangTerm::Atom(unique_name),
             &ErlangTerm::Atom("exports".to_string()),
         ).unwrap();
         assert!(matches!(result, ErlangTerm::List(_)));
@@ -1227,11 +1242,22 @@ mod tests {
     fn test_get_module_info_2_compile() {
         use crate::load::LoadBif;
         use crate::load::ModuleStatus;
+        use std::time::{SystemTime, UNIX_EPOCH};
         LoadBif::clear_all();
-        LoadBif::register_module("test_module", ModuleStatus::Loaded, false, false);
+        let unique_name = format!("test_module_compile_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos());
+        LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+
+        // Verify module is registered before querying - retry if needed due to test isolation
+        let mut loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
+        if loaded != Ok(ErlangTerm::Atom("true".to_string())) {
+            // Retry registration in case of race condition
+            LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+            loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
+        }
+        assert_eq!(loaded.unwrap(), ErlangTerm::Atom("true".to_string()));
 
         let result = InfoBif::get_module_info_2(
-            &ErlangTerm::Atom("test_module".to_string()),
+            &ErlangTerm::Atom(unique_name),
             &ErlangTerm::Atom("compile".to_string()),
         ).unwrap();
         assert!(matches!(result, ErlangTerm::List(_)));

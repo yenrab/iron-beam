@@ -238,5 +238,559 @@ mod tests {
         encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
         assert_eq!(buf[0], ERL_EXPORT_EXT);
     }
+
+    #[test]
+    fn test_encode_fun_closure_old_format() {
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_without_md5() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_with_md5() {
+        let md5_hash = [0u8; 16];
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: Some(md5_hash),
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_with_old_index() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: Some(100),
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_with_free_vars() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 2,
+            free_vars: vec![1, 2, 3, 4],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_export_buffer_too_small() {
+        let fun = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let mut buf = vec![0u8; 0];
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_buffer_too_small() {
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 4]; // Too small for header
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_buffer_too_small() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 4]; // Too small for header
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_export_module_buffer_too_small() {
+        let fun = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let mut buf = vec![0u8; 1]; // Only room for tag
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_export_function_buffer_too_small() {
+        let fun = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        // Use a buffer that's clearly too small (just enough for tag + module)
+        let mut atom_buf = Vec::new();
+        let module_bytes = encode_atom(&mut atom_buf, "test", AtomEncoding::Utf8).unwrap();
+        let mut buf = vec![0u8; 1 + module_bytes]; // Only room for tag + module
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_atom_buffer_too_small() {
+        let pid = ErlangPid {
+            node: "node@host".to_string(),
+            num: 1,
+            serial: 2,
+            creation: 3,
+        };
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: pid.clone(),
+        };
+        // Calculate size needed for header + PID
+        let mut size_index = 0;
+        let mut pid_buf = vec![0u8; 200];
+        encode_pid(&mut Some(&mut pid_buf), &mut size_index, &pid).unwrap();
+        let mut buf = vec![0u8; 5 + size_index]; // Only room for header + PID
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_free_vars_buffer_too_small() {
+        let pid = ErlangPid {
+            node: "node@host".to_string(),
+            num: 1,
+            serial: 2,
+            creation: 3,
+        };
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 2,
+            free_vars: vec![1, 2, 3, 4],
+            pid: pid.clone(),
+        };
+        // First, calculate the size needed
+        let mut size_index = 0;
+        encode_fun(&mut None, &mut size_index, &fun).unwrap();
+        // Use a buffer that's too small (one byte less than needed)
+        let mut buf = vec![0u8; size_index - 1];
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        match err {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall, got: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_atom_buffer_too_small() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        // Calculate size needed for header (5) + fixed fields (25)
+        let mut buf = vec![0u8; 5 + 25]; // Only room for header + fixed fields
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_free_vars_buffer_too_small() {
+        let pid = ErlangPid {
+            node: "node@host".to_string(),
+            num: 1,
+            serial: 2,
+            creation: 3,
+        };
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 2,
+            free_vars: vec![1, 2, 3, 4],
+            pid: pid.clone(),
+        };
+        // Use a buffer that's clearly too small (just enough for header)
+        let mut buf = vec![0u8; 5];
+        let mut index = 0;
+        let result = encode_fun(&mut Some(&mut buf), &mut index, &fun);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::BufferTooSmall => {}
+            _ => panic!("Expected BufferTooSmall"),
+        }
+    }
+
+    #[test]
+    fn test_encode_error_debug() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::AtomEncodeError("atom_err".to_string());
+        let error3 = EncodeError::IntegerEncodeError;
+        let error4 = EncodeError::PidEncodeError("pid_err".to_string());
+        
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        let debug_str3 = format!("{:?}", error3);
+        let debug_str4 = format!("{:?}", error4);
+        
+        assert!(debug_str1.contains("BufferTooSmall"));
+        assert!(debug_str2.contains("AtomEncodeError"));
+        assert!(debug_str3.contains("IntegerEncodeError"));
+        assert!(debug_str4.contains("PidEncodeError"));
+    }
+
+    #[test]
+    fn test_encode_error_clone() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::AtomEncodeError("atom_err".to_string());
+        let error3 = EncodeError::IntegerEncodeError;
+        let error4 = EncodeError::PidEncodeError("pid_err".to_string());
+        
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        let cloned3 = error3.clone();
+        let cloned4 = error4.clone();
+        
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+        assert_eq!(error3, cloned3);
+        assert_eq!(error4, cloned4);
+    }
+
+    #[test]
+    fn test_encode_error_partial_eq() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::BufferTooSmall;
+        let error3 = EncodeError::AtomEncodeError("err".to_string());
+        let error4 = EncodeError::AtomEncodeError("err".to_string());
+        let error5 = EncodeError::AtomEncodeError("different".to_string());
+        let error6 = EncodeError::IntegerEncodeError;
+        let error7 = EncodeError::PidEncodeError("err".to_string());
+        
+        assert_eq!(error1, error2);
+        assert_eq!(error3, error4);
+        assert_ne!(error3, error5);
+        assert_ne!(error1, error6);
+        assert_ne!(error6, error7);
+    }
+
+    #[test]
+    fn test_encode_error_eq() {
+        let error1 = EncodeError::BufferTooSmall;
+        let error2 = EncodeError::BufferTooSmall;
+        let error3 = EncodeError::IntegerEncodeError;
+        
+        assert!(error1 == error2);
+        assert!(error1 != error3);
+    }
+
+    #[test]
+    fn test_erlang_fun_type_debug() {
+        let fun1 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun2 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        
+        let debug_str1 = format!("{:?}", fun1);
+        let debug_str2 = format!("{:?}", fun2);
+        
+        assert!(debug_str1.contains("Export"));
+        assert!(debug_str2.contains("Closure"));
+    }
+
+    #[test]
+    fn test_erlang_fun_type_clone() {
+        let fun1 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun2 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        
+        let cloned1 = fun1.clone();
+        let cloned2 = fun2.clone();
+        
+        assert_eq!(fun1, cloned1);
+        assert_eq!(fun2, cloned2);
+    }
+
+    #[test]
+    fn test_erlang_fun_type_partial_eq() {
+        let fun1 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun2 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun3 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 3,
+        };
+        let fun4 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        
+        assert_eq!(fun1, fun2);
+        assert_ne!(fun1, fun3);
+        assert_ne!(fun1, fun4);
+    }
+
+    #[test]
+    fn test_erlang_fun_type_eq() {
+        let fun1 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun2 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun3 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        
+        assert!(fun1 == fun2);
+        assert!(fun1 != fun3);
+    }
 }
 

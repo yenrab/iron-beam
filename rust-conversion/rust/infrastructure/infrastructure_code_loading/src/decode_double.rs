@@ -95,5 +95,234 @@ mod tests {
             assert!((decoded - original).abs() < 1e-10, "Roundtrip failed for {}", original);
         }
     }
+
+    #[test]
+    fn test_decode_empty_buffer() {
+        let buf = vec![];
+        let mut index = 0;
+        let result = decode_double(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_buffer_too_short_for_new_float() {
+        // Buffer has tag but not enough bytes for the float
+        let buf = vec![NEW_FLOAT_EXT, 0, 1, 2, 3, 4, 5, 6]; // Only 7 bytes after tag, need 8
+        let mut index = 0;
+        let result = decode_double(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_old_float_format() {
+        // Test ERL_FLOAT_EXT format (31-byte string)
+        let value = 3.14159;
+        let mut buf = vec![ERL_FLOAT_EXT];
+        let float_str = "3.14159"; // Short string to ensure padding loop executes
+        let mut float_bytes = float_str.as_bytes().to_vec();
+        // Pad to 31 bytes with nulls
+        while float_bytes.len() < 31 {
+            float_bytes.push(0);
+        }
+        buf.extend_from_slice(&float_bytes[..31]);
+        
+        let mut index = 0;
+        let decoded = decode_double(&buf, &mut index).unwrap();
+        assert!((decoded - value).abs() < 1e-5); // Less precision in string format
+        assert_eq!(index, 32);
+    }
+
+    #[test]
+    fn test_decode_old_float_format_with_trailing_nulls() {
+        // Test ERL_FLOAT_EXT format with trailing nulls
+        let value = 42.0;
+        let mut buf = vec![ERL_FLOAT_EXT];
+        let float_str = "42.0";
+        let mut float_bytes = float_str.as_bytes().to_vec();
+        // Pad to 31 bytes with nulls
+        while float_bytes.len() < 31 {
+            float_bytes.push(0);
+        }
+        buf.extend_from_slice(&float_bytes[..31]);
+        
+        let mut index = 0;
+        let decoded = decode_double(&buf, &mut index).unwrap();
+        assert!((decoded - value).abs() < 1e-10);
+        assert_eq!(index, 32);
+    }
+
+    #[test]
+    fn test_decode_old_float_format_negative() {
+        // Test ERL_FLOAT_EXT format with negative number
+        let value = -123.456;
+        let mut buf = vec![ERL_FLOAT_EXT];
+        let float_str = "-123.456"; // Short string to ensure padding loop executes
+        let mut float_bytes = float_str.as_bytes().to_vec();
+        // Pad to 31 bytes with nulls
+        while float_bytes.len() < 31 {
+            float_bytes.push(0);
+        }
+        buf.extend_from_slice(&float_bytes[..31]);
+        
+        let mut index = 0;
+        let decoded = decode_double(&buf, &mut index).unwrap();
+        assert!((decoded - value).abs() < 1e-5);
+        assert_eq!(index, 32);
+    }
+
+    #[test]
+    fn test_decode_old_float_buffer_too_short() {
+        // Buffer has tag but not enough bytes for the 31-byte float
+        let buf = vec![ERL_FLOAT_EXT, 0, 1, 2]; // Only 3 bytes after tag, need 31
+        let mut index = 0;
+        let result = decode_double(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_old_float_invalid_utf8() {
+        // Test ERL_FLOAT_EXT format with invalid UTF-8
+        let mut buf = vec![ERL_FLOAT_EXT];
+        // Invalid UTF-8 sequence
+        buf.push(0xFF);
+        buf.push(0xFE);
+        // Fill rest with zeros
+        while buf.len() < 32 {
+            buf.push(0);
+        }
+        
+        let mut index = 0;
+        let result = decode_double(&buf, &mut index);
+        assert!(result.is_err());
+        if let DecodeError::InvalidFormat(msg) = result.unwrap_err() {
+            assert!(msg.contains("Invalid UTF-8"));
+        } else {
+            panic!("Expected InvalidFormat error");
+        }
+    }
+
+    #[test]
+    fn test_decode_old_float_invalid_format() {
+        // Test ERL_FLOAT_EXT format with invalid float string
+        let mut buf = vec![ERL_FLOAT_EXT];
+        let invalid_str = "not a number";
+        let mut float_bytes = invalid_str.as_bytes().to_vec();
+        // Pad to 31 bytes with nulls
+        while float_bytes.len() < 31 {
+            float_bytes.push(0);
+        }
+        buf.extend_from_slice(&float_bytes[..31]);
+        
+        let mut index = 0;
+        let result = decode_double(&buf, &mut index);
+        assert!(result.is_err());
+        if let DecodeError::InvalidFormat(msg) = result.unwrap_err() {
+            assert!(msg.contains("Invalid float format"));
+        } else {
+            panic!("Expected InvalidFormat error");
+        }
+    }
+
+    #[test]
+    fn test_decode_unexpected_tag() {
+        // Test with an unexpected tag
+        let buf = vec![0xAA, 1, 2, 3, 4, 5, 6, 7, 8]; // Invalid tag
+        let mut index = 0;
+        let result = decode_double(&buf, &mut index);
+        assert!(result.is_err());
+        if let DecodeError::InvalidFormat(msg) = result.unwrap_err() {
+            assert!(msg.contains("Unexpected tag"));
+        } else {
+            panic!("Expected InvalidFormat error");
+        }
+    }
+
+    #[test]
+    fn test_decode_error_debug() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        assert!(debug_str1.contains("BufferTooShort"));
+        assert!(debug_str2.contains("InvalidFormat"));
+        assert!(debug_str2.contains("test"));
+    }
+
+    #[test]
+    fn test_decode_error_clone() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+    }
+
+    #[test]
+    fn test_decode_error_partial_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidFormat("test".to_string());
+        let error4 = DecodeError::InvalidFormat("test".to_string());
+        let error5 = DecodeError::InvalidFormat("different".to_string());
+        
+        assert_eq!(error1, error2);
+        assert_eq!(error3, error4);
+        assert_ne!(error1, error3);
+        assert_ne!(error4, error5);
+    }
+
+    #[test]
+    fn test_decode_error_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidFormat("test".to_string());
+        
+        assert!(error1 == error2);
+        assert!(error1 != error3);
+    }
+
+    #[test]
+    fn test_decode_various_float_values() {
+        // Test various float values with NEW_FLOAT_EXT
+        let test_values = vec![
+            0.0,
+            -0.0,
+            1.0,
+            -1.0,
+            std::f64::consts::PI,
+            -std::f64::consts::PI,
+            std::f64::MAX,
+            std::f64::MIN,
+            std::f64::EPSILON,
+        ];
+        
+        for value in test_values {
+            let mut buf = vec![NEW_FLOAT_EXT];
+            buf.extend_from_slice(&value.to_bits().to_be_bytes());
+            let mut index = 0;
+            let decoded = decode_double(&buf, &mut index).unwrap();
+            // For special values, check exact equality
+            if value == 0.0 || value == -0.0 || value.is_infinite() || value.is_nan() {
+                assert_eq!(decoded.to_bits(), value.to_bits());
+            } else {
+                assert!((decoded - value).abs() < 1e-10);
+            }
+            assert_eq!(index, 9);
+        }
+    }
+
+    #[test]
+    fn test_decode_index_at_end() {
+        // Test when index is at the end of buffer
+        let buf = vec![NEW_FLOAT_EXT];
+        let mut index = 1; // Already past the tag
+        let result = decode_double(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
 }
 
