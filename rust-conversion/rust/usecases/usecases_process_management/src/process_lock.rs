@@ -69,12 +69,143 @@ impl ProcessLock {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::Duration;
 
     #[test]
     fn test_process_lock() {
         let lock = ProcessLock::new();
         lock.acquire(1, 0);
         lock.release(0);
+    }
+
+    #[test]
+    fn test_process_lock_multiple_locks() {
+        let lock = ProcessLock::new();
+        // Acquire multiple different locks
+        lock.acquire(1, 0);
+        lock.acquire(2, 1);
+        lock.acquire(3, 2);
+        
+        // Release them
+        lock.release(0);
+        lock.release(1);
+        lock.release(2);
+    }
+
+    #[test]
+    fn test_process_lock_release_nonexistent() {
+        let lock = ProcessLock::new();
+        // Release a lock that was never acquired (should not panic)
+        lock.release(999);
+    }
+
+    #[test]
+    fn test_process_lock_reacquire_after_release() {
+        let lock = ProcessLock::new();
+        // Acquire, release, then reacquire
+        lock.acquire(1, 0);
+        lock.release(0);
+        lock.acquire(1, 0);
+        lock.release(0);
+    }
+
+    #[test]
+    fn test_process_lock_concurrent_access() {
+        let lock = Arc::new(ProcessLock::new());
+        let lock_clone = Arc::clone(&lock);
+        
+        // Spawn a thread that acquires and releases a lock
+        let handle = thread::spawn(move || {
+            lock_clone.acquire(1, 0);
+            thread::sleep(Duration::from_millis(10));
+            lock_clone.release(0);
+        });
+
+        // Main thread waits a bit then acquires the same lock
+        thread::sleep(Duration::from_millis(5));
+        lock.acquire(2, 0);
+        lock.release(0);
+        
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_process_lock_waiting_path() {
+        let lock = Arc::new(ProcessLock::new());
+        let lock_clone = Arc::clone(&lock);
+        
+        // First thread acquires lock and holds it briefly
+        let handle1 = thread::spawn(move || {
+            lock_clone.acquire(1, 0);
+            thread::sleep(Duration::from_millis(50));
+            lock_clone.release(0);
+        });
+
+        // Second thread tries to acquire the same lock (will wait)
+        let lock_clone2 = Arc::clone(&lock);
+        let handle2 = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(10));
+            lock_clone2.acquire(2, 0);
+            lock_clone2.release(0);
+        });
+
+        handle1.join().unwrap();
+        handle2.join().unwrap();
+    }
+
+    #[test]
+    fn test_process_lock_multiple_waiters() {
+        let lock = Arc::new(ProcessLock::new());
+        let lock_clone = Arc::clone(&lock);
+        
+        // First thread acquires and holds the lock
+        let handle1 = thread::spawn(move || {
+            lock_clone.acquire(1, 0);
+            thread::sleep(Duration::from_millis(100));
+            lock_clone.release(0);
+        });
+
+        // Multiple threads wait for the lock
+        let mut handles = Vec::new();
+        for i in 2..=4 {
+            let lock_clone = Arc::clone(&lock);
+            let handle = thread::spawn(move || {
+                thread::sleep(Duration::from_millis(10));
+                lock_clone.acquire(i, 0);
+                lock_clone.release(0);
+            });
+            handles.push(handle);
+        }
+
+        handle1.join().unwrap();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn test_process_lock_different_lock_ids() {
+        let lock = Arc::new(ProcessLock::new());
+        
+        // Acquire different locks concurrently - should not block each other
+        let lock_clone1 = Arc::clone(&lock);
+        let handle1 = thread::spawn(move || {
+            lock_clone1.acquire(1, 0);
+            thread::sleep(Duration::from_millis(50));
+            lock_clone1.release(0);
+        });
+
+        let lock_clone2 = Arc::clone(&lock);
+        let handle2 = thread::spawn(move || {
+            lock_clone2.acquire(2, 1); // Different lock ID
+            thread::sleep(Duration::from_millis(50));
+            lock_clone2.release(1);
+        });
+
+        handle1.join().unwrap();
+        handle2.join().unwrap();
     }
 }
 

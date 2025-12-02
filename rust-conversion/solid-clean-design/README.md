@@ -25,10 +25,12 @@ The codebase has been organized into **CLEAN Architecture layers** with unidirec
 
 3. **Use Cases Layer** (4 groups)
    - Business logic, algorithms, operations
+   - Groups: BIFs, Io Operations, Memory Management, Process Management
    - Dependencies: Entities, Infrastructure (correct dependency flow: Use Cases depends on Infrastructure)
 
 4. **Entities Layer** (6 groups)
    - Core data structures, types, constants
+   - Groups: Data Handling, Io Operations, Process, System Integration Common, System Integration Win32, Utilities
    - Dependencies: None (innermost layer)
 
 5. **Infrastructure Layer** (6 groups)

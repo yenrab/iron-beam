@@ -14,4 +14,5 @@ pub mod process_dict;
 
 pub use process_lock::ProcessLock;
 pub use process_dict::ProcessDict;
+pub use process_dump::ProcessDump;
 

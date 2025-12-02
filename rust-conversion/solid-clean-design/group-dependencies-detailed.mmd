@@ -25,6 +25,8 @@ graph TD
     end
     subgraph entities["Entities Layer"]
         EntitiesIoOperations["Entities Io Operations<br/>9 funcs, 1 files"]
+        EntitiesProcess["✅ [Erlang] Entities Process<br/>Process struct and types"]
+        style EntitiesProcess fill:#90EE90,stroke:#006400,stroke-width:2px
         EntitiesSystemIntegrationCommon["Entities System Integration Common<br/>22 funcs, 1 files"]
         EntitiesSystemIntegrationWin32["Entities System Integration Win32<br/>1 funcs, 1 files"]
         EntitiesUtilities["Entities Utilities<br/>65 funcs, 2 files"]
@@ -120,6 +122,7 @@ graph TD
     UsecasesMemoryManagement --> EntitiesDataHandling
     UsecasesProcessManagement --> EntitiesUtilities
     UsecasesProcessManagement --> EntitiesDataHandling
+    UsecasesProcessManagement --> EntitiesProcess
     UsecasesProcessManagement --> InfrastructureUtilities
     UsecasesIoOperations --> EntitiesUtilities
     UsecasesIoOperations --> EntitiesDataHandling
@@ -131,6 +134,7 @@ graph TD
     InfrastructureUtilities --> AdaptersNifs
     InfrastructureUtilities --> EntitiesSystemIntegrationCommon
     InfrastructureUtilities --> EntitiesDataHandling
+    InfrastructureUtilities --> EntitiesProcess
     InfrastructureUtilities --> InfrastructureTimeManagement
     InfrastructureUtilities --> InfrastructureDataHandling
     InfrastructureUtilities --> UsecasesMemoryManagement

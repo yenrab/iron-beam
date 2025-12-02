@@ -10,6 +10,9 @@ authors = ["Erlang/OTP Rust Conversion"]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_utilities = { path = "../../entities/entities_utilities" }
 entities_io_operations = { path = "../../entities/entities_io_operations" }
+entities_process = { path = "../../entities/entities_process" }
+usecases_process_management = { path = "../usecases_process_management" }
+infrastructure_utilities = { path = "../../infrastructure/infrastructure_utilities" }
 # Checksum algorithms
 crc32fast = "1.3"
 adler = "1.0"

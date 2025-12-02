@@ -36,6 +36,8 @@
  */
 
 use crate::op::ErlangTerm;
+use entities_process::{ProcessId, ProcessState};
+use infrastructure_utilities::process_table::get_global_process_table;
 
 /// Error type for information operations
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -213,7 +215,7 @@ impl InfoBif {
     /// assert!(result.is_err());
     /// ```
     pub fn process_info_1(pid: &ErlangTerm) -> Result<ErlangTerm, InfoError> {
-        let _pid_value = match pid {
+        let pid_value = match pid {
             ErlangTerm::Pid(val) => *val,
             _ => {
                 return Err(InfoError::BadArgument(
@@ -222,22 +224,100 @@ impl InfoBif {
             }
         };
 
-        // Simplified: return basic process information
-        // In a full implementation, this would query the actual process
-        let info = vec![
-            ErlangTerm::Tuple(vec![
-                ErlangTerm::Atom("status".to_string()),
-                ErlangTerm::Atom("running".to_string()),
-            ]),
-            ErlangTerm::Tuple(vec![
-                ErlangTerm::Atom("priority".to_string()),
-                ErlangTerm::Atom("normal".to_string()),
-            ]),
-            ErlangTerm::Tuple(vec![
-                ErlangTerm::Atom("message_queue_len".to_string()),
-                ErlangTerm::Integer(0),
-            ]),
-        ];
+        // Look up the process in the process table
+        let table = get_global_process_table();
+        let process = table.lookup(pid_value as ProcessId)
+            .ok_or_else(|| InfoError::ProcessNotFound(
+                format!("Process with PID {} not found", pid_value)
+            ))?;
+
+        // Build process information list
+        let mut info = Vec::new();
+
+        // Status
+        let status_str = match process.get_state() {
+            ProcessState::Free => "free",
+            ProcessState::Exiting => "exiting",
+            ProcessState::Active => "active",
+            ProcessState::Running => "running",
+            ProcessState::Suspended => "suspended",
+            ProcessState::Gc => "garbage_collecting",
+            ProcessState::SysTasks => "sys_tasks",
+            ProcessState::RunningSys => "running_sys",
+            ProcessState::Proxy => "proxy",
+            ProcessState::DelayedSys => "delayed_sys",
+            ProcessState::DirtyRunning => "dirty_running",
+            ProcessState::DirtyRunningSys => "dirty_running_sys",
+            ProcessState::Unknown(_) => "unknown",
+        };
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("status".to_string()),
+            ErlangTerm::Atom(status_str.to_string()),
+        ]));
+
+        // Heap size
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("heap_size".to_string()),
+            ErlangTerm::Integer(process.heap_sz() as i64),
+        ]));
+
+        // Min heap size
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("min_heap_size".to_string()),
+            ErlangTerm::Integer(process.min_heap_size() as i64),
+        ]));
+
+        // Max heap size (0 means unlimited)
+        if process.max_heap_size() > 0 {
+            info.push(ErlangTerm::Tuple(vec![
+                ErlangTerm::Atom("max_heap_size".to_string()),
+                ErlangTerm::Integer(process.max_heap_size() as i64),
+            ]));
+        }
+
+        // Stack size
+        if let Some(stack_size) = process.stack_size_words() {
+            info.push(ErlangTerm::Tuple(vec![
+                ErlangTerm::Atom("stack_size".to_string()),
+                ErlangTerm::Integer(stack_size as i64),
+            ]));
+        }
+
+        // Reductions
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("reductions".to_string()),
+            ErlangTerm::Integer(process.reds() as i64),
+        ]));
+
+        // Message queue length (not available yet, default to 0)
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("message_queue_len".to_string()),
+            ErlangTerm::Integer(0),
+        ]));
+
+        // Priority (not available yet, default to normal)
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("priority".to_string()),
+            ErlangTerm::Atom("normal".to_string()),
+        ]));
+
+        // Catches
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("catches".to_string()),
+            ErlangTerm::Integer(process.catches() as i64),
+        ]));
+
+        // Return trace frames
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("return_trace_frames".to_string()),
+            ErlangTerm::Integer(process.return_trace_frames() as i64),
+        ]));
+
+        // Arity
+        info.push(ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("arity".to_string()),
+            ErlangTerm::Integer(process.arity() as i64),
+        ]));
 
         Ok(ErlangTerm::List(info))
     }
@@ -281,7 +361,7 @@ impl InfoBif {
     /// assert!(result.is_ok());
     /// ```
     pub fn process_info_2(pid: &ErlangTerm, item: &ErlangTerm) -> Result<ErlangTerm, InfoError> {
-        let _pid_value = match pid {
+        let pid_value = match pid {
             ErlangTerm::Pid(val) => *val,
             _ => {
                 return Err(InfoError::BadArgument(
@@ -299,27 +379,87 @@ impl InfoBif {
             }
         };
 
-        // Simplified: return basic process information
-        // In a full implementation, this would query the actual process
+        // Look up the process in the process table
+        let table = get_global_process_table();
+        let process = table.lookup(pid_value as ProcessId)
+            .ok_or_else(|| InfoError::ProcessNotFound(
+                format!("Process with PID {} not found", pid_value)
+            ))?;
+
+        // Return the specific requested information item
+        // Return the specific requested information item from the actual process
         match item_str.as_str() {
-            "status" => Ok(ErlangTerm::Atom("running".to_string())),
-            "priority" => Ok(ErlangTerm::Atom("normal".to_string())),
-            "message_queue_len" => Ok(ErlangTerm::Integer(0)),
-            "heap_size" => Ok(ErlangTerm::Integer(233)),
-            "stack_size" => Ok(ErlangTerm::Integer(27)),
-            "reductions" => Ok(ErlangTerm::Integer(0)),
-            "current_function" => Ok(ErlangTerm::Tuple(vec![
-                ErlangTerm::Atom("erlang".to_string()),
-                ErlangTerm::Atom("apply".to_string()),
-                ErlangTerm::Integer(2),
-            ])),
-            "initial_call" => Ok(ErlangTerm::Tuple(vec![
-                ErlangTerm::Atom("erlang".to_string()),
-                ErlangTerm::Atom("apply".to_string()),
-                ErlangTerm::Integer(2),
-            ])),
-            "dictionary" => Ok(ErlangTerm::List(vec![])),
-            "error_handler" => Ok(ErlangTerm::Atom("error_handler".to_string())),
+            "status" => {
+                let status_str = match process.get_state() {
+                    ProcessState::Free => "free",
+                    ProcessState::Exiting => "exiting",
+                    ProcessState::Active => "active",
+                    ProcessState::Running => "running",
+                    ProcessState::Suspended => "suspended",
+                    ProcessState::Gc => "garbage_collecting",
+                    ProcessState::SysTasks => "sys_tasks",
+                    ProcessState::RunningSys => "running_sys",
+                    ProcessState::Proxy => "proxy",
+                    ProcessState::DelayedSys => "delayed_sys",
+                    ProcessState::DirtyRunning => "dirty_running",
+                    ProcessState::DirtyRunningSys => "dirty_running_sys",
+                    ProcessState::Unknown(_) => "unknown",
+                };
+                Ok(ErlangTerm::Atom(status_str.to_string()))
+            },
+            "heap_size" => Ok(ErlangTerm::Integer(process.heap_sz() as i64)),
+            "min_heap_size" => Ok(ErlangTerm::Integer(process.min_heap_size() as i64)),
+            "max_heap_size" => {
+                if process.max_heap_size() > 0 {
+                    Ok(ErlangTerm::Integer(process.max_heap_size() as i64))
+                } else {
+                    // 0 means unlimited, return 0
+                    Ok(ErlangTerm::Integer(0))
+                }
+            },
+            "stack_size" => {
+                if let Some(stack_size) = process.stack_size_words() {
+                    Ok(ErlangTerm::Integer(stack_size as i64))
+                } else {
+                    Ok(ErlangTerm::Integer(0))
+                }
+            },
+            "reductions" => Ok(ErlangTerm::Integer(process.reds() as i64)),
+            "catches" => Ok(ErlangTerm::Integer(process.catches() as i64)),
+            "return_trace_frames" => Ok(ErlangTerm::Integer(process.return_trace_frames() as i64)),
+            "arity" => Ok(ErlangTerm::Integer(process.arity() as i64)),
+            "priority" => {
+                // Priority not yet available in Process struct, default to normal
+                Ok(ErlangTerm::Atom("normal".to_string()))
+            },
+            "message_queue_len" => {
+                // Message queue length not yet available in Process struct, default to 0
+                Ok(ErlangTerm::Integer(0))
+            },
+            "current_function" => {
+                // Current function not yet available in Process struct
+                Ok(ErlangTerm::Tuple(vec![
+                    ErlangTerm::Atom("erlang".to_string()),
+                    ErlangTerm::Atom("apply".to_string()),
+                    ErlangTerm::Integer(2),
+                ]))
+            },
+            "initial_call" => {
+                // Initial call not yet available in Process struct
+                Ok(ErlangTerm::Tuple(vec![
+                    ErlangTerm::Atom("erlang".to_string()),
+                    ErlangTerm::Atom("apply".to_string()),
+                    ErlangTerm::Integer(2),
+                ]))
+            },
+            "dictionary" => {
+                // Process dictionary not yet integrated, return empty list
+                Ok(ErlangTerm::List(vec![]))
+            },
+            "error_handler" => {
+                // Error handler not yet available in Process struct
+                Ok(ErlangTerm::Atom("error_handler".to_string()))
+            },
             _ => Err(InfoError::BadArgument(format!(
                 "Unknown process info item: {}",
                 item_str
@@ -631,6 +771,15 @@ mod tests {
 
     #[test]
     fn test_process_info_1() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_1(&ErlangTerm::Pid(123)).unwrap();
         if let ErlangTerm::List(list) = result {
             assert!(!list.is_empty());
@@ -647,15 +796,34 @@ mod tests {
 
     #[test]
     fn test_process_info_2_status() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("status".to_string()),
         ).unwrap();
-        assert_eq!(result, ErlangTerm::Atom("running".to_string()));
+        // Default state is Unknown(0), which maps to "unknown"
+        assert_eq!(result, ErlangTerm::Atom("unknown".to_string()));
     }
 
     #[test]
     fn test_process_info_2_priority() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("priority".to_string()),
@@ -665,6 +833,15 @@ mod tests {
 
     #[test]
     fn test_process_info_2_invalid_item() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("invalid_item".to_string()),
@@ -839,6 +1016,15 @@ mod tests {
     // Additional process_info_2 tests
     #[test]
     fn test_process_info_2_message_queue_len() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("message_queue_len".to_string()),
@@ -848,6 +1034,15 @@ mod tests {
 
     #[test]
     fn test_process_info_2_heap_size() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("heap_size".to_string()),
@@ -857,15 +1052,34 @@ mod tests {
 
     #[test]
     fn test_process_info_2_stack_size() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("stack_size".to_string()),
         ).unwrap();
-        assert_eq!(result, ErlangTerm::Integer(27));
+        // Default process has no stack_top_index set, so returns 0
+        assert_eq!(result, ErlangTerm::Integer(0));
     }
 
     #[test]
     fn test_process_info_2_reductions() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("reductions".to_string()),
@@ -875,6 +1089,15 @@ mod tests {
 
     #[test]
     fn test_process_info_2_current_function() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("current_function".to_string()),
@@ -891,6 +1114,15 @@ mod tests {
 
     #[test]
     fn test_process_info_2_initial_call() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("initial_call".to_string()),
@@ -907,6 +1139,15 @@ mod tests {
 
     #[test]
     fn test_process_info_2_dictionary() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("dictionary".to_string()),
@@ -916,6 +1157,15 @@ mod tests {
 
     #[test]
     fn test_process_info_2_error_handler() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Atom("error_handler".to_string()),
@@ -925,6 +1175,15 @@ mod tests {
 
     #[test]
     fn test_process_info_2_invalid_item_type() {
+        // Set up: Create a process in the process table
+        use infrastructure_utilities::process_table::get_global_process_table;
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let table = get_global_process_table();
+        let process = Arc::new(Process::new(123));
+        table.insert(123, Arc::clone(&process));
+        
         let result = InfoBif::process_info_2(
             &ErlangTerm::Pid(123),
             &ErlangTerm::Integer(123),

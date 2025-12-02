@@ -19,5 +19,5 @@ adapters_nifs = { path = "../adapters/adapters_nifs" }
 adapters_io_operations = { path = "../adapters/adapters_io_operations" }
 adapters_drivers = { path = "../adapters/adapters_drivers" }
 infrastructure_utilities = { path = "../infrastructure/infrastructure_utilities" }
-code_management_code_loading = { path = "../code_management/code_management_code_loading" }
+# code_management_code_loading = { path = "../code_management/code_management_code_loading" }  # Commented out - missing modules
 

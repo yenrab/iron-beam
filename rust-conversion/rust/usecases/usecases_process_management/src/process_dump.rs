@@ -8,7 +8,6 @@
 
 use entities_process::{Process, ProcessId};
 use infrastructure_utilities::process_table::get_global_process_table;
-use std::sync::Arc;
 
 /// Process dump operations
 pub struct ProcessDump;
@@ -40,36 +39,34 @@ impl ProcessDump {
         output.push_str(&format!("State: {:?}\n", process.get_state()));
         
         // Heap information
-        output.push_str(&format!("Heap Size: {} words\n", process.heap_sz));
-        output.push_str(&format!("Min Heap Size: {} words\n", process.min_heap_size));
-        output.push_str(&format!("Max Heap Size: {} words\n", process.max_heap_size));
+        output.push_str(&format!("Heap Size: {} words\n", process.heap_sz()));
+        output.push_str(&format!("Min Heap Size: {} words\n", process.min_heap_size()));
+        output.push_str(&format!("Max Heap Size: {} words\n", process.max_heap_size()));
         
         // Stack information
-        if let Some(stop) = process.stop {
-            if let Some(htop) = process.htop {
-                let stack_size = (stop as usize).saturating_sub(htop as usize) / 8; // words
-                output.push_str(&format!("Stack Size: {} words\n", stack_size));
-            }
+        if let Some(stack_size) = process.stack_size_words() {
+            output.push_str(&format!("Stack Size: {} words\n", stack_size));
         }
         
         // Process flags and state
-        output.push_str(&format!("Flags: 0x{:x}\n", process.flags));
-        output.push_str(&format!("Reductions: {}\n", process.reds));
-        output.push_str(&format!("FCalls: {}\n", process.fcalls));
-        output.push_str(&format!("Arity: {}\n", process.arity));
-        output.push_str(&format!("Catches: {}\n", process.catches));
-        output.push_str(&format!("Return Trace Frames: {}\n", process.return_trace_frames));
+        output.push_str(&format!("Flags: 0x{:x}\n", process.flags()));
+        output.push_str(&format!("Reductions: {}\n", process.reds()));
+        output.push_str(&format!("FCalls: {}\n", process.fcalls()));
+        output.push_str(&format!("Arity: {}\n", process.arity()));
+        output.push_str(&format!("Catches: {}\n", process.catches()));
+        output.push_str(&format!("Return Trace Frames: {}\n", process.return_trace_frames()));
         
-        // Memory pointers
-        output.push_str(&format!("Heap: {:?}\n", process.heap));
-        output.push_str(&format!("Heap Top: {:?}\n", process.htop));
-        output.push_str(&format!("Stack Top: {:?}\n", process.stop));
-        output.push_str(&format!("Program Counter: {:?}\n", process.i));
+        // Heap indices (safe index-based access)
+        output.push_str(&format!("Heap Start Index: {}\n", process.heap_start_index()));
+        output.push_str(&format!("Heap Top Index: {}\n", process.heap_top_index()));
+        output.push_str(&format!("Stack Top Index: {:?}\n", process.stack_top_index()));
+        output.push_str(&format!("Heap Data Length: {} words\n", process.heap_slice().len()));
+        output.push_str(&format!("Program Counter: {:?}\n", process.i() as usize));
         
         // Process metadata
-        output.push_str(&format!("Unique: {}\n", process.uniq));
-        output.push_str(&format!("Schedule Count: {}\n", process.schedule_count));
-        output.push_str(&format!("Suspend Count: {}\n", process.rcount));
+        output.push_str(&format!("Unique: {}\n", process.uniq()));
+        output.push_str(&format!("Schedule Count: {}\n", process.schedule_count()));
+        output.push_str(&format!("Suspend Count: {}\n", process.rcount()));
         
         output.push_str(&format!("===================\n"));
         
