@@ -386,5 +386,249 @@ mod tests {
         assert!(trace1 == trace2);
         assert!(trace1 != trace3);
     }
+
+    #[test]
+    fn test_encode_trace_header_error() {
+        // Buffer too small for tuple header
+        let trace = ErlangTrace {
+            flags: 1,
+            label: 2,
+            serial: 3,
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: 4,
+        };
+        let mut buf = vec![0u8; 1]; // Too small for tuple header
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::HeaderEncodeError => {}
+            _ => panic!("Expected HeaderEncodeError"),
+        }
+    }
+
+    #[test]
+    fn test_encode_trace_flags_integer_error() {
+        // Buffer too small for flags encoding (after tuple header)
+        let trace = ErlangTrace {
+            flags: 1,
+            label: 2,
+            serial: 3,
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: 4,
+        };
+        let mut buf = vec![0u8; 3]; // Enough for small tuple header (2 bytes) but not for flags
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::IntegerEncodeError => {}
+            _ => panic!("Expected IntegerEncodeError"),
+        }
+    }
+
+    #[test]
+    fn test_encode_trace_label_integer_error() {
+        // Buffer too small for label encoding (after flags)
+        let trace = ErlangTrace {
+            flags: 0, // Small integer (2 bytes)
+            label: 1, // Small integer (2 bytes)
+            serial: 3,
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: 4,
+        };
+        let mut buf = vec![0u8; 5]; // Enough for header (2) + flags (2) but not for label
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::IntegerEncodeError => {}
+            _ => panic!("Expected IntegerEncodeError"),
+        }
+    }
+
+    #[test]
+    fn test_encode_trace_serial_integer_error() {
+        // Buffer too small for serial encoding (after label)
+        let trace = ErlangTrace {
+            flags: 0, // Small integer (2 bytes)
+            label: 0, // Small integer (2 bytes)
+            serial: 1, // Small integer (2 bytes)
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: 4,
+        };
+        let mut buf = vec![0u8; 7]; // Enough for header (2) + flags (2) + label (2) but not for serial
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::IntegerEncodeError => {}
+            _ => panic!("Expected IntegerEncodeError"),
+        }
+    }
+
+    #[test]
+    fn test_encode_trace_pid_error() {
+        // Buffer too small for PID encoding (after serial)
+        let trace = ErlangTrace {
+            flags: 0, // Small integer (2 bytes)
+            label: 0, // Small integer (2 bytes)
+            serial: 0, // Small integer (2 bytes)
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: 4,
+        };
+        // Need enough for: header (2) + flags (2) + label (2) + serial (2) = 8 bytes
+        // PID encoding needs at least: tag (1) + atom length (2) + atom bytes (9 for "node@host") + num (4) + serial (4) + creation (4) = 24 bytes
+        let mut buf = vec![0u8; 9]; // Enough for header + integers but not for PID
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::PidEncodeError(_) => {}
+            _ => panic!("Expected PidEncodeError"),
+        }
+    }
+
+    #[test]
+    fn test_encode_trace_prev_integer_error() {
+        // Buffer too small for prev encoding (after PID)
+        let trace = ErlangTrace {
+            flags: 0, // Small integer (2 bytes)
+            label: 0, // Small integer (2 bytes)
+            serial: 0, // Small integer (2 bytes)
+            from: ErlangPid {
+                node: "a".to_string(), // Short node name to minimize PID size
+                num: 0,
+                serial: 0,
+                creation: 0,
+            },
+            prev: 1, // Small integer (2 bytes)
+        };
+        // Calculate minimum size needed:
+        // header (2) + flags (2) + label (2) + serial (2) = 8
+        // PID: tag (1) + atom len (2) + "a" (1) + num (4) + serial (4) + creation (4) = 16
+        // Total so far: 8 + 16 = 24, need 2 more for prev = 26
+        let mut buf = vec![0u8; 25]; // Enough for everything except prev
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            EncodeError::IntegerEncodeError => {}
+            _ => panic!("Expected IntegerEncodeError"),
+        }
+    }
+
+    #[test]
+    fn test_encode_trace_large_integers() {
+        // Test with large integers that require INTEGER_EXT (5 bytes) or SMALL_BIG_EXT
+        let trace = ErlangTrace {
+            flags: 256, // Requires INTEGER_EXT (5 bytes)
+            label: 256,
+            serial: 256,
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: 256,
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_ok());
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_trace_negative_integers() {
+        // Test with negative integers
+        let trace = ErlangTrace {
+            flags: -1,
+            label: -100,
+            serial: -1000,
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: -10000,
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_ok());
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_trace_max_values() {
+        // Test with maximum i64 values
+        let trace = ErlangTrace {
+            flags: i64::MAX,
+            label: i64::MAX,
+            serial: i64::MAX,
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: i64::MAX,
+        };
+        let mut buf = vec![0u8; 500]; // Large buffer for big integers
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_ok());
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_trace_min_values() {
+        // Test with minimum i64 values (except i64::MIN which might cause issues)
+        let trace = ErlangTrace {
+            flags: i64::MIN + 1,
+            label: i64::MIN + 1,
+            serial: i64::MIN + 1,
+            from: ErlangPid {
+                node: "node@host".to_string(),
+                num: 123,
+                serial: 456,
+                creation: 1,
+            },
+            prev: i64::MIN + 1,
+        };
+        let mut buf = vec![0u8; 500]; // Large buffer for big integers
+        let mut index = 0;
+        let result = encode_trace(&mut Some(&mut buf), &mut index, &trace);
+        assert!(result.is_ok());
+        assert!(index > 0);
+    }
 }
 
