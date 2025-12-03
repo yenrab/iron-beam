@@ -10,16 +10,24 @@ use super::encode_trace::ErlangTrace;
 
 /// Decode a trace from EI format
 ///
+/// This function matches the C implementation behavior: it uses a temporary index
+/// and only updates the actual index if all decoding succeeds. This ensures that
+/// if any decode operation fails, the original index remains unchanged.
+///
 /// # Arguments
 /// * `buf` - Buffer containing EI-encoded data
-/// * `index` - Current index in buffer
+/// * `index` - Current index in buffer (updated only on success)
 ///
 /// # Returns
-/// * `Ok((trace, new_index))` - Decoded trace and new index
-/// * `Err(DecodeError)` - Decoding error
+/// * `Ok(trace)` - Decoded trace
+/// * `Err(DecodeError)` - Decoding error (index unchanged on error)
 pub fn decode_trace(buf: &[u8], index: &mut usize) -> Result<ErlangTrace, DecodeError> {
+    // Use a temporary index (matches C implementation pattern)
+    // Only update the actual index if all decoding succeeds
+    let mut tindex = *index;
+    
     // Decode tuple header (should be arity 5)
-    let arity = decode_tuple_header(buf, index)
+    let arity = decode_tuple_header(buf, &mut tindex)
         .map_err(|e| DecodeError::HeaderDecodeError(format!("{:?}", e)))?;
     
     if arity != 5 {
@@ -27,20 +35,23 @@ pub fn decode_trace(buf: &[u8], index: &mut usize) -> Result<ErlangTrace, Decode
     }
 
     // Decode: Flags, Label, Serial, FromPid, Prev
-    let flags = decode_longlong(buf, index)
+    let flags = decode_longlong(buf, &mut tindex)
         .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
     
-    let label = decode_longlong(buf, index)
+    let label = decode_longlong(buf, &mut tindex)
         .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
     
-    let serial = decode_longlong(buf, index)
+    let serial = decode_longlong(buf, &mut tindex)
         .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
     
-    let from = decode_pid(buf, index)
+    let from = decode_pid(buf, &mut tindex)
         .map_err(|e| DecodeError::PidDecodeError(format!("{:?}", e)))?;
     
-    let prev = decode_longlong(buf, index)
+    let prev = decode_longlong(buf, &mut tindex)
         .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
+
+    // All decoding succeeded - update the actual index
+    *index = tindex;
 
     Ok(ErlangTrace {
         flags,

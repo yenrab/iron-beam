@@ -24,33 +24,45 @@ pub struct ErlangTrace {
 
 /// Encode a trace to EI format
 ///
+/// This function matches the C implementation `ei_encode_trace()`.
+/// It encodes a trace as a tuple with 5 elements: { Flags, Label, Serial, FromPid, Prev }.
+///
+/// The C code uses `ei_encode_long()` which is a wrapper around `ei_encode_longlong()`.
+/// This Rust implementation uses `encode_longlong()` directly, which is equivalent.
+///
 /// # Arguments
 /// * `buf` - Optional buffer to write to (None for size calculation)
-/// * `index` - Current index in buffer
+/// * `index` - Current index in buffer (updated as encoding progresses)
 /// * `trace` - The trace to encode
 ///
 /// # Returns
-/// * `Ok(())` - Success
-/// * `Err(EncodeError)` - Encoding error
+/// * `Ok(())` - Success (index updated)
+/// * `Err(EncodeError)` - Encoding error (index may be partially updated)
 pub fn encode_trace(buf: &mut Option<&mut [u8]>, index: &mut usize, trace: &ErlangTrace) -> Result<(), EncodeError> {
     // Encode as tuple: { Flags, Label, Serial, FromPid, Prev }
+    // Matches C: ei_encode_tuple_header(buf,index,5)
     encode_tuple_header(buf, index, 5)
-        .map_err(|e| EncodeError::HeaderEncodeError)?;
+        .map_err(|_e| EncodeError::HeaderEncodeError)?;
     
+    // Matches C: ei_encode_long(buf,index,p->flags) -> calls ei_encode_longlong
     encode_longlong(buf, index, trace.flags)
-        .map_err(|e| EncodeError::IntegerEncodeError)?;
+        .map_err(|_e| EncodeError::IntegerEncodeError)?;
     
+    // Matches C: ei_encode_long(buf,index,p->label)
     encode_longlong(buf, index, trace.label)
-        .map_err(|e| EncodeError::IntegerEncodeError)?;
+        .map_err(|_e| EncodeError::IntegerEncodeError)?;
     
+    // Matches C: ei_encode_long(buf,index,p->serial)
     encode_longlong(buf, index, trace.serial)
-        .map_err(|e| EncodeError::IntegerEncodeError)?;
+        .map_err(|_e| EncodeError::IntegerEncodeError)?;
     
+    // Matches C: ei_encode_pid(buf,index,&p->from)
     encode_pid(buf, index, &trace.from)
         .map_err(|e| EncodeError::PidEncodeError(format!("{:?}", e)))?;
     
+    // Matches C: ei_encode_long(buf,index,p->prev)
     encode_longlong(buf, index, trace.prev)
-        .map_err(|e| EncodeError::IntegerEncodeError)?;
+        .map_err(|_e| EncodeError::IntegerEncodeError)?;
 
     Ok(())
 }
