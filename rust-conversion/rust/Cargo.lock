@@ -1135,6 +1135,7 @@ name = "infrastructure_data_handling"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
+ "entities_utilities",
 ]
 
 [[package]]
