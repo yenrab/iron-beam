@@ -86,6 +86,10 @@ pub struct BeamFile {
     pub atoms: Vec<String>,
     /// Whether module has on_load function
     pub has_on_load: bool,
+    /// Attributes chunk data (raw bytes - will be decoded to ErlangTerm when term decoding supports tuples/lists)
+    pub attributes_data: Option<Vec<u8>>,
+    /// Compile info chunk data (raw bytes - will be decoded to ErlangTerm when term decoding supports tuples/lists)
+    pub compile_info_data: Option<Vec<u8>>,
 }
 
 /// BEAM file loader
@@ -123,24 +127,133 @@ impl BeamLoader {
             return Err(BeamFileReadResult::CorruptFileHeader);
         }
 
-        // Simplified parsing - in a full implementation, this would:
-        // 1. Parse all IFF chunks
-        // 2. Extract atom table (AtU8 or Atom chunk)
-        // 3. Extract code chunk
-        // 4. Extract export table
-        // 5. Extract import table
-        // 6. Extract other optional chunks (lambda, literal, line, etc.)
-        
-        // For now, create a minimal valid BEAM file structure
-        Ok(BeamFile {
+        // Parse IFF chunks
+        let mut beam_file = BeamFile {
             module: 0, // Will be set from atom table
-            code_data: data.to_vec(),
-            code_size: data.len() as u32,
+            code_data: vec![],
+            code_size: 0,
             exports: vec![],
             imports: vec![],
             atoms: vec![],
             has_on_load: false,
-        })
+            attributes_data: None,
+            compile_info_data: None,
+        };
+        
+        // Parse IFF chunks starting after the BEAM form type (byte 12)
+        let mut pos = 12;
+        
+        // IFF chunk format:
+        // - 4 bytes: chunk ID
+        // - 4 bytes: chunk size (big-endian)
+        // - chunk data (aligned to 4-byte boundary)
+        
+        while pos + 8 <= data.len() {
+            // Read chunk ID (4 bytes)
+            let chunk_id = u32::from_be_bytes([
+                data[pos],
+                data[pos + 1],
+                data[pos + 2],
+                data[pos + 3],
+            ]);
+            pos += 4;
+            
+            // Read chunk size (4 bytes, big-endian)
+            if pos + 4 > data.len() {
+                break; // Incomplete chunk size
+            }
+            let chunk_size = u32::from_be_bytes([
+                data[pos],
+                data[pos + 1],
+                data[pos + 2],
+                data[pos + 3],
+            ]) as usize;
+            pos += 4;
+            
+            // Check if we have enough data for the chunk
+            if pos + chunk_size > data.len() {
+                break; // Incomplete chunk data
+            }
+            
+            // Extract chunk data
+            let chunk_data = data[pos..pos + chunk_size].to_vec();
+            
+            // Process chunk based on ID
+            match chunk_id {
+                0x41747472 => { // "Attr" - Attributes chunk
+                    beam_file.attributes_data = Some(chunk_data);
+                }
+                0x43496E66 => { // "CInf" - Compile info chunk
+                    beam_file.compile_info_data = Some(chunk_data);
+                }
+                0x436F6465 => { // "Code" - Code chunk
+                    beam_file.code_data = chunk_data.clone();
+                    beam_file.code_size = chunk_size as u32;
+                }
+                0x45787054 => { // "ExpT" - Export table chunk
+                    // Parse export table
+                    // Export table format: 4-byte count (big-endian), then entries of:
+                    // - 4-byte function atom index (big-endian)
+                    // - 4-byte arity (big-endian)
+                    // - 4-byte label (big-endian, signed)
+                    if chunk_size >= 4 {
+                        let count = u32::from_be_bytes([
+                            chunk_data[0],
+                            chunk_data[1],
+                            chunk_data[2],
+                            chunk_data[3],
+                        ]);
+                        
+                        let mut pos = 4;
+                        let mut exports = Vec::new();
+                        
+                        // Each entry is 12 bytes (3 * 4 bytes)
+                        for _ in 0..count {
+                            if pos + 12 <= chunk_size {
+                                let function_atom = u32::from_be_bytes([
+                                    chunk_data[pos],
+                                    chunk_data[pos + 1],
+                                    chunk_data[pos + 2],
+                                    chunk_data[pos + 3],
+                                ]);
+                                pos += 4;
+                                
+                                let arity = u32::from_be_bytes([
+                                    chunk_data[pos],
+                                    chunk_data[pos + 1],
+                                    chunk_data[pos + 2],
+                                    chunk_data[pos + 3],
+                                ]);
+                                pos += 4;
+                                
+                                let label = i32::from_be_bytes([
+                                    chunk_data[pos],
+                                    chunk_data[pos + 1],
+                                    chunk_data[pos + 2],
+                                    chunk_data[pos + 3],
+                                ]);
+                                pos += 4;
+                                
+                                exports.push((function_atom, arity, label));
+                            } else {
+                                break; // Incomplete entry
+                            }
+                        }
+                        
+                        beam_file.exports = exports;
+                    }
+                }
+                _ => {
+                    // Other chunks - ignore for now
+                }
+            }
+            
+            // Move to next chunk (aligned to 4-byte boundary)
+            let aligned_size = (chunk_size + 3) & !3;
+            pos += aligned_size;
+        }
+        
+        Ok(beam_file)
     }
 
     /// Prepare loading a module from BEAM file
@@ -508,11 +621,38 @@ mod tests {
 
     #[test]
     fn test_prepare_loading() {
-        // Create minimal valid BEAM header
-        let mut data = vec![0u8; 16];
-        data[0..4].copy_from_slice(b"FOR1");
-        data[4..8].copy_from_slice(&8u32.to_le_bytes());
-        data[8..12].copy_from_slice(b"BEAM");
+        // Create minimal valid BEAM file with Code chunk
+        // FOR1 header (4) + form size (4) + BEAM (4) + Code chunk (8 + 4 = 12) = 24 bytes
+        // Form size = 4 (BEAM) + 12 (Code chunk) = 16 bytes
+        let mut data = vec![0u8; 28]; // Extra space for alignment
+        let mut pos = 0;
+        
+        // FOR1 form ID
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        
+        // Form size (16 bytes: BEAM + Code chunk)
+        data[pos..pos+4].copy_from_slice(&16u32.to_le_bytes());
+        pos += 4;
+        
+        // BEAM form type
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Code chunk ID (0x436F6465 = "Code")
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        
+        // Code chunk size (4 bytes of data)
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes());
+        pos += 4;
+        
+        // Code chunk data (minimal - 4 bytes)
+        data[pos..pos+4].copy_from_slice(&[0u8; 4]);
+        pos += 4;
+        
+        // Resize to actual size
+        data.truncate(pos);
         
         let result = BeamLoader::prepare_loading(&data, None);
         assert!(result.is_ok());
@@ -520,11 +660,36 @@ mod tests {
 
     #[test]
     fn test_finish_loading() {
-        // Create a BEAM file
-        let mut data = vec![0u8; 16];
-        data[0..4].copy_from_slice(b"FOR1");
-        data[4..8].copy_from_slice(&8u32.to_le_bytes());
-        data[8..12].copy_from_slice(b"BEAM");
+        // Create a BEAM file with Code chunk
+        let mut data = vec![0u8; 28];
+        let mut pos = 0;
+        
+        // FOR1 form ID
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        
+        // Form size (16 bytes: BEAM + Code chunk)
+        data[pos..pos+4].copy_from_slice(&16u32.to_le_bytes());
+        pos += 4;
+        
+        // BEAM form type
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Code chunk ID
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        
+        // Code chunk size (4 bytes of data)
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes());
+        pos += 4;
+        
+        // Code chunk data (minimal - 4 bytes)
+        data[pos..pos+4].copy_from_slice(&[0u8; 4]);
+        pos += 4;
+        
+        // Resize to actual size
+        data.truncate(pos);
         
         let beam = BeamLoader::read_beam_file(&data).unwrap();
         let module_manager = ModuleTableManager::new();
@@ -555,10 +720,36 @@ mod tests {
 
     #[test]
     fn test_emit_functions() {
-        let mut data = vec![0u8; 16];
-        data[0..4].copy_from_slice(b"FOR1");
-        data[4..8].copy_from_slice(&8u32.to_le_bytes());
-        data[8..12].copy_from_slice(b"BEAM");
+        // Create a BEAM file with Code chunk
+        let mut data = vec![0u8; 28];
+        let mut pos = 0;
+        
+        // FOR1 form ID
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        
+        // Form size (16 bytes: BEAM + Code chunk)
+        data[pos..pos+4].copy_from_slice(&16u32.to_le_bytes());
+        pos += 4;
+        
+        // BEAM form type
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Code chunk ID
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        
+        // Code chunk size (4 bytes of data)
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes());
+        pos += 4;
+        
+        // Code chunk data (minimal - 4 bytes)
+        data[pos..pos+4].copy_from_slice(&[0u8; 4]);
+        pos += 4;
+        
+        // Resize to actual size
+        data.truncate(pos);
         
         let beam = BeamLoader::read_beam_file(&data).unwrap();
         

@@ -1068,6 +1068,9 @@ impl LoadBif {
                     // Get MD5 from prepared code (ensure it's computed)
                     let md5 = prepared.md5.clone();
                     
+                    // Parse BEAM file to extract exports, attributes, and compile info
+                    let (exports, attributes, compile) = Self::parse_beam_metadata(&prepared.code);
+                    
                     modules.insert(
                         prepared.module.clone(),
                         ModuleEntry {
@@ -1077,14 +1080,9 @@ impl LoadBif {
                             has_on_load: prepared.has_on_load,
                             debug_info: None,
                             md5,
-                            // Note: exports, attributes, and compile info are parsed by the
-                            // infrastructure layer (code_management::beam_loader::BeamLoader).
-                            // These fields are populated when the BEAM file is fully parsed.
-                            // For now, they remain empty as the parsing infrastructure is
-                            // still being developed.
-                            exports: vec![],
-                            attributes: vec![],
-                            compile: vec![],
+                            exports,
+                            attributes,
+                            compile,
                         },
                     );
                     loaded_modules.push(prepared.module);
@@ -1691,6 +1689,245 @@ impl LoadBif {
         let mut hasher = DefaultHasher::new();
         module_name.hash(&mut hasher);
         (hasher.finish() & 0xFFFFFFFF) as u32
+    }
+    
+    /// Helper: Parse BEAM file metadata (exports, attributes, compile info)
+    ///
+    /// Parses the BEAM file to extract exports, attributes, and compile info chunks.
+    /// These are decoded from external term format and stored as ErlangTerm values.
+    ///
+    /// # Arguments
+    /// * `code_bytes` - BEAM file bytes
+    ///
+    /// # Returns
+    /// Tuple of (exports, attributes, compile) as vectors of ErlangTerm
+    fn parse_beam_metadata(code_bytes: &[u8]) -> (Vec<ErlangTerm>, Vec<ErlangTerm>, Vec<ErlangTerm>) {
+        // Parse BEAM file using BeamLoader
+        use code_management_code_loading::BeamLoader;
+        use infrastructure_data_handling::decode_term::decode_ei_term;
+        
+        match BeamLoader::read_beam_file(code_bytes) {
+            Ok(beam_file) => {
+                // Extract exports
+                let exports = Self::parse_exports_from_beam(&beam_file);
+                
+                // Extract attributes - decode from external term format
+                let attributes = if let Some(attr_data) = &beam_file.attributes_data {
+                    match decode_ei_term(attr_data, 0) {
+                        Ok((term, _)) => {
+                            // Attributes are typically a list of tuples
+                            Self::term_to_erlang_term_list(&term)
+                        }
+                        Err(_) => {
+                            // If decoding fails, return empty
+                            vec![]
+                        }
+                    }
+                } else {
+                    vec![]
+                };
+                
+                // Extract compile info - decode from external term format
+                let compile = if let Some(compile_data) = &beam_file.compile_info_data {
+                    match decode_ei_term(compile_data, 0) {
+                        Ok((term, _)) => {
+                            // Compile info is typically a list of {Key, Value} tuples
+                            Self::term_to_erlang_term_list(&term)
+                        }
+                        Err(_) => {
+                            // If decoding fails, return empty
+                            vec![]
+                        }
+                    }
+                } else {
+                    vec![]
+                };
+                
+                (exports, attributes, compile)
+            }
+            Err(_) => {
+                // If parsing fails, return empty vectors
+                (vec![], vec![], vec![])
+            }
+        }
+    }
+    
+    /// Helper: Convert Term to ErlangTerm
+    ///
+    /// Converts a decoded Term from the infrastructure layer to ErlangTerm
+    /// for use in the use cases layer.
+    ///
+    /// # Arguments
+    /// * `term` - Term to convert
+    ///
+    /// # Returns
+    /// ErlangTerm representation
+    fn term_to_erlang_term(term: &entities_data_handling::term_hashing::Term) -> ErlangTerm {
+        use entities_data_handling::term_hashing::Term;
+        
+        match term {
+            Term::Nil => ErlangTerm::Nil,
+            Term::Small(value) => {
+                // Check if it fits in i64
+                if *value >= i64::MIN as i64 && *value <= i64::MAX as i64 {
+                    ErlangTerm::Integer(*value as i64)
+                } else {
+                    // Convert to BigInteger if needed
+                    use entities_utilities::BigNumber;
+                    ErlangTerm::BigInteger(BigNumber::from(*value))
+                }
+            }
+            Term::Atom(atom_index) => {
+                // Convert atom index to string
+                // In a full implementation, we'd look up the atom name from the atom table
+                // For now, we'll use a simplified representation
+                ErlangTerm::Atom(format!("atom_{}", atom_index))
+            }
+            Term::Big(bignum) => ErlangTerm::BigInteger(bignum.clone()),
+            Term::Float(value) => ErlangTerm::Float(*value),
+            Term::Binary { data, bit_offset, bit_size } => {
+                if *bit_offset == 0 && *bit_size % 8 == 0 {
+                    ErlangTerm::Binary(data.clone())
+                } else {
+                    ErlangTerm::Bitstring(data.clone(), *bit_size)
+                }
+            }
+            Term::List { head, tail } => {
+                // Convert cons cell structure to Vec<ErlangTerm>
+                let mut elements = Vec::new();
+                let mut current_head = head.as_ref();
+                let mut current_tail = tail.as_ref();
+                
+                // Traverse the list structure
+                loop {
+                    elements.push(Self::term_to_erlang_term(current_head));
+                    
+                    match current_tail {
+                        Term::List { head: h, tail: t } => {
+                            current_head = h.as_ref();
+                            current_tail = t.as_ref();
+                        }
+                        Term::Nil => {
+                            break;
+                        }
+                        _ => {
+                            // Improper list - add tail as last element
+                            elements.push(Self::term_to_erlang_term(current_tail));
+                            break;
+                        }
+                    }
+                }
+                
+                ErlangTerm::List(elements)
+            }
+            Term::Tuple(elements) => {
+                let erlang_elements: Vec<ErlangTerm> = elements
+                    .iter()
+                    .map(|e| Self::term_to_erlang_term(e))
+                    .collect();
+                ErlangTerm::Tuple(erlang_elements)
+            }
+            Term::Map(entries) => {
+                use std::collections::HashMap;
+                let mut map = HashMap::new();
+                for (k, v) in entries {
+                    map.insert(
+                        Self::term_to_erlang_term(k),
+                        Self::term_to_erlang_term(v),
+                    );
+                }
+                ErlangTerm::Map(map)
+            }
+            Term::Pid { node, id, serial, creation: _ } => {
+                // Encode PID as u64 (simplified)
+                let pid_value = (*node as u64) << 32 | (*id as u64) << 16 | (*serial as u64);
+                ErlangTerm::Pid(pid_value)
+            }
+            Term::Port { node, id, creation: _ } => {
+                // Encode Port as u64 (simplified)
+                let port_value = (*node as u64) << 32 | *id;
+                ErlangTerm::Port(port_value)
+            }
+            Term::Ref { node, ids, creation: _ } => {
+                // Encode Reference as u64 (simplified)
+                let ref_value = if let Some(&first_id) = ids.first() {
+                    (*node as u64) << 32 | (first_id as u64)
+                } else {
+                    *node as u64
+                };
+                ErlangTerm::Reference(ref_value)
+            }
+            Term::Fun { arity, .. } => {
+                ErlangTerm::Function { arity: *arity as usize }
+            }
+        }
+    }
+    
+    /// Helper: Convert Term to list of ErlangTerm
+    ///
+    /// If the term is a list, converts it to a Vec<ErlangTerm>.
+    /// If it's a single term, wraps it in a Vec.
+    ///
+    /// # Arguments
+    /// * `term` - Term to convert
+    ///
+    /// # Returns
+    /// Vector of ErlangTerm
+    fn term_to_erlang_term_list(term: &entities_data_handling::term_hashing::Term) -> Vec<ErlangTerm> {
+        use entities_data_handling::term_hashing::Term;
+        
+        match term {
+            Term::List { .. } | Term::Nil => {
+                // Convert list to Vec
+                let erlang_term = Self::term_to_erlang_term(term);
+                if let ErlangTerm::List(elements) = erlang_term {
+                    elements
+                } else {
+                    vec![]
+                }
+            }
+            Term::Tuple(elements) => {
+                // If it's a tuple, convert each element
+                elements
+                    .iter()
+                    .map(|e| Self::term_to_erlang_term(e))
+                    .collect()
+            }
+            _ => {
+                // Single term - wrap in Vec
+                vec![Self::term_to_erlang_term(term)]
+            }
+        }
+    }
+    
+    /// Helper: Parse exports from BEAM file
+    ///
+    /// Extracts export information from the BEAM file's export table.
+    /// Returns a list of {Function, Arity} tuples as ErlangTerm.
+    ///
+    /// # Arguments
+    /// * `beam_file` - Parsed BEAM file
+    ///
+    /// # Returns
+    /// Vector of ErlangTerm representing exports
+    fn parse_exports_from_beam(beam_file: &code_management_code_loading::BeamFile) -> Vec<ErlangTerm> {
+        // Convert exports from (function_atom, arity, label) to ErlangTerm tuples
+        // For now, we'll create simplified tuples: {Function, Arity}
+        // In a full implementation, we'd need the atom table to convert atom indices to names
+        let mut exports = Vec::new();
+        
+        for (function_atom, arity, _label) in &beam_file.exports {
+            // Create a tuple {Function, Arity}
+            // Since we don't have atom names yet, we'll use the atom index as an integer
+            // In a full implementation, we'd look up the atom name from the atom table
+            let export_tuple = ErlangTerm::Tuple(vec![
+                ErlangTerm::Integer(*function_atom as i64), // Function atom index
+                ErlangTerm::Integer(*arity as i64),        // Arity
+            ]);
+            exports.push(export_tuple);
+        }
+        
+        exports
     }
 
     /// Helper: Mark a module as pre-loaded (for testing and internal use)

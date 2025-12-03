@@ -78,15 +78,123 @@ pub fn decode_ei_term(buf: &[u8], index: usize) -> Result<(Term, usize), DecodeE
         }
         // Nil (NIL_EXT = 106)
         106 => Ok((Term::Nil, pos)),
-        // List (LIST_EXT = 108)
-        108 => {
-            // For now, return a placeholder - full list decoding is complex
-            Err(DecodeError::NotImplemented("List decoding not yet implemented"))
-        }
         // Tuple (SMALL_TUPLE_EXT = 104, LARGE_TUPLE_EXT = 105)
         104 | 105 => {
-            // For now, return a placeholder - full tuple decoding is complex
-            Err(DecodeError::NotImplemented("Tuple decoding not yet implemented"))
+            // Read arity
+            let arity = if tag == 104 {
+                // SMALL_TUPLE_EXT: 1-byte arity
+                if pos >= buf.len() {
+                    return Err(DecodeError::BufferTooShort);
+                }
+                let a = buf[pos] as u32;
+                pos += 1;
+                a
+            } else {
+                // LARGE_TUPLE_EXT: 4-byte arity (big-endian)
+                if pos + 4 > buf.len() {
+                    return Err(DecodeError::BufferTooShort);
+                }
+                let a = u32::from_be_bytes([
+                    buf[pos],
+                    buf[pos + 1],
+                    buf[pos + 2],
+                    buf[pos + 3],
+                ]);
+                pos += 4;
+                a
+            };
+            
+            // Empty tuple is represented as Nil in some contexts, but we'll use an empty tuple
+            if arity == 0 {
+                return Ok((Term::Tuple(vec![]), pos));
+            }
+            
+            // Decode each element of the tuple
+            let mut elements = Vec::with_capacity(arity as usize);
+            for _ in 0..arity {
+                match decode_ei_term(buf, pos) {
+                    Ok((term, new_pos)) => {
+                        elements.push(term);
+                        pos = new_pos;
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+            
+            Ok((Term::Tuple(elements), pos))
+        }
+        // List (LIST_EXT = 108)
+        108 => {
+            // Read list length (4-byte big-endian)
+            if pos + 4 > buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let length = u32::from_be_bytes([
+                buf[pos],
+                buf[pos + 1],
+                buf[pos + 2],
+                buf[pos + 3],
+            ]) as usize;
+            pos += 4;
+            
+            // Empty list is Nil
+            if length == 0 {
+                return Ok((Term::Nil, pos));
+            }
+            
+            // Decode list elements
+            // In external format, a list is encoded as a sequence of terms followed by a tail
+            // For proper lists, the tail is NIL_EXT (106)
+            let mut elements = Vec::with_capacity(length);
+            for _ in 0..length {
+                match decode_ei_term(buf, pos) {
+                    Ok((term, new_pos)) => {
+                        elements.push(term);
+                        pos = new_pos;
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+            
+            // Decode tail (should be NIL for proper lists, but we handle other cases)
+            let tail = match decode_ei_term(buf, pos) {
+                Ok((term, new_pos)) => {
+                    pos = new_pos;
+                    term
+                }
+                Err(e) => return Err(e),
+            };
+            
+            // Convert to Term::List format (head/tail structure)
+            // For proper lists, we build a cons cell structure
+            if elements.is_empty() {
+                // Empty list - should have been handled above, but handle tail
+                if matches!(tail, Term::Nil) {
+                    Ok((Term::Nil, pos))
+                } else {
+                    // Improper list with empty head
+                    Ok((Term::List {
+                        head: Box::new(Term::Nil),
+                        tail: Box::new(tail),
+                    }, pos))
+                }
+            } else {
+                // Build list from elements, with tail
+                let mut list = Term::List {
+                    head: Box::new(elements.pop().unwrap()),
+                    tail: Box::new(tail),
+                };
+                
+                // Build rest of list in reverse
+                for elem in elements.into_iter().rev() {
+                    list = Term::List {
+                        head: Box::new(elem),
+                        tail: Box::new(list),
+                    };
+                }
+                
+                Ok((list, pos))
+            }
         }
         _ => Err(DecodeError::InvalidFormat(format!(
             "Unknown term tag: {}",
@@ -292,26 +400,43 @@ mod tests {
 
     #[test]
     fn test_decode_list_not_implemented() {
-        // LIST_EXT (108) - should return NotImplemented
+        // LIST_EXT (108) - empty list is decoded as Nil
         let buf = vec![108, 0, 0, 0, 0]; // List with 0 elements
         let result = decode_ei_term(&buf, 0);
-        assert!(matches!(result, Err(DecodeError::NotImplemented(_))));
+        assert!(result.is_ok());
+        let (term, new_pos) = result.unwrap();
+        assert!(matches!(term, Term::Nil));
+        assert_eq!(new_pos, 5); // 1 byte tag + 4 bytes length
     }
 
     #[test]
     fn test_decode_tuple_small_not_implemented() {
-        // SMALL_TUPLE_EXT (104) - should return NotImplemented
+        // SMALL_TUPLE_EXT (104) - empty tuple is decoded as empty tuple
         let buf = vec![104, 0]; // Tuple with 0 elements
         let result = decode_ei_term(&buf, 0);
-        assert!(matches!(result, Err(DecodeError::NotImplemented(_))));
+        assert!(result.is_ok());
+        let (term, new_pos) = result.unwrap();
+        if let Term::Tuple(elements) = term {
+            assert_eq!(elements.len(), 0);
+        } else {
+            panic!("Expected Term::Tuple, got {:?}", term);
+        }
+        assert_eq!(new_pos, 2); // 1 byte tag + 1 byte arity
     }
 
     #[test]
     fn test_decode_tuple_large_not_implemented() {
-        // LARGE_TUPLE_EXT (105) - should return NotImplemented
+        // LARGE_TUPLE_EXT (105) - empty tuple is decoded as empty tuple
         let buf = vec![105, 0, 0, 0, 0]; // Tuple with 0 elements
         let result = decode_ei_term(&buf, 0);
-        assert!(matches!(result, Err(DecodeError::NotImplemented(_))));
+        assert!(result.is_ok());
+        let (term, new_pos) = result.unwrap();
+        if let Term::Tuple(elements) = term {
+            assert_eq!(elements.len(), 0);
+        } else {
+            panic!("Expected Term::Tuple, got {:?}", term);
+        }
+        assert_eq!(new_pos, 5); // 1 byte tag + 4 bytes arity
     }
 
     #[test]
