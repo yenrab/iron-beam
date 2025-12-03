@@ -1167,6 +1167,7 @@ name = "infrastructure_trace_encoding"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
+ "infrastructure_code_loading",
 ]
 
 [[package]]
