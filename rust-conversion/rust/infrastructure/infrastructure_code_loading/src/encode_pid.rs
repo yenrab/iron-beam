@@ -1,7 +1,46 @@
 //! PID Encoding Module
 //!
-//! Provides functionality to encode PIDs to EI format.
-//! Based on lib/erl_interface/src/encode/encode_pid.c
+//! Provides functionality to encode Process IDs (PIDs) to EI (Erlang Interface) format.
+//! PIDs uniquely identify processes in the Erlang runtime system and are essential
+//! for inter-process communication and distributed Erlang.
+//!
+//! ## Overview
+//!
+//! PIDs in EI format consist of:
+//! - **Node name**: Atom identifying the node where the process exists
+//! - **Process number**: Unique identifier for the process on the node
+//! - **Serial number**: Serial number for the process
+//! - **Creation number**: Node creation number (32 bits in NEW_PID_EXT format)
+//!
+//! ## Encoding Format
+//!
+//! This module uses the `ERL_NEW_PID_EXT` format, which supports 32-bit creation
+//! numbers. The old `ERL_PID_EXT` format (2-bit creation) is not supported.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_pid::{encode_pid, ErlangPid};
+//!
+//! let pid = ErlangPid {
+//!     node: "node@host".to_string(),
+//!     num: 123,
+//!     serial: 456,
+//!     creation: 789,
+//! };
+//!
+//! let mut buf = vec![0u8; 100];
+//! let mut index = 0;
+//! encode_pid(&mut Some(&mut buf), &mut index, &pid)?;
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_pid`](super::decode_pid/index.html): PID decoding functions
+//! - [`encode_port`](super::encode_port/index.html): Port encoding (similar structure)
+//! - [`encode_fun`](super::encode_fun/index.html): Function encoding (uses PIDs)
+//!
+//! Based on `lib/erl_interface/src/encode/encode_pid.c`
 
 use crate::constants::{ERL_NEW_PID_EXT, ERL_PID_EXT};
 use infrastructure_data_handling::encode_atom::{encode_atom, EncodeAtomError};

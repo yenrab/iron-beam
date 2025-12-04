@@ -1,6 +1,40 @@
 //! Allocator Trait and Types
 //!
-//! Defines the allocator interface and allocation strategies.
+//! Defines the allocator interface and allocation strategies for the Erlang/OTP
+//! runtime system. This module provides the foundation for different memory
+//! allocation algorithms used throughout the runtime.
+//!
+//! ## Overview
+//!
+//! The allocator module defines a trait-based interface for memory allocation
+//! strategies, allowing the runtime to use different allocation algorithms
+//! depending on the use case. Multiple allocation strategies are implemented,
+//! each optimized for different scenarios.
+//!
+//! ## Allocation Strategies
+//!
+//! - **GoodFit**: Balances allocation speed and memory efficiency
+//! - **BestFit**: Minimizes wasted space but can fragment memory
+//! - **FirstFit**: Fast allocation but can lead to fragmentation
+//! - **AFit**: Very simple strategy for temporary allocations
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use usecases_memory_management::{Allocator, AllocatorType, GoodFitAllocator};
+//!
+//! let allocator = GoodFitAllocator::new();
+//! let ptr = allocator.alloc(1024).unwrap();
+//! // Use the allocated memory...
+//! allocator.dealloc(ptr, 1024);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`goodfit`](super::goodfit/index.html): Good-fit allocator implementation
+//! - [`bestfit`](super::bestfit/index.html): Best-fit allocator implementation
+//! - [`firstfit`](super::firstfit/index.html): First-fit allocator implementation
+//! - [`afit`](super::afit/index.html): A-fit allocator implementation
 
 use std::alloc::Layout;
 
@@ -29,14 +63,54 @@ pub enum AllocationError {
 }
 
 /// Allocator trait for different allocation strategies
+///
+/// This trait defines the interface that all allocation strategies must implement.
+/// It provides methods for allocating, reallocating, and deallocating memory.
+///
+/// ## Safety
+///
+/// Implementations must ensure that:
+/// - Allocated pointers are valid for the requested size
+/// - Deallocated pointers were previously allocated by the same allocator
+/// - Reallocation preserves data when possible
+///
+/// ## Examples
+///
+/// ```rust
+/// use usecases_memory_management::Allocator;
+///
+/// let allocator = GoodFitAllocator::new();
+/// let ptr = allocator.alloc(1024).unwrap();
+/// // Use ptr...
+/// allocator.dealloc(ptr, 1024);
+/// ```
 pub trait Allocator {
     /// Allocate memory of the given size
     ///
+    /// Allocates a block of memory of at least the requested size. The actual
+    /// size may be larger due to alignment requirements or allocation strategy.
+    ///
     /// # Arguments
-    /// * `size` - Size in bytes to allocate
+    /// * `size` - Size in bytes to allocate (must be > 0)
     ///
     /// # Returns
-    /// Pointer to allocated memory or error
+    /// A `Result` containing a pointer to the allocated memory on success, or
+    /// an `AllocationError` if allocation fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AllocationError::InvalidSize` if size is 0.
+    /// Returns `AllocationError::OutOfMemory` if memory cannot be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use usecases_memory_management::Allocator;
+    ///
+    /// let allocator = GoodFitAllocator::new();
+    /// let ptr = allocator.alloc(1024)?;
+    /// // ptr is valid for at least 1024 bytes
+    /// ```
     fn alloc(&self, size: usize) -> Result<*mut u8, AllocationError>;
 
     /// Reallocate memory

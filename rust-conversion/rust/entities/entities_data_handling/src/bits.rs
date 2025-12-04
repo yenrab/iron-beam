@@ -1,12 +1,52 @@
 //! Bit Manipulation Module
 //!
-//! Provides bit-level operations for Erlang terms.
+//! Provides comprehensive bit-level operations for Erlang terms, particularly for
+//! handling bitstrings and bit-aligned binary data. This module is essential for
+//! operations that work with data at the bit level rather than byte level.
 //!
-//! This module provides low-level bit manipulation functions for:
-//! - Copying bits between buffers (forward and reverse)
-//! - Comparing bit sequences
-//! - Bit offset and mask calculations
-//! - Bit-level utilities
+//! ## Overview
+//!
+//! Erlang supports bitstrings, which are sequences of bits that may not be aligned
+//! to byte boundaries. This module provides the low-level primitives needed to:
+//!
+//! - **Bit Copying**: Copy bits between buffers with arbitrary bit offsets
+//! - **Bit Comparison**: Compare bit sequences for equality and ordering
+//! - **Offset Calculations**: Convert between bit offsets and byte offsets
+//! - **Mask Operations**: Generate and apply bit masks for selective bit operations
+//! - **Bit Access**: Get and set individual bits within bytes
+//!
+//! ## Bit Numbering
+//!
+//! This module uses **MSB-first numbering** to match the C implementation behavior:
+//! - Bit 0 is the most significant bit (MSB)
+//! - Bit 7 is the least significant bit (LSB)
+//!
+//! This differs from typical LSB-first numbering but ensures compatibility with
+//! the Erlang/OTP C implementation.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use entities_data_handling::bits;
+//!
+//! // Calculate byte requirements for bits
+//! let bytes = bits::nbytes(17); // 3 bytes for 17 bits
+//!
+//! // Copy bits between buffers
+//! let src = vec![0b11110000u8];
+//! let mut dst = vec![0u8; 1];
+//! bits::copy_bits_forward(&src, 4, &mut dst, 0, 4);
+//!
+//! // Compare bit sequences
+//! let a = vec![0xFFu8];
+//! let b = vec![0xFFu8];
+//! let result = bits::cmp_bits(&a, 0, &b, 0, 8); // Returns 0 (equal)
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`binary`](super::binary/index.html): Binary data structures that use bit operations
+//! - [`term_hashing`](super::term_hashing/index.html): Hash functions that work with bit-aligned binaries
 
 /*
  * %CopyrightBegin%
@@ -34,11 +74,32 @@
 
 /// Calculate the number of bytes needed to store `bits` bits
 ///
+/// Rounds up to the nearest byte. For example, 1-8 bits require 1 byte,
+/// 9-16 bits require 2 bytes, etc.
+///
 /// # Arguments
-/// * `bits` - Number of bits
+/// * `bits` - Number of bits to store
 ///
 /// # Returns
 /// Number of bytes needed (rounded up)
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::bits;
+///
+/// assert_eq!(bits::nbytes(0), 0);
+/// assert_eq!(bits::nbytes(1), 1);
+/// assert_eq!(bits::nbytes(8), 1);
+/// assert_eq!(bits::nbytes(9), 2);
+/// assert_eq!(bits::nbytes(16), 2);
+/// assert_eq!(bits::nbytes(17), 3);
+/// ```
+///
+/// # See Also
+///
+/// - [`nbits`](crate::bits::nbits): Reverse operation (bytes to bits)
+/// - [`byte_offset`](crate::bits::byte_offset): Get byte offset from bit offset
 ///
 /// Equivalent to `NBYTES(x)` macro in C
 pub fn nbytes(bits: u64) -> usize {
@@ -47,11 +108,29 @@ pub fn nbytes(bits: u64) -> usize {
 
 /// Calculate the number of bits in `bytes` bytes
 ///
+/// Simply multiplies the number of bytes by 8. This is the inverse
+/// operation of `nbytes`.
+///
 /// # Arguments
 /// * `bytes` - Number of bytes
 ///
 /// # Returns
-/// Number of bits
+/// Number of bits (bytes * 8)
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::bits;
+///
+/// assert_eq!(bits::nbits(0), 0);
+/// assert_eq!(bits::nbits(1), 8);
+/// assert_eq!(bits::nbits(2), 16);
+/// assert_eq!(bits::nbits(10), 80);
+/// ```
+///
+/// # See Also
+///
+/// - [`nbytes`](crate::bits::nbytes): Reverse operation (bits to bytes)
 ///
 /// Equivalent to `NBITS(x)` macro in C
 pub fn nbits(bytes: usize) -> u64 {
@@ -60,11 +139,31 @@ pub fn nbits(bytes: usize) -> u64 {
 
 /// Get the byte offset from a bit offset
 ///
+/// Calculates which byte contains the bit at the given offset by dividing
+/// the bit offset by 8 (integer division).
+///
 /// # Arguments
 /// * `bit_offset` - Offset in bits
 ///
 /// # Returns
 /// Byte offset (bits / 8)
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::bits;
+///
+/// assert_eq!(bits::byte_offset(0), 0);
+/// assert_eq!(bits::byte_offset(7), 0);  // Bits 0-7 are in byte 0
+/// assert_eq!(bits::byte_offset(8), 1);  // Bit 8 is in byte 1
+/// assert_eq!(bits::byte_offset(15), 1); // Bits 8-15 are in byte 1
+/// assert_eq!(bits::byte_offset(16), 2);
+/// ```
+///
+/// # See Also
+///
+/// - [`bit_offset`](crate::bits::bit_offset): Get bit offset within a byte
+/// - [`nbytes`](crate::bits::nbytes): Calculate bytes needed for bits
 ///
 /// Equivalent to `BYTE_OFFSET(x)` macro in C
 pub fn byte_offset(bit_offset: usize) -> usize {
@@ -73,11 +172,31 @@ pub fn byte_offset(bit_offset: usize) -> usize {
 
 /// Get the bit offset within a byte
 ///
+/// Calculates the position of the bit within its containing byte (0-7).
+/// This is the remainder when dividing the bit offset by 8.
+///
 /// # Arguments
 /// * `bit_offset` - Offset in bits
 ///
 /// # Returns
 /// Bit offset within byte (0-7)
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::bits;
+///
+/// assert_eq!(bits::bit_offset(0), 0);
+/// assert_eq!(bits::bit_offset(7), 7);
+/// assert_eq!(bits::bit_offset(8), 0);  // Bit 8 is at position 0 in byte 1
+/// assert_eq!(bits::bit_offset(15), 7); // Bit 15 is at position 7 in byte 1
+/// assert_eq!(bits::bit_offset(16), 0);
+/// ```
+///
+/// # See Also
+///
+/// - [`byte_offset`](crate::bits::byte_offset): Get byte offset from bit offset
+/// - [`get_bit`](crate::bits::get_bit): Get a bit at a specific position
 ///
 /// Equivalent to `BIT_OFFSET(x)` macro in C
 pub fn bit_offset(bit_offset: usize) -> usize {
@@ -86,11 +205,30 @@ pub fn bit_offset(bit_offset: usize) -> usize {
 
 /// Create a mask with `n` bits set
 ///
+/// Creates a bitmask with the lowest `n` bits set to 1. For example,
+/// `make_mask(3)` returns `0b111` (binary) or `7` (decimal).
+///
 /// # Arguments
-/// * `n` - Number of bits in the mask (0-64)
+/// * `n` - Number of bits in the mask (0-64). Values >= 64 return `u64::MAX`.
 ///
 /// # Returns
-/// Mask with n bits set (e.g., MAKE_MASK(3) = 0b111)
+/// Mask with n bits set (e.g., `make_mask(3)` = `0b111` = `7`)
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::bits;
+///
+/// assert_eq!(bits::make_mask(0), 0);
+/// assert_eq!(bits::make_mask(1), 0b1);
+/// assert_eq!(bits::make_mask(3), 0b111);
+/// assert_eq!(bits::make_mask(8), 0xFF);
+/// assert_eq!(bits::make_mask(64), u64::MAX);
+/// ```
+///
+/// # See Also
+///
+/// - [`mask_bits`](crate::bits::mask_bits): Apply a mask to copy bits
 ///
 /// Equivalent to `MAKE_MASK(n)` macro in C
 pub fn make_mask(n: usize) -> u64 {
@@ -159,14 +297,46 @@ pub fn set_bit(byte: u8, bit_pos: usize, value: u8) -> u8 {
 
 /// Copy bits forward from source to destination
 ///
-/// Copies `n` bits from the source buffer to the destination buffer.
+/// Copies `n` bits from the source buffer to the destination buffer, starting
+/// at arbitrary bit offsets in both buffers. This function handles bit-aligned
+/// copying, which is essential for Erlang bitstrings that may not be byte-aligned.
+///
+/// The function efficiently handles three cases:
+/// - All bits fit in a single byte (fast path)
+/// - Bits span multiple bytes with aligned copying
+/// - Bits span multiple bytes with unaligned copying
 ///
 /// # Arguments
-/// * `src` - Source buffer
-/// * `src_offset` - Bit offset in source buffer
-/// * `dst` - Destination buffer (must be large enough)
-/// * `dst_offset` - Bit offset in destination buffer
+/// * `src` - Source buffer containing the bits to copy
+/// * `src_offset` - Bit offset in source buffer where copying starts
+/// * `dst` - Destination buffer (must be large enough to hold `n` bits starting at `dst_offset`)
+/// * `dst_offset` - Bit offset in destination buffer where copying starts
 /// * `n` - Number of bits to copy
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::bits;
+///
+/// // Copy bits within the same byte
+/// let src = vec![0b11110000u8];
+/// let mut dst = vec![0u8; 1];
+/// bits::copy_bits_forward(&src, 4, &mut dst, 0, 4);
+/// // Copies bits 4-7 (1111) from src to bits 0-3 of dst
+/// assert_eq!(dst[0], 0b00001111);
+///
+/// // Copy bits across byte boundaries
+/// let src = vec![0xFFu8, 0xAAu8];
+/// let mut dst = vec![0u8; 2];
+/// bits::copy_bits_forward(&src, 4, &mut dst, 0, 12);
+/// // Copies 12 bits starting at bit 4 of src
+/// ```
+///
+/// # See Also
+///
+/// - [`cmp_bits`](crate::bits::cmp_bits): Compare bit sequences
+/// - [`byte_offset`](crate::bits::byte_offset): Calculate byte offsets for bit operations
+/// - [`bit_offset`](crate::bits::bit_offset): Calculate bit offsets within bytes
 ///
 /// # Panics
 /// Panics if buffers are not large enough
@@ -321,17 +491,48 @@ pub fn copy_bits_forward(
 
 /// Compare two bit sequences
 ///
+/// Compares two bit sequences bit-by-bit, starting from the specified offsets
+/// in each buffer. The comparison uses MSB-first ordering (bit 0 is most significant).
+///
 /// # Arguments
-/// * `a` - First buffer
-/// * `a_offset` - Bit offset in first buffer
-/// * `b` - Second buffer
-/// * `b_offset` - Bit offset in second buffer
+/// * `a` - First buffer to compare
+/// * `a_offset` - Bit offset in first buffer where comparison starts
+/// * `b` - Second buffer to compare
+/// * `b_offset` - Bit offset in second buffer where comparison starts
 /// * `size` - Number of bits to compare
 ///
 /// # Returns
-/// * `-1` if a < b
-/// * `0` if a == b
-/// * `1` if a > b
+/// * `-1` if a < b (first differing bit is 0 in a, 1 in b)
+/// * `0` if a == b (all bits are equal)
+/// * `1` if a > b (first differing bit is 1 in a, 0 in b)
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::bits;
+///
+/// // Compare equal sequences
+/// let a = vec![0xFFu8];
+/// let b = vec![0xFFu8];
+/// assert_eq!(bits::cmp_bits(&a, 0, &b, 0, 8), 0);
+///
+/// // Compare different sequences
+/// let a = vec![0xFFu8];
+/// let b = vec![0x00u8];
+/// assert_eq!(bits::cmp_bits(&a, 0, &b, 0, 8), 1);  // a > b
+/// assert_eq!(bits::cmp_bits(&b, 0, &a, 0, 8), -1); // b < a
+///
+/// // Compare unaligned sequences
+/// let a = vec![0b11110000u8];
+/// let b = vec![0b00001111u8];
+/// // Compare first 4 bits (MSB side): 1111 vs 0000
+/// assert_eq!(bits::cmp_bits(&a, 0, &b, 0, 4), 1);
+/// ```
+///
+/// # See Also
+///
+/// - [`copy_bits_forward`](crate::bits::copy_bits_forward): Copy bit sequences
+/// - [`get_bit`](crate::bits::get_bit): Get individual bits for comparison
 pub fn cmp_bits(
     a: &[u8],
     a_offset: usize,

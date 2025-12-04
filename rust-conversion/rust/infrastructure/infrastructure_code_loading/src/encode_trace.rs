@@ -1,7 +1,48 @@
 //! Trace Encoding Module
 //!
-//! Provides functionality to encode traces to EI format.
-//! Based on lib/erl_interface/src/encode/encode_trace.c
+//! Provides functionality to encode Traces to EI (Erlang Interface) format. Traces
+//! represent execution trace information used for debugging and monitoring in the
+//! Erlang runtime system.
+//!
+//! ## Overview
+//!
+//! Traces in EI format are encoded as tuples with 5 elements:
+//! - **Flags**: Trace flags indicating the type of trace event
+//! - **Label**: Trace label for categorization
+//! - **Serial**: Serial number for ordering trace events
+//! - **From PID**: Process ID that generated the trace
+//! - **Previous**: Reference to previous trace in the chain
+//!
+//! ## Encoding Format
+//!
+//! Traces are encoded as `ERL_SMALL_TUPLE_EXT` or `ERL_LARGE_TUPLE_EXT` with arity 5,
+//! containing the trace elements in the order listed above.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_trace::{encode_trace, ErlangTrace, ErlangPid};
+//!
+//! let trace = ErlangTrace {
+//!     flags: 1,
+//!     label: 100,
+//!     serial: 1,
+//!     from: ErlangPid { /* ... */ },
+//!     prev: 0,
+//! };
+//!
+//! let mut buf = vec![0u8; 100];
+//! let mut index = 0;
+//! encode_trace(&mut Some(&mut buf), &mut index, &trace).unwrap();
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_trace`](super::decode_trace/index.html): Trace decoding functions
+//! - [`encode_pid`](super::encode_pid/index.html): PID encoding (used in traces)
+//! - [`infrastructure_trace_encoding`](../infrastructure_trace_encoding/index.html): High-level trace codec
+//!
+//! Based on `lib/erl_interface/src/encode/encode_trace.c`
 
 use super::encode_pid::{encode_pid, ErlangPid, EncodeError as PidEncodeError};
 use super::encode_headers::encode_tuple_header;

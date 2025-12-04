@@ -1,7 +1,49 @@
 //! Print Term Module
 //!
-//! Provides functionality to print terms in readable format.
-//! Based on lib/erl_interface/src/misc/ei_printterm.c
+//! Provides functionality to print Erlang terms in human-readable format. This module
+//! converts Erlang term structures into string representations that match Erlang's
+//! standard output format, making it easy to inspect and debug term values.
+//!
+//! ## Overview
+//!
+//! The print term module converts Erlang terms to their string representations,
+//! following Erlang's standard formatting conventions:
+//! - **Atoms**: Printed as atom names (or atom indices in simplified implementation)
+//! - **Integers**: Printed as decimal numbers
+//! - **Floats**: Printed in standard floating-point notation
+//! - **Binaries**: Printed as `<<...>>` with byte values
+//! - **Lists**: Printed as `[...]` with elements
+//! - **Tuples**: Printed as `{...}` with elements
+//! - **Maps**: Printed as `#{...}` with key-value pairs
+//!
+//! ## Functions
+//!
+//! - **`print_term`**: Prints a term to stdout
+//! - **`s_print_term`**: Converts a term to a string representation
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_data_handling::print_term;
+//! use entities_data_handling::term_hashing::Term;
+//!
+//! // Print a term to stdout
+//! let term = Term::Small(42);
+//! print_term(&term)?;
+//! // Output: 42
+//!
+//! // Get string representation
+//! let term = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
+//! let s = s_print_term(&term)?;
+//! assert_eq!(s, "{1,2}");
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_term`](super::decode_term/index.html): Term decoding functions
+//! - [`entities_data_handling::term_hashing`](../../entities/entities_data_handling/term_hashing/index.html): Term type definitions
+//!
+//! Based on `lib/erl_interface/src/misc/ei_printterm.c`
 
 use entities_data_handling::term_hashing::Term;
 use entities_utilities::BigRational;

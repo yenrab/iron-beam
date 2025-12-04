@@ -1,7 +1,42 @@
 //! Integer Decoding Module
 //!
-//! Provides functionality to decode integers from EI format.
-//! Based on lib/erl_interface/src/decode/decode_longlong.c and decode_ulonglong.c
+//! Provides functionality to decode integers from EI (Erlang Interface) format.
+//! This module implements decoding for signed and unsigned integers of various
+//! sizes, automatically handling all supported integer encoding formats.
+//!
+//! ## Overview
+//!
+//! The decoder handles all integer formats supported by the EI specification:
+//! - **Small Integer** (`ERL_SMALL_INTEGER_EXT`): 0-255
+//! - **32-bit Integer** (`ERL_INTEGER_EXT`): -2^31 to 2^31-1
+//! - **Big Integer** (`ERL_SMALL_BIG_EXT`, `ERL_LARGE_BIG_EXT`): Arbitrary precision
+//!
+//! ## Decoding Process
+//!
+//! 1. Read the tag byte to determine the integer format
+//! 2. Decode the value based on the format
+//! 3. Update the buffer index to point past the decoded value
+//! 4. Return the decoded value and new index
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::decode_integers::*;
+//!
+//! let buf = vec![97, 42]; // ERL_SMALL_INTEGER_EXT, value 42
+//! let mut index = 0;
+//!
+//! let value = decode_long(&buf, &mut index)?;
+//! assert_eq!(value, 42);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_integers`](super::encode_integers/index.html): Integer encoding functions
+//! - [`constants`](super::constants/index.html): EI format tag constants
+//! - [`infrastructure_bignum_encoding`](../infrastructure_bignum_encoding/index.html): Big number decoding
+//!
+//! Based on `lib/erl_interface/src/decode/decode_longlong.c` and `decode_ulonglong.c`
 
 use crate::constants::*;
 

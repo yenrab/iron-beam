@@ -1,7 +1,34 @@
 //! Reference Decoding Module
 //!
-//! Provides functionality to decode references from EI format.
-//! Based on lib/erl_interface/src/decode/decode_ref.c
+//! Provides functionality to decode References from EI (Erlang Interface) format.
+//! References are unique identifiers used for message passing and process communication
+//! in distributed Erlang systems.
+//!
+//! ## Overview
+//!
+//! References in EI format can be encoded in multiple formats:
+//! - **ERL_REFERENCE_EXT**: Old format with single ID and 2-bit creation
+//! - **ERL_NEW_REFERENCE_EXT**: New format with multiple IDs and 2-bit creation
+//! - **ERL_NEWER_REFERENCE_EXT**: Newest format with multiple IDs and 32-bit creation
+//!
+//! The decoder handles all formats and normalizes them to the `ErlangRef` structure.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::decode_ref;
+//!
+//! let mut index = 0;
+//! let r#ref = decode_ref(&buf, &mut index)?;
+//! println!("Reference: {} IDs on node {}", r#ref.len, r#ref.node);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_ref`](super::encode_ref/index.html): Reference encoding functions
+//! - [`decode_pid`](super::decode_pid/index.html): PID decoding (similar structure)
+//!
+//! Based on `lib/erl_interface/src/decode/decode_ref.c`
 
 use crate::constants::{ERL_REFERENCE_EXT, ERL_NEW_REFERENCE_EXT, ERL_NEWER_REFERENCE_EXT};
 use infrastructure_data_handling::decode_atom::decode_atom;

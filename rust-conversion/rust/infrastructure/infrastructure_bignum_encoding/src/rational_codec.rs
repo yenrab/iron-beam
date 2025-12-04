@@ -1,15 +1,45 @@
 //! Rational Codec Module
 //!
-//! Provides BigRational encoding/decoding functionality.
-//! Since there's no existing BEAM implementation for rational numbers,
-//! this implements a custom encoding format.
+//! Provides BigRational encoding and decoding functionality for arbitrary precision
+//! rational numbers in the Erlang/OTP runtime system. Since there's no existing
+//! BEAM implementation for rational numbers, this module implements a custom encoding
+//! format using tuples.
 //!
-//! Format:
-//! - Tag byte: Custom tag (using tuple format as a container)
-//! - Numerator: Encoded as big integer (SMALL_BIG_EXT or LARGE_BIG_EXT)
-//! - Denominator: Encoded as big integer (SMALL_BIG_EXT or LARGE_BIG_EXT)
+//! ## Overview
 //!
-//! We use a tuple format: {numerator, denominator} where both are big integers.
+//! Rational numbers are represented as fractions with arbitrary precision numerators
+//! and denominators. This module provides codecs for serializing and deserializing
+//! rational numbers in the EI format.
+//!
+//! ## Encoding Format
+//!
+//! Rational numbers are encoded as tuples containing two big integers:
+//! - **Tuple header**: `ERL_SMALL_TUPLE_EXT` with arity 2
+//! - **Numerator**: Encoded as big integer (SMALL_BIG_EXT or LARGE_BIG_EXT)
+//! - **Denominator**: Encoded as big integer (SMALL_BIG_EXT or LARGE_BIG_EXT, always positive)
+//!
+//! The sign is encoded in the numerator (negative numerator = negative rational).
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_bignum_encoding::RationalCodec;
+//! use entities_utilities::BigRational;
+//!
+//! // Encode a rational number
+//! let rational = BigRational::from(22, 7); // Approximation of π
+//! let encoded = RationalCodec::encode(&rational).unwrap();
+//!
+//! // Decode a rational number
+//! let (decoded, bytes_consumed) = RationalCodec::decode(&encoded).unwrap();
+//! assert_eq!(decoded, rational);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`bignum_codec`](super::bignum_codec/index.html): Big integer codec
+//! - [`entities_utilities::BigRational`](../../entities/entities_utilities/rational/index.html): BigRational type
+//! - [`common`](super::common/index.html): Shared encoding/decoding utilities
 
 use entities_utilities::BigRational;
 use malachite::Integer;

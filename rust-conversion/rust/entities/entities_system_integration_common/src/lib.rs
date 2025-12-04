@@ -1,7 +1,38 @@
 //! Entities Layer: Common System Integration
 //!
-//! Provides common system integration functionality:
-//! - Memory mapping operations
+//! Provides common system integration functionality for the Erlang/OTP runtime system.
+//! This crate contains platform-independent system operations that are shared across
+//! all platforms.
+//!
+//! ## Overview
+//!
+//! The `entities_system_integration_common` crate is part of the entities layer in
+//! the CLEAN architecture implementation of Erlang/OTP. It provides fundamental
+//! system integration operations that are common to all platforms, avoiding
+//! platform-specific code in the entities layer.
+//!
+//! ## Modules
+//!
+//! - **[`mmap`](mmap/index.html)**: Memory mapping operations for allocating and
+//!   managing memory-mapped regions. Provides a platform-independent interface
+//!   for memory mapping operations.
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use entities_system_integration_common::MemoryMap;
+//!
+//! // Create a memory map
+//! let mmap = MemoryMap::new(size)?;
+//!
+//! // Access the mapped memory
+//! let data = mmap.as_slice();
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`entities_system_integration_win32`](../entities_system_integration_win32/index.html): Windows-specific system integration
+//! - [`frameworks_system_integration`](../../frameworks/frameworks_system_integration/index.html): Framework-level system integration
 
 /*
  * %CopyrightBegin%

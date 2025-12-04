@@ -1,7 +1,34 @@
 //! Time Supervisor Module
 //!
-//! Provides time supervision functionality.
-//! Based on erl_time_sup.c
+//! Provides time supervision functionality for the Erlang/OTP runtime system. This module
+//! manages time-related operations and ensures time consistency across the runtime,
+//! providing high-precision time measurements for scheduling and monitoring.
+//!
+//! ## Overview
+//!
+//! The time supervisor provides:
+//! - **High-precision time**: Microsecond and millisecond precision time measurements
+//! - **System time access**: Direct access to system time for scheduling
+//! - **Time consistency**: Ensures consistent time across the runtime
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_time_management::TimeSup;
+//!
+//! // Get current time in microseconds
+//! let now_micros = TimeSup::now_micros();
+//!
+//! // Get current time in milliseconds
+//! let now_millis = TimeSup::now_millis();
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`adapters_time_management`](../../adapters/adapters_time_management/index.html): Time management adapters
+//! - [`entities_data_handling`](../../entities/entities_data_handling/index.html): Term types for time operations
+//!
+//! Based on `erl_time_sup.c`
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

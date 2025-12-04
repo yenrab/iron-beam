@@ -1,7 +1,47 @@
 //! Code Index Management
 //!
-//! Provides code index management for atomic code updates.
-//! Based on code_ix.c - Code index and staging management.
+//! Provides code index management for atomic code updates in the Erlang/OTP runtime system.
+//! This module implements the code index mechanism that enables hot code loading and
+//! atomic code updates without stopping the runtime.
+//!
+//! ## Overview
+//!
+//! The code index system manages multiple code versions simultaneously:
+//! - **Active Code Index**: Currently running code version
+//! - **Staging Code Index**: Code being prepared for activation
+//! - **Spare Index**: Available for future code updates
+//!
+//! This allows atomic code updates where new code can be loaded and staged before
+//! switching to it, ensuring zero-downtime code updates.
+//!
+//! ## Code Update Process
+//!
+//! 1. Load new code into the staging index
+//! 2. Validate and prepare the new code
+//! 3. Atomically switch from active to staging index
+//! 4. Old code remains available for processes still using it
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use code_management_code_loading::code_index::CodeIndexManager;
+//!
+//! let manager = CodeIndexManager::new();
+//! manager.init();
+//! let active = manager.active_code_ix();
+//! let staging = manager.staging_code_ix();
+//! // Load code into staging...
+//! manager.start_staging(0);
+//! manager.commit_staging();
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`code_barriers`](super::code_barriers/index.html): Code barriers for safe code updates
+//! - [`code_loader`](super::code_loader/index.html): Code loading functionality
+//! - [`module_management`](super::module_management/index.html): Module management
+//!
+//! Based on `code_ix.c` - Code index and staging management
 
 /*
  * %CopyrightBegin%

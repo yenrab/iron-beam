@@ -1,9 +1,31 @@
 //! Use Cases Layer: I/O Operations
 //!
-//! Provides I/O operations:
-//! - Helper functions for environment and argument handling
+//! Provides I/O operations and helper functions for the Erlang/OTP runtime system.
+//! This crate implements business logic for environment handling, argument processing,
+//! and HTTP-related operations.
 //!
-//! Depends on Entities layer (entities_data_handling, entities_io_operations, entities_utilities).
+//! ## Overview
+//!
+//! The `usecases_io_operations` crate is part of the use cases layer in the CLEAN
+//! architecture implementation of Erlang/OTP. It provides business logic for I/O-related
+//! operations that are used throughout the runtime system.
+//!
+//! ## Modules
+//!
+//! - **[`helpers`](helpers/index.html)**: Helper functions for environment variables,
+//!   argument processing, and HTTP URI handling. Provides utilities for merging global
+//!   environments, converting arguments, and building HTTP URIs.
+//!
+//! ## Architecture
+//!
+//! This crate depends on the Entities layer (entities_data_handling, entities_io_operations,
+//! entities_utilities) for fundamental data types and operations. It implements the business
+//! logic for I/O operations, which are then used by higher layers.
+//!
+//! ## See Also
+//!
+//! - [`entities_io_operations`](../../entities/entities_io_operations/index.html): I/O entity layer
+//! - [`adapters_io_operations`](../../adapters/adapters_io_operations/index.html): I/O adapter layer
 
 /*
  * %CopyrightBegin%

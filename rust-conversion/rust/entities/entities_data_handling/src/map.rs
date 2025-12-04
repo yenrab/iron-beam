@@ -1,9 +1,54 @@
-//! Map Operations Module  CHECK TO SEE IF THIS IS ACTUALLY USED IN THE PRODUCTION CODE
+//! Map Operations Module
 //!
-//! Provides map data structure operations.
+//! Provides map data structure operations for Erlang terms. Maps are key-value
+//! stores where both keys and values are Erlang terms, providing a flexible
+//! associative data structure.
 //!
-//! This module implements a persistent map data structure for Erlang terms.
-//! Maps are key-value stores where both keys and values are Terms.
+//! ## Overview
+//!
+//! This module implements a persistent map data structure for the entities layer.
+//! Maps store key-value pairs where both keys and values are `Term` types, allowing
+//! for flexible data structures. The implementation uses a vector-based storage
+//! with linear search, which is efficient for small maps typical in the entities layer.
+//!
+//! ## Features
+//!
+//! - **Key-Value Storage**: Store arbitrary term pairs
+//! - **Lookup Operations**: Fast key-based value retrieval
+//! - **Update Operations**: Modify existing entries or add new ones
+//! - **Removal Operations**: Remove entries by key
+//! - **Iteration**: Access all keys, values, or pairs
+//! - **Conversion**: Convert to/from lists of pairs
+//! - **Merging**: Combine two maps with precedence rules
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use entities_data_handling::Map;
+//! use entities_data_handling::term_hashing::Term;
+//!
+//! let mut map = Map::new();
+//!
+//! // Insert key-value pairs
+//! let key = Term::Small(42);
+//! let value = Term::Small(100);
+//! map.put(key.clone(), value.clone());
+//!
+//! // Look up values
+//! let retrieved = map.get(&key);
+//! assert_eq!(retrieved, Some(&value));
+//!
+//! // Update values
+//! let _ = map.update(&key, Term::Small(200));
+//!
+//! // Remove entries
+//! let removed = map.remove(&key);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`Term`](super::term_hashing::Term): Term types used as keys and values
+//! - [`term_hashing::erts_map_hash`](super::term_hashing::erts_map_hash): Hash function for map keys
 
 /*
  * %CopyrightBegin%

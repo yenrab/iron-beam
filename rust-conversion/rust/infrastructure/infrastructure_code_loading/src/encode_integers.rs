@@ -1,7 +1,45 @@
 //! Integer Encoding Module
 //!
-//! Provides functionality to encode integers to EI format.
-//! Based on lib/erl_interface/src/encode/encode_longlong.c and encode_ulonglong.c
+//! Provides functionality to encode integers to EI (Erlang Interface) format.
+//! This module implements encoding for signed and unsigned integers of various
+//! sizes, automatically choosing the most efficient encoding format.
+//!
+//! ## Overview
+//!
+//! The EI format supports multiple integer encodings:
+//! - **Small Integer** (0-255): Single byte value
+//! - **32-bit Integer**: 4-byte signed integer
+//! - **Big Integer**: Arbitrary precision integer for values outside 32-bit range
+//!
+//! ## Encoding Strategy
+//!
+//! The encoder automatically selects the most efficient format:
+//! - Values 0-255 use `ERL_SMALL_INTEGER_EXT` (2 bytes total)
+//! - Values within i32 range use `ERL_INTEGER_EXT` (5 bytes total)
+//! - Larger values use `ERL_SMALL_BIG_EXT` or `ERL_LARGE_BIG_EXT`
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_integers::*;
+//!
+//! let mut buf = vec![0u8; 100];
+//! let mut index = 0;
+//!
+//! // Encode a small integer
+//! encode_long(&mut Some(buf.as_mut_slice()), &mut index, 42)?;
+//!
+//! // Encode a large integer
+//! encode_longlong(&mut Some(buf.as_mut_slice()), &mut index, 1234567890123456789)?;
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_integers`](super::decode_integers/index.html): Integer decoding functions
+//! - [`constants`](super::constants/index.html): EI format tag constants
+//! - [`infrastructure_bignum_encoding`](../infrastructure_bignum_encoding/index.html): Big number encoding
+//!
+//! Based on `lib/erl_interface/src/encode/encode_longlong.c` and `encode_ulonglong.c`
 
 use crate::constants::*;
 

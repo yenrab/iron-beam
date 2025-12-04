@@ -1,6 +1,42 @@
 //! Entities Layer: Windows System Integration
 //!
-//! Provides Windows-specific system integration functionality.
+//! Provides Windows-specific system integration functionality for the Erlang/OTP
+//! runtime system. This crate contains platform-specific operations that are only
+//! available on Windows platforms.
+//!
+//! ## Overview
+//!
+//! The `entities_system_integration_win32` crate is part of the entities layer in
+//! the CLEAN architecture implementation of Erlang/OTP. It provides Windows-specific
+//! system integration operations that are not available on other platforms.
+//!
+//! ## Platform Support
+//!
+//! This crate is only available on Windows platforms. On non-Windows platforms, the
+//! crate provides placeholder functions that indicate Windows-specific functionality
+//! is not available.
+//!
+//! ## Modules
+//!
+//! - **[`dosmap`](dosmap/index.html)**: DOS memory mapping operations specific to
+//!   Windows. Provides Windows-specific memory mapping functionality.
+//!
+//! ## Usage
+//!
+//! ```rust
+//! #[cfg(windows)]
+//! use entities_system_integration_win32::dosmap;
+//!
+//! #[cfg(windows)]
+//! {
+//!     // Use Windows-specific functionality
+//! }
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`entities_system_integration_common`](../entities_system_integration_common/index.html): Common system integration operations
+//! - [`frameworks_system_integration_win32`](../../frameworks/frameworks_system_integration_win32/index.html): Windows framework integration
 
 /*
  * %CopyrightBegin%

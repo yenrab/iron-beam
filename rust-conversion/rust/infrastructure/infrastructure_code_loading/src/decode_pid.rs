@@ -1,7 +1,40 @@
 //! PID Decoding Module
 //!
-//! Provides functionality to decode PIDs from EI format.
-//! Based on lib/erl_interface/src/decode/decode_pid.c
+//! Provides functionality to decode Process IDs (PIDs) from EI (Erlang Interface) format.
+//! PIDs uniquely identify processes in the Erlang runtime system and are essential
+//! for inter-process communication and distributed Erlang.
+//!
+//! ## Overview
+//!
+//! PIDs in EI format consist of:
+//! - **Node name**: Atom identifying the node where the process exists
+//! - **Process number**: Unique identifier for the process on the node
+//! - **Serial number**: Serial number for the process
+//! - **Creation number**: Node creation number (2 bits in old format, 32 bits in new format)
+//!
+//! ## Supported Formats
+//!
+//! - **ERL_PID_EXT**: Old format with 2-bit creation number
+//! - **ERL_NEW_PID_EXT**: New format with 32-bit creation number (preferred)
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::decode_pid;
+//!
+//! // Decode a PID from EI-encoded buffer
+//! let mut index = 0;
+//! let pid = decode_pid(&buf, &mut index)?;
+//! println!("Process: {} on node {}", pid.num, pid.node);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_pid`](super::encode_pid/index.html): PID encoding functions
+//! - [`decode_port`](super::decode_port/index.html): Port decoding (similar structure)
+//! - [`decode_fun`](super::decode_fun/index.html): Function decoding (uses PIDs)
+//!
+//! Based on `lib/erl_interface/src/decode/decode_pid.c`
 
 use crate::constants::{ERL_NEW_PID_EXT, ERL_PID_EXT};
 use infrastructure_data_handling::decode_atom::{decode_atom, DecodeAtomError};

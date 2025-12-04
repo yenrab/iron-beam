@@ -1,7 +1,39 @@
 //! Port Decoding Module
 //!
-//! Provides functionality to decode ports from EI format.
-//! Based on lib/erl_interface/src/decode/decode_port.c
+//! Provides functionality to decode Ports from EI (Erlang Interface) format.
+//! Ports represent external resources (files, sockets, etc.) that can communicate
+//! with Erlang processes.
+//!
+//! ## Overview
+//!
+//! Ports in EI format consist of:
+//! - **Node name**: Atom identifying the node where the port exists
+//! - **Port ID**: Unique identifier for the port (32-bit or 64-bit depending on format)
+//! - **Creation number**: Node creation number (2 bits in old format, 32 bits in new formats)
+//!
+//! ## Supported Formats
+//!
+//! - **ERL_PORT_EXT**: Old format with 2-bit creation number
+//! - **ERL_NEW_PORT_EXT**: New format with 32-bit ID and 32-bit creation
+//! - **ERL_V4_PORT_EXT**: V4 format with 64-bit ID and 32-bit creation
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::decode_port;
+//!
+//! // Decode a port from EI-encoded buffer
+//! let mut index = 0;
+//! let port = decode_port(&buf, &mut index)?;
+//! println!("Port: {} on node {}", port.id, port.node);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_port`](super::encode_port/index.html): Port encoding functions
+//! - [`decode_pid`](super::decode_pid/index.html): PID decoding (similar structure)
+//!
+//! Based on `lib/erl_interface/src/decode/decode_port.c`
 
 use crate::constants::{ERL_V4_PORT_EXT, ERL_NEW_PORT_EXT, ERL_PORT_EXT};
 use infrastructure_data_handling::decode_atom::decode_atom;

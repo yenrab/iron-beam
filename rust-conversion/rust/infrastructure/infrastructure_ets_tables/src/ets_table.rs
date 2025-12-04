@@ -1,6 +1,34 @@
 //! ETS Table Module
 //!
-//! Provides ETS table operations.
+//! Provides ETS (Erlang Term Storage) table operations for the Erlang/OTP runtime system.
+//! ETS tables provide in-memory key-value storage for Erlang terms, enabling efficient
+//! data structures for various runtime operations.
+//!
+//! ## Overview
+//!
+//! ETS tables are hash-based data structures that store Erlang terms as key-value pairs.
+//! They support multiple table types:
+//! - **set**: Unique keys, one value per key
+//! - **ordered_set**: Unique keys, ordered by key
+//! - **bag**: Multiple values per key, no duplicates
+//! - **duplicate_bag**: Multiple values per key, duplicates allowed
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_ets_tables::EtsTable;
+//!
+//! let mut table = EtsTable::new();
+//! table.insert(key, value);
+//! let result = table.lookup(key);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`adapters_ets_tables`](../../adapters/adapters_ets_tables/index.html): ETS table debugging adapters
+//! - [`entities_data_handling`](../../entities/entities_data_handling/index.html): Term types for ETS
+//!
+//! Based on `cgi_echo.c` and related ETS files
 
 use std::collections::HashMap;
 

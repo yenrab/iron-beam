@@ -1,10 +1,102 @@
 //! Term Hashing Module
 //!
-//! Provides hash functions for Erlang terms:
-//! - `make_hash`: Portable hash function (bug-compatible across versions)
-//! - `make_hash2`: Faster hash function with better distribution
-//! - `erts_internal_hash`: Internal hash for VM use
-//! - `erts_map_hash`: Hash function specifically for maps
+//! Provides comprehensive hash functions for Erlang terms, enabling efficient
+//! hashing of all Erlang data types. This module implements multiple hash algorithms
+//! optimized for different use cases, from portable cross-version compatibility to
+//! high-performance internal VM operations.
+//!
+//! ## Overview
+//!
+//! Hash functions are fundamental to many operations in the Erlang runtime, including:
+//!
+//! - **Map Key Hashing**: Efficient key lookup in maps
+//! - **Term Comparison**: Fast equality checking
+//! - **Data Structure Indexing**: Hash-based data structures
+//! - **Distribution**: Consistent hashing across distributed nodes
+//!
+//! This module provides four main hash functions, each optimized for specific use cases:
+//!
+//! ## Hash Functions
+//!
+//! ### `make_hash` - Portable Hash Function
+//!
+//! A portable hash function that is bug-compatible across Erlang versions. This ensures
+//! that hash values remain consistent across different Erlang/OTP releases, making it
+//! suitable for persistent data structures and cross-version compatibility.
+//!
+//! **Characteristics:**
+//! - Portable across Erlang versions
+//! - Linear hash function with prime multipliers
+//! - Byte-wise hashing for numbers and binaries
+//! - Stack-based recursive structure handling
+//!
+//! ### `make_hash2` - High-Performance Hash Function
+//!
+//! A faster hash function with better distribution properties, using Bob Jenkins' MIX
+//! algorithm. Optimized for performance-critical operations where portability is not required.
+//!
+//! **Characteristics:**
+//! - High performance with excellent distribution
+//! - Uses Bob Jenkins' hash function (MIX algorithm)
+//! - Optimized for bignums and binaries
+//! - Not portable across versions
+//!
+//! ### `erts_internal_hash` - Internal VM Hash
+//!
+//! An internal hash function for VM use only. This hash is NOT portable between VM instances
+//! and is only valid as long as the term exists in the VM. Uses MurmurHash3-based algorithm
+//! for fast, high-quality hashing.
+//!
+//! **Characteristics:**
+//! - Fast, high-quality hashing
+//! - MurmurHash3-based algorithm
+//! - VM instance-specific (not portable)
+//! - Optimized for immediate values
+//!
+//! ### `erts_map_hash` - Map Key Hash
+//!
+//! A hash function specifically optimized for map keys. Identical to `erts_internal_hash`
+//! except in debug configurations where it applies collision testing.
+//!
+//! **Characteristics:**
+//! - Optimized for map key hashing
+//! - Debug mode collision testing support
+//! - Same algorithm as `erts_internal_hash` in release mode
+//!
+//! ## Term Type
+//!
+//! The module also provides the `Term` enum, which represents all Erlang term types:
+//!
+//! - **Immediate Values**: `Nil`, `Small` (integers), `Atom`, `Float`
+//! - **Boxed Values**: `Big` (bignums), `Rational` (rational numbers)
+//! - **Compound Types**: `Binary`, `List`, `Tuple`, `Map`
+//! - **Process Types**: `Pid`, `Port`, `Ref`, `Fun`
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use entities_data_handling::term_hashing::{Term, make_hash, make_hash2, erts_internal_hash, erts_map_hash};
+//!
+//! // Hash a simple integer
+//! let term = Term::Small(42);
+//! let hash1 = make_hash(term.clone());
+//! let hash2 = make_hash2(term.clone());
+//! let hash3 = erts_internal_hash(term.clone());
+//!
+//! // Hash a tuple
+//! let tuple = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
+//! let tuple_hash = make_hash(tuple);
+//!
+//! // Hash a map key
+//! let key = Term::Atom(123);
+//! let key_hash = erts_map_hash(key);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`atom`](super::atom/index.html): Atom table management used by hash functions
+//! - [`map`](super::map/index.html): Map data structure that uses hash functions
+//! - [`bits`](super::bits/index.html): Bit operations used for binary hashing
 
 /*
  * %CopyrightBegin%
@@ -32,7 +124,15 @@
 
 use entities_utilities::{BigNumber, BigRational};
 
-/// Hash value type (32-bit or 64-bit depending on platform)
+/// Hash value type (64-bit on all platforms)
+///
+/// This type alias represents hash values returned by internal hash functions.
+/// While the type is always `u64`, the actual hash algorithm may produce
+/// different bit widths depending on the platform and hash function used.
+///
+/// For portable hash functions like `make_hash`, the return type is `u32` to
+/// ensure cross-platform compatibility. Internal hash functions return `HashValue`
+/// for maximum flexibility.
 pub type HashValue = u64;
 
 /// Hash a 32-bit unsigned integer byte-wise (endianness-independent)
@@ -227,6 +327,66 @@ enum StackEntry {
     MapSavedXor(u32), // Saved hash_xor_pairs value for map processing (for make_hash2)
 }
 
+/// Portable hash function for Erlang terms (bug-compatible across versions)
+///
+/// This function provides a portable hash that is bug-compatible across different
+/// Erlang/OTP versions. This ensures that hash values remain consistent across
+/// releases, making it suitable for persistent data structures and cross-version
+/// compatibility.
+///
+/// ## Algorithm
+///
+/// Uses a linear hash function with prime multipliers (just above 2^28) to ensure
+/// good distribution. The algorithm processes terms recursively using a stack-based
+/// approach to handle nested structures like lists, tuples, and maps.
+///
+/// ## Characteristics
+///
+/// - **Portable**: Hash values are consistent across Erlang versions
+/// - **Byte-wise**: Numbers and binaries are hashed byte-by-byte for endianness independence
+/// - **Recursive**: Handles nested structures (lists, tuples, maps) correctly
+/// - **Deterministic**: Same term always produces the same hash
+///
+/// ## Use Cases
+///
+/// - Persistent data structures that need to survive VM restarts
+/// - Cross-version compatibility requirements
+/// - Distribution and serialization
+/// - When portability is more important than performance
+///
+/// ## Arguments
+///
+/// * `term` - The Erlang term to hash
+///
+/// ## Returns
+///
+/// A 32-bit hash value
+///
+/// ## Examples
+///
+/// ```rust
+/// use entities_data_handling::term_hashing::{Term, make_hash};
+///
+/// // Hash a simple integer
+/// let term = Term::Small(42);
+/// let hash = make_hash(term);
+///
+/// // Hash a tuple
+/// let tuple = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
+/// let tuple_hash = make_hash(tuple);
+///
+/// // Hash a list
+/// let list = Term::List {
+///     head: Box::new(Term::Small(1)),
+///     tail: Box::new(Term::Nil),
+/// };
+/// let list_hash = make_hash(list);
+/// ```
+///
+/// ## See Also
+///
+/// - [`make_hash2`](crate::term_hashing::make_hash2): Faster hash function with better distribution
+/// - [`erts_internal_hash`](crate::term_hashing::erts_internal_hash): Internal VM hash (not portable)
 pub fn make_hash(term: Term) -> u32 {
     // Use a stack-based approach for recursive structures (matches C implementation)
     let mut stack: Vec<StackEntry> = Vec::new();
@@ -647,18 +807,62 @@ pub fn make_hash(term: Term) -> u32 {
 
 /// Faster hash function with better distribution than make_hash.
 ///
-/// This is optimized for performance, particularly for bignums and binaries.
-/// Uses Bob Jenkins' hash function (MIX algorithm) for better distribution.
+/// High-performance hash function for Erlang terms
 ///
-/// This implementation is simplified for the entities layer. The full C implementation
-/// uses block hashing for binaries and more sophisticated algorithms, but this provides
-/// the core functionality needed for map hashing.
+/// This function provides a faster hash with better distribution properties compared
+/// to `make_hash`. It uses Bob Jenkins' hash function (MIX algorithm) for superior
+/// hash quality and performance, particularly for bignums and binaries.
 ///
-/// # Arguments
+/// ## Algorithm
+///
+/// Uses Bob Jenkins' MIX algorithm, which provides excellent distribution properties
+/// and is optimized for performance. The algorithm processes terms recursively using
+/// a stack-based approach, with special handling for maps to ensure order-independent
+/// hashing of key-value pairs.
+///
+/// ## Characteristics
+///
+/// - **High Performance**: Faster than `make_hash` for most use cases
+/// - **Better Distribution**: Superior hash distribution properties
+/// - **Optimized**: Particularly fast for bignums and binaries
+/// - **Not Portable**: Hash values may differ across Erlang versions
+///
+/// ## Use Cases
+///
+/// - Performance-critical hash operations
+/// - Internal data structures where portability isn't required
+/// - When hash quality and speed are priorities
+/// - Map hashing (though `erts_map_hash` is preferred for maps)
+///
+/// ## Arguments
+///
 /// * `term` - The Erlang term to hash
 ///
-/// # Returns
+/// ## Returns
+///
 /// A 32-bit hash value
+///
+/// ## Examples
+///
+/// ```rust
+/// use entities_data_handling::term_hashing::{Term, make_hash2};
+///
+/// // Hash a simple integer
+/// let term = Term::Small(42);
+/// let hash = make_hash2(term);
+///
+/// // Hash a map (order-independent)
+/// let map = Term::Map(vec![
+///     (Term::Small(1), Term::Small(10)),
+///     (Term::Small(2), Term::Small(20)),
+/// ]);
+/// let map_hash = make_hash2(map);
+/// ```
+///
+/// ## See Also
+///
+/// - [`make_hash`](crate::term_hashing::make_hash): Portable hash function
+/// - [`erts_internal_hash`](crate::term_hashing::erts_internal_hash): Internal VM hash
 pub fn make_hash2(term: Term) -> u32 {
     // Bob Jenkins' hash constants
     const HCONST: u32 = 0x9e3779b9; // the golden ratio
@@ -1701,18 +1905,58 @@ fn make_internal_hash_impl(term: Term, salt: HashValue) -> HashValue {
     }
 }
 
-/// Internal hash function for VM use.
+/// Internal hash function for VM use
 ///
-/// This hash is NOT portable between VM instances and is only valid
-/// as long as the term exists in the VM.
+/// This hash function is designed for internal VM operations only. It is **NOT portable**
+/// between VM instances and is only valid as long as the term exists in the VM. This
+/// allows for optimizations that would break portability.
 ///
-/// Uses MurmurHash3-based algorithm for fast, high-quality hashing.
+/// ## Algorithm
 ///
-/// # Arguments
+/// Uses a MurmurHash3-based algorithm for fast, high-quality hashing. The implementation
+/// includes fast paths for immediate values (small integers, atoms, PIDs, ports) to
+/// maximize performance for common cases.
+///
+/// ## Characteristics
+///
+/// - **Fast**: Optimized for performance with fast paths for immediate values
+/// - **High Quality**: MurmurHash3-based algorithm provides excellent distribution
+/// - **Not Portable**: Hash values are VM instance-specific
+/// - **Platform Dependent**: Hash value size may vary by platform
+///
+/// ## Use Cases
+///
+/// - Internal VM data structures (hashmaps, hash sets, etc.)
+/// - Performance-critical operations where portability isn't needed
+/// - Temporary data structures that don't persist across VM restarts
+///
+/// ## Arguments
+///
 /// * `term` - The Erlang term to hash
 ///
-/// # Returns
-/// A hash value (platform-dependent size)
+/// ## Returns
+///
+/// A hash value (platform-dependent size, typically 64-bit)
+///
+/// ## Examples
+///
+/// ```rust
+/// use entities_data_handling::term_hashing::{Term, erts_internal_hash};
+///
+/// // Hash an immediate value (fast path)
+/// let term = Term::Small(42);
+/// let hash = erts_internal_hash(term);
+///
+/// // Hash a complex structure
+/// let tuple = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
+/// let tuple_hash = erts_internal_hash(tuple);
+/// ```
+///
+/// ## See Also
+///
+/// - [`erts_internal_salted_hash`](crate::term_hashing::erts_internal_salted_hash): Internal hash with salt
+/// - [`erts_map_hash`](crate::term_hashing::erts_map_hash): Hash function optimized for map keys
+/// - [`make_hash`](crate::term_hashing::make_hash): Portable hash function
 pub fn erts_internal_hash(term: Term) -> HashValue {
     // Fast path for immediate values (matches C's fast path)
     if is_immediate(&term) {
@@ -1730,14 +1974,55 @@ pub fn erts_internal_hash(term: Term) -> HashValue {
     make_internal_hash_impl(term, 0)
 }
 
-/// Internal hash with salt value.
+/// Internal hash function with salt value
 ///
-/// # Arguments
+/// Similar to `erts_internal_hash`, but includes a salt value that is mixed into
+/// the hash computation. This allows for hash diversification when needed, such
+/// as for hash table resizing or collision mitigation.
+///
+/// ## Algorithm
+///
+/// Uses the same MurmurHash3-based algorithm as `erts_internal_hash`, but incorporates
+/// the salt value into the hash computation. For immediate values, the salt is added
+/// before hashing. For complex structures, the salt is mixed throughout the hash
+/// computation.
+///
+/// ## Characteristics
+///
+/// - **Salted**: Salt value is mixed into the hash computation
+/// - **Fast**: Same performance characteristics as `erts_internal_hash`
+/// - **Not Portable**: Hash values are VM instance-specific
+///
+/// ## Use Cases
+///
+/// - Hash table resizing operations
+/// - Collision mitigation strategies
+/// - When hash diversification is needed
+/// - Internal VM operations requiring salted hashes
+///
+/// ## Arguments
+///
 /// * `term` - The Erlang term to hash
-/// * `salt` - Salt value to mix into hash
+/// * `salt` - Salt value to mix into the hash computation
 ///
-/// # Returns
-/// A hash value (platform-dependent size)
+/// ## Returns
+///
+/// A hash value (platform-dependent size, typically 64-bit)
+///
+/// ## Examples
+///
+/// ```rust
+/// use entities_data_handling::term_hashing::{Term, erts_internal_salted_hash};
+///
+/// let term = Term::Small(42);
+/// let salt = 12345;
+/// let hash = erts_internal_salted_hash(term, salt);
+/// ```
+///
+/// ## See Also
+///
+/// - [`erts_internal_hash`](crate::term_hashing::erts_internal_hash): Internal hash without salt
+/// - [`erts_map_hash`](crate::term_hashing::erts_map_hash): Hash function optimized for map keys
 pub fn erts_internal_salted_hash(term: Term, salt: HashValue) -> HashValue {
     // Fast path for immediate values
     if is_immediate(&term) {
@@ -1799,15 +2084,59 @@ fn erts_dbg_hashmap_collision_bonanza(hash: HashValue, _key: Term) -> HashValue 
     bad_hash
 }
 
-/// Hash function specifically for maps.
+/// Hash function specifically optimized for map keys
 ///
-/// Identical to erts_internal_hash except in debug configurations.
+/// This function is designed for hashing map keys in the Erlang runtime. It is
+/// identical to `erts_internal_hash` in release builds, but in debug configurations
+/// it applies collision testing to verify hashmap collision handling.
 ///
-/// # Arguments
-/// * `key` - The map key to hash
+/// ## Algorithm
 ///
-/// # Returns
-/// A hash value (platform-dependent size)
+/// In release mode, this function is identical to `erts_internal_hash`, using the
+/// same MurmurHash3-based algorithm with fast paths for immediate values.
+///
+/// In debug mode, the hash is weakened using `erts_dbg_hashmap_collision_bonanza`
+/// to artificially increase collision rates (1/256) for testing purposes.
+///
+/// ## Characteristics
+///
+/// - **Optimized for Maps**: Specifically designed for map key hashing
+/// - **Debug Testing**: Applies collision testing in debug builds
+/// - **Fast**: Same performance as `erts_internal_hash` in release mode
+/// - **Not Portable**: Hash values are VM instance-specific
+///
+/// ## Use Cases
+///
+/// - Hashing map keys for efficient lookup
+/// - Internal map data structures
+/// - When map-specific hash optimizations are needed
+///
+/// ## Arguments
+///
+/// * `key` - The map key (Erlang term) to hash
+///
+/// ## Returns
+///
+/// A hash value (platform-dependent size, typically 64-bit)
+///
+/// ## Examples
+///
+/// ```rust
+/// use entities_data_handling::term_hashing::{Term, erts_map_hash};
+///
+/// // Hash a map key
+/// let key = Term::Atom(123);
+/// let key_hash = erts_map_hash(key);
+///
+/// // Hash a complex key
+/// let complex_key = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
+/// let complex_hash = erts_map_hash(complex_key);
+/// ```
+///
+/// ## See Also
+///
+/// - [`erts_internal_hash`](crate::term_hashing::erts_internal_hash): Base internal hash function
+/// - [`map`](super::map/index.html): Map data structure that uses this hash function
 pub fn erts_map_hash(key: Term) -> HashValue {
     let hash = erts_internal_hash(key.clone());
     
@@ -1827,8 +2156,65 @@ pub fn erts_map_hash(key: Term) -> HashValue {
 
 /// Erlang term representation
 ///
-/// This is a simplified representation for the entities layer.
-/// In higher layers, this will be replaced with the full Eterm type.
+/// This enum represents all possible Erlang term types. It is a simplified
+/// representation for the entities layer; in higher layers, this will be
+/// replaced with the full `Eterm` type that includes additional metadata
+/// and optimizations.
+///
+/// ## Term Categories
+///
+/// Terms are categorized into several groups:
+///
+/// ### Immediate Values
+/// These are small values that can be stored directly in the term without
+/// additional memory allocation:
+/// - `Nil`: Empty list
+/// - `Small`: Small integers (fits in machine word)
+/// - `Atom`: Atom index
+/// - `Float`: Floating-point numbers
+///
+/// ### Boxed Values
+/// These require additional memory allocation:
+/// - `Big`: Arbitrary precision integers
+/// - `Rational`: Arbitrary precision rational numbers
+///
+/// ### Compound Types
+/// These are composed of other terms:
+/// - `Binary`: Bitstrings and binaries
+/// - `List`: Cons cells (head-tail pairs)
+/// - `Tuple`: Fixed-size arrays of terms
+/// - `Map`: Key-value pairs
+///
+/// ### Process Types
+/// These represent process-related entities:
+/// - `Pid`: Process identifier
+/// - `Port`: Port identifier
+/// - `Ref`: Reference identifier
+/// - `Fun`: Function (local or external)
+///
+/// ## Examples
+///
+/// ```rust
+/// use entities_data_handling::term_hashing::Term;
+///
+/// // Immediate values
+/// let nil = Term::Nil;
+/// let small = Term::Small(42);
+/// let atom = Term::Atom(123);
+/// let float = Term::Float(3.14);
+///
+/// // Compound types
+/// let tuple = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
+/// let list = Term::List {
+///     head: Box::new(Term::Small(1)),
+///     tail: Box::new(Term::Nil),
+/// };
+/// ```
+///
+/// ## See Also
+///
+/// - [`make_hash`](crate::term_hashing::make_hash): Hash functions that work with terms
+/// - [`map`](super::map/index.html): Map data structure using terms as keys/values
 #[derive(Clone, Debug, PartialEq)]
 pub enum Term {
     /// Nil (empty list)
@@ -1891,8 +2277,35 @@ pub enum Term {
 
 // BigNumber is now imported from entities_utilities
 
-/// Term hash trait (placeholder for future use)
+/// Trait for types that can compute their own hash value
+///
+/// This trait provides a method for types to compute their hash value directly.
+/// Currently, this is a placeholder for future use when more sophisticated hash
+/// computation strategies are needed.
+///
+/// ## Future Use
+///
+/// This trait may be used in the future to allow types to provide optimized
+/// hash computation methods, potentially avoiding the need to clone terms
+/// for hashing operations.
+///
+/// ## Examples
+///
+/// ```rust
+/// use entities_data_handling::term_hashing::TermHash;
+///
+/// // Future implementation might look like:
+/// // impl TermHash for Term {
+/// //     fn hash(&self) -> HashValue {
+/// //         // Optimized hash computation
+/// //     }
+/// // }
+/// ```
 pub trait TermHash {
+    /// Compute the hash value for this term
+    ///
+    /// # Returns
+    /// A hash value for the term
     fn hash(&self) -> HashValue;
 }
 

@@ -1,9 +1,60 @@
 //! Atom Table Management Module
 //!
-//! Provides atom table operations:
-//! - Atom creation and lookup
-//! - Atom table management
-//! - Encoding support (7-bit ASCII, Latin1, UTF-8)
+//! Provides comprehensive atom table operations for the Erlang/OTP runtime system.
+//! Atoms are interned strings that are stored in a global table, allowing efficient
+//! comparison and storage. This module provides thread-safe atom table management
+//! with support for multiple encoding formats.
+//!
+//! ## Overview
+//!
+//! The atom table is a fundamental data structure in Erlang that stores all atom
+//! names in the system. Atoms are unique identifiers that can be efficiently
+//! compared by index rather than by string comparison. This module provides:
+//!
+//! - **Atom Creation and Lookup**: Create new atoms or look up existing ones by name
+//! - **Thread-Safe Operations**: All operations use `RwLock` for concurrent access
+//! - **Multiple Encoding Support**: Handles 7-bit ASCII, Latin1, and UTF-8 encodings
+//! - **Validation**: Validates atom names according to encoding rules and length limits
+//! - **Encoding Conversion**: Automatically converts Latin1 to UTF-8 for internal storage
+//!
+//! ## Encoding Support
+//!
+//! The module supports three encoding formats:
+//!
+//! - **7-bit ASCII**: Only characters in the range 0x00-0x7F are allowed
+//! - **Latin1**: ISO-8859-1 encoding, automatically converted to UTF-8 for storage
+//! - **UTF-8**: Full Unicode support with validation of UTF-8 sequences
+//!
+//! ## Limits
+//!
+//! - Maximum characters per atom: 255 (`MAX_ATOM_CHARACTERS`)
+//! - Maximum bytes per atom: 1024 (`MAX_ATOM_SZ_LIMIT`)
+//! - Maximum atoms in table: Configurable via `AtomTable::new(limit)`
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use entities_data_handling::{AtomTable, AtomEncoding};
+//!
+//! // Create an atom table
+//! let table = AtomTable::new(1000);
+//!
+//! // Create an atom with 7-bit ASCII encoding
+//! let index = table.put_index(b"my_atom", AtomEncoding::SevenBitAscii, false).unwrap();
+//!
+//! // Look up the atom
+//! let found_index = table.get(b"my_atom", AtomEncoding::SevenBitAscii);
+//! assert_eq!(found_index, Some(index));
+//!
+//! // Get the atom name back
+//! let name = table.get_name(index);
+//! assert_eq!(name, Some(b"my_atom".to_vec()));
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`term_hashing`](super::term_hashing/index.html): Hash functions that work with atom indices
+//! - [`map`](super::map/index.html): Map operations that use atoms as keys
 
 /*
  * %CopyrightBegin%
@@ -33,13 +84,50 @@ use std::sync::RwLock;
 use std::collections::HashMap;
 
 /// Atom encoding types
+///
+/// Specifies the character encoding format for atom names. The encoding affects
+/// how atom names are validated and stored internally. All atom names are
+/// ultimately stored as UTF-8 in the atom table, but the encoding parameter
+/// determines the validation rules and conversion process.
+///
+/// # Variants
+///
+/// - **SevenBitAscii**: Only characters in the range 0x00-0x7F are allowed.
+///   This is the most restrictive encoding and ensures compatibility with
+///   older systems that only support ASCII.
+///
+/// - **Latin1**: ISO-8859-1 encoding. Characters in the range 0x00-0xFF are
+///   allowed. Characters 0x80-0xFF are automatically converted to UTF-8
+///   (2-byte sequences) for internal storage.
+///
+/// - **Utf8**: Full Unicode support. Valid UTF-8 sequences are accepted,
+///   including multi-byte characters. The encoding is validated to ensure
+///   it's well-formed UTF-8, rejecting overlong encodings, surrogate pairs,
+///   and invalid sequences.
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::{AtomTable, AtomEncoding};
+///
+/// let table = AtomTable::new(1000);
+///
+/// // 7-bit ASCII: only basic characters
+/// let _ = table.put_index(b"hello", AtomEncoding::SevenBitAscii, false);
+///
+/// // Latin1: extended characters allowed
+/// let _ = table.put_index(&[0xC4, 0xE5], AtomEncoding::Latin1, false);
+///
+/// // UTF-8: full Unicode support
+/// let _ = table.put_index("世界".as_bytes(), AtomEncoding::Utf8, false);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtomEncoding {
-    /// 7-bit ASCII encoding
+    /// 7-bit ASCII encoding (characters 0x00-0x7F only)
     SevenBitAscii,
-    /// Latin1 encoding
+    /// Latin1 encoding (ISO-8859-1, automatically converted to UTF-8)
     Latin1,
-    /// UTF-8 encoding
+    /// UTF-8 encoding (full Unicode support with validation)
     Utf8,
 }
 
@@ -85,13 +173,47 @@ impl AtomTable {
 
     /// Get or create an atom by name
     ///
+    /// This function provides the primary interface for atom management. If an atom
+    /// with the given name already exists, it returns the existing index. Otherwise,
+    /// it creates a new atom entry and returns its index.
+    ///
+    /// The function validates the atom name according to the specified encoding and
+    /// enforces length limits. If truncation is enabled and the name exceeds limits,
+    /// it will be truncated to fit. Otherwise, an error is returned.
+    ///
     /// # Arguments
-    /// * `name` - Atom name bytes
-    /// * `encoding` - Encoding type
-    /// * `truncate` - Whether to truncate if too long
+    /// * `name` - Atom name bytes (raw byte slice)
+    /// * `encoding` - Encoding type (SevenBitAscii, Latin1, or Utf8)
+    /// * `truncate` - Whether to truncate the name if it exceeds length limits
     ///
     /// # Returns
-    /// Index of the atom, or error code if failed
+    /// * `Ok(usize)` - The atom index if successful
+    /// * `Err(AtomError::TooLong)` - If the name is too long and truncation is disabled
+    /// * `Err(AtomError::InvalidEncoding)` - If the encoding is invalid for the given bytes
+    /// * `Err(AtomError::TableFull)` - If the atom table has reached its capacity limit
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use entities_data_handling::{AtomTable, AtomEncoding};
+    ///
+    /// let table = AtomTable::new(1000);
+    ///
+    /// // Create a new atom
+    /// let index1 = table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
+    ///
+    /// // Get the same atom (returns existing index)
+    /// let index2 = table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
+    /// assert_eq!(index1, index2);
+    ///
+    /// // Create an atom with UTF-8 encoding
+    /// let utf8_atom = table.put_index("世界".as_bytes(), AtomEncoding::Utf8, false).unwrap();
+    /// ```
+    ///
+    /// # See Also
+    ///
+    /// - [`get`](Self::get): Look up an existing atom without creating it
+    /// - [`get_name`](Self::get_name): Get the name of an atom by its index
     pub fn put_index(
         &self,
         name: &[u8],
@@ -129,14 +251,40 @@ impl AtomTable {
         Ok(index)
     }
 
-    /// Get atom by name
+    /// Get atom by name without creating it
+    ///
+    /// Looks up an existing atom in the table by its name. Unlike `put_index`,
+    /// this function does not create a new atom if one doesn't exist.
     ///
     /// # Arguments
-    /// * `name` - Atom name bytes
-    /// * `encoding` - Encoding type
+    /// * `name` - Atom name bytes to look up
+    /// * `encoding` - Encoding type used to validate and normalize the name
     ///
     /// # Returns
-    /// Some(index) if found, None otherwise
+    /// * `Some(usize)` - The atom index if found
+    /// * `None` - If the atom doesn't exist or the encoding is invalid
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use entities_data_handling::{AtomTable, AtomEncoding};
+    ///
+    /// let table = AtomTable::new(1000);
+    ///
+    /// // Atom doesn't exist yet
+    /// assert_eq!(table.get(b"nonexistent", AtomEncoding::SevenBitAscii), None);
+    ///
+    /// // Create the atom
+    /// let index = table.put_index(b"my_atom", AtomEncoding::SevenBitAscii, false).unwrap();
+    ///
+    /// // Now we can look it up
+    /// assert_eq!(table.get(b"my_atom", AtomEncoding::SevenBitAscii), Some(index));
+    /// ```
+    ///
+    /// # See Also
+    ///
+    /// - [`put_index`](Self::put_index): Get or create an atom
+    /// - [`get_name`](Self::get_name): Reverse lookup by index
     pub fn get(&self, name: &[u8], encoding: AtomEncoding) -> Option<usize> {
         let validated_name = self.validate_atom_name(name, encoding, false).ok()?.0;
         let atoms = self.atoms.read().unwrap();
@@ -145,17 +293,71 @@ impl AtomTable {
 
     /// Get atom name by index
     ///
+    /// Performs a reverse lookup to retrieve the atom name given its index.
+    /// This is useful when you have an atom index (e.g., from a `Term::Atom`)
+    /// and need to get the actual string representation.
+    ///
     /// # Arguments
-    /// * `index` - Atom index
+    /// * `index` - The atom index to look up
     ///
     /// # Returns
-    /// Some(name bytes) if found, None otherwise
+    /// * `Some(Vec<u8>)` - The atom name bytes if the index is valid
+    /// * `None` - If the index is out of bounds or the atom doesn't exist
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use entities_data_handling::{AtomTable, AtomEncoding};
+    ///
+    /// let table = AtomTable::new(1000);
+    ///
+    /// // Create an atom and get its index
+    /// let index = table.put_index(b"my_atom", AtomEncoding::SevenBitAscii, false).unwrap();
+    ///
+    /// // Retrieve the name by index
+    /// let name = table.get_name(index);
+    /// assert_eq!(name, Some(b"my_atom".to_vec()));
+    ///
+    /// // Invalid index returns None
+    /// assert_eq!(table.get_name(9999), None);
+    /// ```
+    ///
+    /// # See Also
+    ///
+    /// - [`get`](Self::get): Look up an atom by name
+    /// - [`put_index`](Self::put_index): Create an atom and get its index
     pub fn get_name(&self, index: usize) -> Option<Vec<u8>> {
         let index_to_name = self.index_to_name.read().unwrap();
         index_to_name.get(index)?.clone()
     }
 
-    /// Get number of atoms in table
+    /// Get the number of atoms in the table
+    ///
+    /// Returns the current count of atoms stored in the table. This count
+    /// increases as new atoms are added via `put_index` and never decreases
+    /// (atoms are never removed from the table).
+    ///
+    /// # Returns
+    /// The number of atoms currently in the table
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use entities_data_handling::{AtomTable, AtomEncoding};
+    ///
+    /// let table = AtomTable::new(1000);
+    /// assert_eq!(table.size(), 0);
+    ///
+    /// let _ = table.put_index(b"atom1", AtomEncoding::SevenBitAscii, false);
+    /// assert_eq!(table.size(), 1);
+    ///
+    /// let _ = table.put_index(b"atom2", AtomEncoding::SevenBitAscii, false);
+    /// assert_eq!(table.size(), 2);
+    ///
+    /// // Duplicate atom doesn't increase count
+    /// let _ = table.put_index(b"atom1", AtomEncoding::SevenBitAscii, false);
+    /// assert_eq!(table.size(), 2);
+    /// ```
     pub fn size(&self) -> usize {
         *self.entries.read().unwrap()
     }
@@ -199,13 +401,52 @@ impl AtomTable {
 }
 
 /// Atom operation errors
+///
+/// Represents errors that can occur during atom table operations.
+///
+/// # Variants
+///
+/// - **TooLong**: The atom name exceeds the maximum length limits. For character
+///   count, the limit is `MAX_ATOM_CHARACTERS` (255). For byte count, the limit
+///   is `MAX_ATOM_SZ_LIMIT` (1024 bytes). This error occurs when truncation is
+///   disabled and the name is too long.
+///
+/// - **InvalidEncoding**: The provided bytes do not match the specified encoding
+///   format. For example, a byte with the high bit set (0x80-0xFF) would be invalid
+///   for `AtomEncoding::SevenBitAscii`, or an invalid UTF-8 sequence would be
+///   rejected for `AtomEncoding::Utf8`.
+///
+/// - **TableFull**: The atom table has reached its maximum capacity. The capacity
+///   is set when creating the table with `AtomTable::new(limit)`. Once the limit
+///   is reached, no new atoms can be created.
+///
+/// # Examples
+///
+/// ```rust
+/// use entities_data_handling::{AtomTable, AtomEncoding};
+/// use entities_data_handling::atom::AtomError;
+///
+/// let table = AtomTable::new(2); // Small limit for testing
+///
+/// // Fill the table
+/// let _ = table.put_index(b"atom1", AtomEncoding::SevenBitAscii, false);
+/// let _ = table.put_index(b"atom2", AtomEncoding::SevenBitAscii, false);
+///
+/// // Try to add one more - should fail
+/// let result = table.put_index(b"atom3", AtomEncoding::SevenBitAscii, false);
+/// assert_eq!(result, Err(AtomError::TableFull));
+///
+/// // Invalid encoding
+/// let result = table.put_index(&[0x80], AtomEncoding::SevenBitAscii, false);
+/// assert_eq!(result, Err(AtomError::InvalidEncoding));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtomError {
-    /// Atom name too long
+    /// Atom name exceeds maximum length limits
     TooLong,
-    /// Invalid encoding
+    /// Invalid encoding for the specified format
     InvalidEncoding,
-    /// Atom table full
+    /// Atom table has reached its capacity limit
     TableFull,
 }
 

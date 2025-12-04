@@ -1,10 +1,45 @@
 //! Trace Codec Module
 //!
-//! Provides trace encoding/decoding functionality.
-//! Based on encode_trace.c and decode_trace.c
+//! Provides a high-level codec interface for Erlang trace structures in the Erlang/OTP
+//! runtime system. This module wraps the lower-level encoding/decoding functions from
+//! `infrastructure_code_loading` to provide a convenient interface for working with traces.
 //!
-//! This module provides a high-level codec interface for Erlang trace structures.
-//! It wraps the lower-level encoding/decoding functions from infrastructure_code_loading.
+//! ## Overview
+//!
+//! Traces represent execution trace information used for debugging and monitoring.
+//! This module provides a simplified interface that handles buffer management and
+//! error conversion, making it easier to encode and decode traces.
+//!
+//! ## Encoding Format
+//!
+//! Traces are encoded as tuples with 5 elements:
+//! - **Flags**: Trace flags indicating the type of trace event
+//! - **Label**: Trace label for categorization
+//! - **Serial**: Serial number for ordering trace events
+//! - **From PID**: Process ID that generated the trace
+//! - **Previous**: Reference to previous trace in the chain
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_trace_encoding::{TraceCodec, ErlangTrace};
+//! use infrastructure_code_loading::encode_pid::ErlangPid;
+//!
+//! // Encode a trace
+//! let trace = ErlangTrace { /* ... */ };
+//! let encoded = TraceCodec::encode(&trace).unwrap();
+//!
+//! // Decode a trace
+//! let decoded = TraceCodec::decode(&encoded).unwrap();
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`infrastructure_code_loading::encode_trace`](../../infrastructure/infrastructure_code_loading/encode_trace/index.html): Low-level trace encoding
+//! - [`infrastructure_code_loading::decode_trace`](../../infrastructure/infrastructure_code_loading/decode_trace/index.html): Low-level trace decoding
+//! - [`adapters_debugging`](../../adapters/adapters_debugging/index.html): Debugging adapters that use traces
+//!
+//! Based on `encode_trace.c` and `decode_trace.c`
 
 use infrastructure_code_loading::{encode_trace, decode_trace, ErlangTrace, TraceEncodeError, TraceDecodeError};
 

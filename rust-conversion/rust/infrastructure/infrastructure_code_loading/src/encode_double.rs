@@ -1,7 +1,43 @@
 //! Double Encoding Module
 //!
-//! Provides functionality to encode floating-point numbers to EI format.
-//! Based on lib/erl_interface/src/encode/encode_double.c
+//! Provides functionality to encode double-precision floating-point numbers to
+//! EI (Erlang Interface) format. Uses IEEE 754 binary64 format for maximum
+//! precision and compatibility.
+//!
+//! ## Overview
+//!
+//! Floating-point numbers in EI format use the `NEW_FLOAT_EXT` tag followed by
+//! an 8-byte IEEE 754 double-precision value in big-endian format. The old
+//! `ERL_FLOAT_EXT` format (31-byte string representation) is not supported.
+//!
+//! ## Limitations
+//!
+//! Erlang does not support NaN or Infinity values. Attempting to encode these
+//! will return an `EncodeError::InvalidValue`.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_double;
+//!
+//! let mut buf = vec![0u8; 10];
+//! let mut index = 0;
+//!
+//! // Encode a floating-point number
+//! encode_double(&mut Some(&mut buf), &mut index, 3.14159)?;
+//!
+//! // Calculate size without encoding
+//! let mut size_index = 0;
+//! encode_double(&mut None, &mut size_index, 2.71828)?;
+//! assert_eq!(size_index, 9); // 1 byte tag + 8 bytes value
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_double`](super::decode_double/index.html): Double decoding functions
+//! - [`encode_integers`](super::encode_integers/index.html): Integer encoding functions
+//!
+//! Based on `lib/erl_interface/src/encode/encode_double.c`
 
 use crate::constants::NEW_FLOAT_EXT;
 

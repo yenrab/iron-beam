@@ -1,7 +1,27 @@
-//! Common encoding/decoding utilities for bignum and rational codecs
+//! Common Encoding/Decoding Utilities
 //!
-//! This module provides shared helper functions for encoding and decoding
-//! big integers in EI (Erlang Interchange) format.
+//! Provides shared helper functions for encoding and decoding big integers in
+//! EI (Erlang Interface) format. This module contains the core encoding/decoding
+//! logic used by both bignum and rational codecs.
+//!
+//! ## Overview
+//!
+//! This module provides low-level functions for encoding and decoding malachite
+//! `Integer` values in the EI format. The functions handle:
+//! - Format selection (SMALL_BIG_EXT vs LARGE_BIG_EXT)
+//! - Sign encoding
+//! - Byte extraction (little-endian)
+//! - Error handling
+//!
+//! ## Encoding Format
+//!
+//! - **SMALL_BIG_EXT** (tag 110): 1 byte tag + 1 byte arity + 1 byte sign + n bytes (little-endian)
+//! - **LARGE_BIG_EXT** (tag 111): 1 byte tag + 4 bytes arity (big-endian) + 1 byte sign + n bytes (little-endian)
+//!
+//! ## See Also
+//!
+//! - [`bignum_codec`](super::bignum_codec/index.html): Big number codec (uses these functions)
+//! - [`rational_codec`](super::rational_codec/index.html): Rational codec (uses these functions)
 
 use malachite::Integer;
 

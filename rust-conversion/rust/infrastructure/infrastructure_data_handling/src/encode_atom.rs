@@ -1,7 +1,46 @@
 //! Encode Atom Module
 //!
-//! Provides functionality to encode atoms to EI format.
-//! Based on lib/erl_interface/src/encode/encode_atom.c
+//! Provides functionality to encode atoms to EI (Erlang Interface) format.
+//! This module handles encoding atoms with support for different character encodings
+//! (ASCII, Latin1, UTF-8) and automatically selects the most efficient format.
+//!
+//! ## Overview
+//!
+//! Atoms can be encoded in several formats depending on length and encoding:
+//! - **SMALL_ATOM_EXT** (115): For atoms ≤ 255 bytes with Latin1/ASCII
+//! - **ATOM_EXT** (100): For atoms > 255 bytes with Latin1/ASCII
+//! - **SMALL_ATOM_UTF8_EXT** (119): For atoms ≤ 255 bytes with UTF-8
+//! - **ATOM_UTF8_EXT** (118): For atoms > 255 bytes with UTF-8
+//!
+//! ## Encoding Strategy
+//!
+//! The encoder automatically selects the format based on:
+//! - Atom name length (≤ 255 bytes vs > 255 bytes)
+//! - Character encoding (Latin1/ASCII vs UTF-8)
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_data_handling::{encode_atom, encode_atom_len};
+//! use entities_data_handling::atom::AtomEncoding;
+//!
+//! let mut buf = Vec::new();
+//!
+//! // Encode a simple atom
+//! let bytes = encode_atom(&mut buf, "hello", AtomEncoding::Latin1)?;
+//!
+//! // Encode with explicit length
+//! let name_bytes = b"world";
+//! let bytes = encode_atom_len(&mut buf, name_bytes, AtomEncoding::Utf8)?;
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_atom`](super::decode_atom/index.html): Atom decoding functions
+//! - [`entities_data_handling::atom`](../../entities/entities_data_handling/atom/index.html): Atom table management
+//! - [`encode_binary`](super::encode_binary/index.html): Binary encoding functions
+//!
+//! Based on `lib/erl_interface/src/encode/encode_atom.c`
 
 use entities_data_handling::atom::{AtomEncoding, MAX_ATOM_CHARACTERS};
 

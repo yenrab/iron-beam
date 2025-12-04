@@ -1,7 +1,46 @@
 //! Function Encoding Module
 //!
-//! Provides functionality to encode functions to EI format.
-//! Based on lib/erl_interface/src/encode/encode_fun.c
+//! Provides functionality to encode Functions to EI (Erlang Interface) format.
+//! Functions in Erlang can be either closures (with free variables) or exports
+//! (module:function/arity references).
+//!
+//! ## Overview
+//!
+//! Erlang functions can be encoded in two forms:
+//! - **Closure**: A function with captured free variables, including the PID of
+//!   the process that created it
+//! - **Export**: A reference to a module:function/arity that can be called
+//!
+//! ## Encoding Formats
+//!
+//! - **ERL_FUN_EXT**: Old format for closures (arity = -1)
+//! - **ERL_NEW_FUN_EXT**: New format for closures with MD5 hash
+//! - **ERL_EXPORT_EXT**: Format for export references
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_fun::{encode_fun, ErlangFunType, ErlangPid};
+//!
+//! // Encode an export
+//! let export = ErlangFunType::Export {
+//!     module: "lists".to_string(),
+//!     function: "reverse".to_string(),
+//!     arity: 1,
+//! };
+//!
+//! let mut buf = vec![0u8; 100];
+//! let mut index = 0;
+//! encode_fun(&mut Some(&mut buf), &mut index, &export)?;
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_fun`](super::decode_fun/index.html): Function decoding functions
+//! - [`encode_pid`](super::encode_pid/index.html): PID encoding (used in closures)
+//! - [`entities_io_operations::export`](../../entities/entities_io_operations/export/index.html): Export table management
+//!
+//! Based on `lib/erl_interface/src/encode/encode_fun.c`
 
 use crate::constants::{ERL_FUN_EXT, ERL_NEW_FUN_EXT, ERL_EXPORT_EXT};
 use super::encode_pid::{encode_pid, ErlangPid, EncodeError as PidEncodeError};

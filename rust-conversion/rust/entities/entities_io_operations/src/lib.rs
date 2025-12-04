@@ -1,7 +1,41 @@
 //! Entities Layer: I/O Operations
 //!
-//! Provides I/O operations:
-//! - Export operations
+//! Provides I/O operations for the Erlang/OTP runtime system, specifically focusing
+//! on export table management for function call resolution.
+//!
+//! ## Overview
+//!
+//! The `entities_io_operations` crate is part of the entities layer in the CLEAN
+//! architecture implementation of Erlang/OTP. It provides fundamental operations
+//! for managing export entries, which represent callable functions in the system.
+//!
+//! ## Modules
+//!
+//! - **[`export`](export/index.html)**: Export table management for MFA (Module, Function, Arity)
+//!   entries. The export table maps function identifiers to export entries, enabling
+//!   efficient function lookup and call resolution.
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use entities_io_operations::{ExportTable, Mfa, Export};
+//!
+//! // Create an export table
+//! let table = ExportTable::new(ExportTable::INITIAL_SIZE);
+//!
+//! // Add an export entry
+//! let export = Export::new(module_atom, function_atom, arity);
+//! table.put(export.clone())?;
+//!
+//! // Look up an export
+//! let mfa = Mfa::new(module_atom, function_atom, arity);
+//! let found = table.get(&mfa);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`entities_data_handling`](../entities_data_handling/index.html): Atom table used by export entries
+//! - [`entities_utilities`](../entities_utilities/index.html): Big number and register operations
 
 /*
  * %CopyrightBegin%

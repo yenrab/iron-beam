@@ -1,7 +1,35 @@
 //! Character Decoding Module
 //!
-//! Provides functionality to decode characters from EI format.
-//! Based on lib/erl_interface/src/decode/decode_char.c
+//! Provides functionality to decode characters (u8 values) from EI (Erlang Interface)
+//! format. Characters can be encoded as small integers, regular integers, or big integers,
+//! and this module handles all formats.
+//!
+//! ## Overview
+//!
+//! Characters in EI format can be encoded in multiple ways:
+//! - **ERL_SMALL_INTEGER_EXT**: Single byte value (0-255) - most common
+//! - **ERL_INTEGER_EXT**: 32-bit signed integer (must be 0-255)
+//! - **ERL_SMALL_BIG_EXT** / **ERL_LARGE_BIG_EXT**: Big integer (must be 0-255)
+//!
+//! The decoder accepts all formats but validates that the result is in the valid
+//! character range (0-255).
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::decode_char;
+//!
+//! let mut index = 0;
+//! let ch = decode_char(&buf, &mut index)?;
+//! println!("Decoded character: {}", ch as char);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_char`](super::encode_char/index.html): Character encoding functions
+//! - [`decode_integers`](super::decode_integers/index.html): Integer decoding (similar logic)
+//!
+//! Based on `lib/erl_interface/src/decode/decode_char.c`
 
 use crate::constants::*;
 

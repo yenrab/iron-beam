@@ -1,9 +1,55 @@
-//! Export Operations
+//! Export Operations Module
 //!
-//! Provides export functionality for Erlang terms.
+//! Provides comprehensive export functionality for managing callable functions in the
+//! Erlang/OTP runtime system. Export entries represent functions that can be called,
+//! identified by their MFA (Module, Function, Arity) tuple.
 //!
-//! Export entries represent functions that can be called (MFA - Module, Function, Arity).
-//! The export table manages all export entries in the system.
+//! ## Overview
+//!
+//! The export table is a fundamental data structure in the Erlang runtime that maps
+//! function identifiers (MFA) to export entries. This enables efficient function
+//! lookup and call resolution, supporting both regular functions and BIFs (Built-In
+//! Functions).
+//!
+//! ## Key Concepts
+//!
+//! - **MFA (Module, Function, Arity)**: A tuple that uniquely identifies a function
+//!   in the system. Consists of module atom index, function atom index, and arity.
+//!
+//! - **Export Entry**: Represents a callable function, containing the MFA, BIF number
+//!   (if applicable), and metadata about the function (traced, stub, etc.).
+//!
+//! - **Export Table**: Thread-safe table that manages all export entries, providing
+//!   efficient lookup by MFA hash.
+//!
+//! ## Features
+//!
+//! - **Function Registration**: Register functions with their MFA identifiers
+//! - **BIF Support**: Special handling for Built-In Functions
+//! - **Stub Entries**: Placeholder entries for not-yet-loaded functions
+//! - **Thread-Safe**: All operations use `RwLock` for concurrent access
+//! - **Efficient Lookup**: Hash-based lookup for O(1) average case performance
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use entities_io_operations::{ExportTable, Export, Mfa};
+//!
+//! // Create an export table
+//! let table = ExportTable::new(ExportTable::INITIAL_SIZE);
+//!
+//! // Create and register an export
+//! let export = Export::new(module_atom, function_atom, 2);
+//! table.put(export)?;
+//!
+//! // Look up an export by MFA
+//! let mfa = Mfa::new(module_atom, function_atom, 2);
+//! let found = table.get(&mfa);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`atom`](../entities_data_handling/atom/index.html): Atom table used for module/function names
 
 /*
  * %CopyrightBegin%

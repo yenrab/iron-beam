@@ -1,7 +1,38 @@
 //! Double Decoding Module
 //!
-//! Provides functionality to decode floating-point numbers from EI format.
-//! Based on lib/erl_interface/src/decode/decode_double.c
+//! Provides functionality to decode double-precision floating-point numbers from
+//! EI (Erlang Interface) format. Supports both the new IEEE 754 format and the
+//! legacy string-based format for compatibility.
+//!
+//! ## Overview
+//!
+//! Floating-point numbers in EI format can be encoded in two ways:
+//! - **NEW_FLOAT_EXT**: 8-byte IEEE 754 double-precision value (preferred, big-endian)
+//! - **ERL_FLOAT_EXT**: 31-byte string representation (legacy format)
+//!
+//! ## Decoding Process
+//!
+//! 1. Read the tag byte to determine the format
+//! 2. For NEW_FLOAT_EXT: Read 8 bytes and convert from IEEE 754
+//! 3. For ERL_FLOAT_EXT: Read 31 bytes, parse as string, convert to f64
+//! 4. Return the decoded value and updated buffer position
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::decode_double;
+//!
+//! let mut index = 0;
+//! let value = decode_double(&buf, &mut index)?;
+//! println!("Decoded float: {}", value);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_double`](super::encode_double/index.html): Double encoding functions
+//! - [`decode_integers`](super::decode_integers/index.html): Integer decoding functions
+//!
+//! Based on `lib/erl_interface/src/decode/decode_double.c`
 
 use crate::constants::{ERL_FLOAT_EXT, NEW_FLOAT_EXT};
 

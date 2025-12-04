@@ -1,7 +1,47 @@
 //! Reference Encoding Module
 //!
-//! Provides functionality to encode references to EI format.
-//! Based on lib/erl_interface/src/encode/encode_ref.c
+//! Provides functionality to encode References to EI (Erlang Interface) format.
+//! References are unique identifiers used for message passing and process communication
+//! in distributed Erlang systems.
+//!
+//! ## Overview
+//!
+//! References in EI format consist of:
+//! - **Node name**: Atom identifying the node where the reference was created
+//! - **Length**: Number of ID integers (up to 5 for old format, variable for new format)
+//! - **Creation number**: Node creation number (2 bits in old format, 32 bits in new format)
+//! - **ID integers**: Array of 32-bit integers that uniquely identify the reference
+//!
+//! ## Encoding Format
+//!
+//! This module uses the `ERL_NEWER_REFERENCE_EXT` format, which supports:
+//! - Variable-length ID arrays
+//! - 32-bit creation numbers
+//! - UTF-8 node names
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_ref::{encode_ref, ErlangRef};
+//!
+//! let r#ref = ErlangRef {
+//!     node: "node@host".to_string(),
+//!     len: 3,
+//!     creation: 789,
+//!     ids: vec![100, 200, 300],
+//! };
+//!
+//! let mut buf = vec![0u8; 100];
+//! let mut index = 0;
+//! encode_ref(&mut Some(&mut buf), &mut index, &r#ref)?;
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_ref`](super::decode_ref/index.html): Reference decoding functions
+//! - [`encode_pid`](super::encode_pid/index.html): PID encoding (similar structure)
+//!
+//! Based on `lib/erl_interface/src/encode/encode_ref.c`
 
 use crate::constants::ERL_NEWER_REFERENCE_EXT;
 use infrastructure_data_handling::encode_atom::{encode_atom, EncodeAtomError};

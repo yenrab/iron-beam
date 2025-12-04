@@ -1,7 +1,50 @@
 //! BIF (Built-In Function) Facades
 //!
-//! Provides API facades for BIF functions called from Erlang.
-//! Maintains exact C function signatures for compatibility.
+//! Provides API facades for BIF functions called from Erlang code. This module maintains
+//! exact C function signatures for compatibility with the Erlang/OTP runtime system,
+//! bridging between Erlang's C interface and Rust implementations.
+//!
+//! ## Overview
+//!
+//! BIF facades provide the external interface that Erlang code calls. They:
+//! - Maintain C-compatible function signatures
+//! - Convert between Erlang terms and Rust types
+//! - Call the actual Rust implementations in the usecases layer
+//! - Handle errors and convert them to Erlang exceptions
+//!
+//! ## Architecture
+//!
+//! The facade layer sits between Erlang and the usecases layer:
+//! - **Erlang Code** → **BIF Facades** → **Usecases Layer** → **Infrastructure Layer**
+//!
+//! This separation allows the usecases layer to be pure Rust while maintaining
+//! compatibility with Erlang's C-based calling conventions.
+//!
+//! ## Examples
+//!
+//! BIF facades are called from Erlang code:
+//!
+//! ```erlang
+//! % Erlang interface
+//! {ok, Regex} = erlang:regex_compile(Pattern).
+//! ```
+//!
+//! The facade converts Erlang terms and calls the Rust implementation:
+//!
+//! ```rust
+//! use api_facades::bif_regex_compile;
+//!
+//! // Called from Erlang runtime
+//! let process = std::ptr::null_mut();
+//! let pattern_term = 0u64; // Erlang term (placeholder)
+//! let result = unsafe { bif_regex_compile(process, pattern_term) };
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`usecases_bifs`](../usecases/usecases_bifs/index.html): BIF implementations
+//! - [`infrastructure_bifs`](../infrastructure/infrastructure_bifs/index.html): BIF infrastructure
+//! - [`common_facades`](super::common_facades/index.html): Common facade utilities
 
 use usecases_bifs::{RegexBif, ChecksumBif, TraceBif};
 

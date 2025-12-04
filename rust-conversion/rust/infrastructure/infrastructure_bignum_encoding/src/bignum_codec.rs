@@ -1,15 +1,45 @@
 //! Bignum Codec Module
 //!
-//! Provides bignum encoding/decoding functionality.
-//! Based on decode_big.c and encode_bignum.c
+//! Provides bignum encoding and decoding functionality for arbitrary precision integers
+//! in the Erlang/OTP runtime system. This module implements encoding/decoding of `BigNumber`
+//! values using the EI (Erlang Interface) format.
 //!
-//! This module encodes/decodes BigNumber values (arbitrary precision integers)
-//! using the EI (Erlang Interchange) format:
+//! ## Overview
 //!
-//! - SMALL_BIG_EXT (tag 110): For values with ≤255 bytes
-//! - LARGE_BIG_EXT (tag 111): For larger values
+//! Big numbers (bignums) are arbitrary precision integers that can represent values
+//! beyond the range of standard integer types. This module provides codecs for
+//! serializing and deserializing bignums in the EI format.
 //!
-//! The encoding format matches the C implementation in encode_bignum.c.
+//! ## Encoding Formats
+//!
+//! - **SMALL_BIG_EXT** (tag 110): For values with ≤255 bytes
+//! - **LARGE_BIG_EXT** (tag 111): For larger values
+//! - **SMALL_INTEGER_EXT** (tag 97): Special case for zero value
+//!
+//! The encoding format matches the C implementation in `encode_bignum.c` and `decode_big.c`.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_bignum_encoding::BignumCodec;
+//! use entities_utilities::BigNumber;
+//!
+//! // Encode a big number
+//! let num = BigNumber::from_i64(1234567890123456789);
+//! let encoded = BignumCodec::encode(&num).unwrap();
+//!
+//! // Decode a big number
+//! let (decoded, bytes_consumed) = BignumCodec::decode(&encoded).unwrap();
+//! assert_eq!(decoded, num);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`rational_codec`](super::rational_codec/index.html): Rational number codec
+//! - [`entities_utilities::BigNumber`](../../entities/entities_utilities/big/index.html): BigNumber type
+//! - [`common`](super::common/index.html): Shared encoding/decoding utilities
+//!
+//! Based on `decode_big.c` and `encode_bignum.c`
 
 use entities_utilities::BigNumber;
 use malachite::Integer;

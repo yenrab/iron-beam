@@ -1,15 +1,43 @@
 //! BIF Infrastructure Module
 //!
-//! Provides infrastructure for built-in functions.
-//! Based on bif.c
+//! Provides infrastructure for built-in functions (BIFs) in the Erlang/OTP runtime system.
+//! This module implements the framework and mechanisms that support BIF operations,
+//! including initialization, state management, and error handling.
 //!
-//! This module provides the infrastructure layer for BIFs:
-//! - BIF system initialization
-//! - BIF state management
-//! - BIF error handling
+//! ## Overview
 //!
-//! Note: Actual BIF implementations are in the usecases layer (usecases_bifs).
-//! This infrastructure layer provides the framework and mechanisms.
+//! The BIF infrastructure provides the foundation for the BIF system, managing:
+//! - **System Initialization**: One-time setup of the BIF system
+//! - **State Management**: Tracking BIF system state and configuration
+//! - **Error Handling**: Standardized error types for BIF operations
+//! - **Scheduler Integration**: Wall time tracking and microstate accounting
+//!
+//! ## Architecture
+//!
+//! This module provides the infrastructure layer for BIFs. Actual BIF implementations
+//! are in the usecases layer (`usecases_bifs`). This infrastructure layer provides
+//! the framework and mechanisms that BIF implementations use.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_bifs::{BifInfrastructure, BifState};
+//!
+//! // Initialize BIF infrastructure
+//! let state = BifInfrastructure::init().unwrap();
+//!
+//! // Check if initialized
+//! if BifInfrastructure::is_initialized() {
+//!     // Use BIF system...
+//! }
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`usecases_bifs`](../../usecases/usecases_bifs/index.html): BIF implementations
+//! - [`api_facades::bif_facades`](../../api_facades/bif_facades/index.html): BIF facade layer
+//!
+//! Based on `bif.c`
 
 use std::sync::atomic::{AtomicBool, Ordering};
 

@@ -1,7 +1,39 @@
 //! Decode Binary Module
 //!
-//! Provides functionality to decode EI-encoded binaries.
-//! Based on lib/erl_interface/src/decode/decode_binary.c
+//! Provides functionality to decode EI-encoded binaries from the Erlang Interface format.
+//! Binaries are sequences of bytes that can represent arbitrary data, including strings,
+//! serialized terms, and binary data.
+//!
+//! ## Overview
+//!
+//! Binaries in EI format use the `BINARY_EXT` tag (109) followed by:
+//! - **4-byte length**: Big-endian unsigned 32-bit integer specifying the number of bytes
+//! - **Binary data**: The actual byte sequence
+//!
+//! ## Decoding Process
+//!
+//! 1. Verify the tag byte is `BINARY_EXT` (109)
+//! 2. Read the 4-byte length (big-endian)
+//! 3. Extract the binary data bytes
+//! 4. Return the decoded binary and updated buffer position
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_data_handling::decode_binary;
+//!
+//! // Decode a binary from EI-encoded buffer
+//! let (data, new_index) = decode_binary(&buf, 0)?;
+//! println!("Decoded {} bytes", data.len());
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_binary`](super::encode_binary/index.html): Binary encoding functions
+//! - [`decode_term`](super::decode_term/index.html): Complete term decoding (includes binaries)
+//! - [`entities_data_handling::bits`](../../entities/entities_data_handling/bits/index.html): Bitstring operations
+//!
+//! Based on `lib/erl_interface/src/decode/decode_binary.c`
 
 /// Decode a binary from EI-encoded bytes
 ///

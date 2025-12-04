@@ -1,6 +1,29 @@
 //! Code Loader Module
 //!
-//! Provides code loading functionality.
+//! Provides code loading functionality for reading code files from the filesystem.
+//! This module provides a simple interface for loading code files that will be
+//! processed by higher-level code loading infrastructure.
+//!
+//! ## Overview
+//!
+//! The code loader provides basic file I/O operations for reading code files.
+//! Higher-level code loading operations (parsing, validation, etc.) are handled
+//! by the code management layer.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::code_loader::CodeLoader;
+//!
+//! // Load code from a file
+//! let code = CodeLoader::load_from_file("module.beam").unwrap();
+//! println!("Loaded {} bytes", code.len());
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`code_management_code_loading`](../../code_management/code_management_code_loading/index.html): High-level code loading
+//! - [`beam_loader`](../../code_management/code_management_code_loading/beam_loader/index.html): BEAM file loading
 
 use std::fs;
 use std::path::Path;

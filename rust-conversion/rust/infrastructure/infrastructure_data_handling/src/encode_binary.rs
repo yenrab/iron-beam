@@ -1,7 +1,41 @@
 //! Encode Binary Module
 //!
-//! Provides functionality to encode binaries to EI format.
-//! Based on lib/erl_interface/src/encode/encode_binary.c
+//! Provides functionality to encode binaries to EI (Erlang Interface) format.
+//! Binaries are sequences of bytes that can represent arbitrary data, including strings,
+//! serialized terms, and binary data.
+//!
+//! ## Overview
+//!
+//! Binaries in EI format are encoded as:
+//! - **BINARY_EXT tag** (109): Single byte identifying the binary type
+//! - **4-byte length**: Big-endian unsigned 32-bit integer specifying the number of bytes
+//! - **Binary data**: The actual byte sequence
+//!
+//! ## Encoding Process
+//!
+//! 1. Write the `BINARY_EXT` tag byte (109)
+//! 2. Write the 4-byte length (big-endian)
+//! 3. Write the binary data bytes
+//! 4. Return the number of bytes written
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_data_handling::encode_binary;
+//!
+//! let mut buf = Vec::new();
+//! let data = b"Hello, world!";
+//! let bytes_written = encode_binary(&mut buf, data)?;
+//! // buf now contains: [109, 0, 0, 0, 13, ...data...]
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_binary`](super::decode_binary/index.html): Binary decoding functions
+//! - [`encode_atom`](super::encode_atom/index.html): Atom encoding (similar structure)
+//! - [`entities_data_handling::bits`](../../entities/entities_data_handling/bits/index.html): Bitstring operations
+//!
+//! Based on `lib/erl_interface/src/encode/encode_binary.c`
 
 /// Encode a binary to EI format
 ///

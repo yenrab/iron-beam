@@ -1,7 +1,43 @@
 //! EI Format Constants
 //!
-//! Defines the tag constants used in the Erlang Interface (EI) format.
-//! These match the constants defined in lib/erl_interface/src/eidef.h
+//! Defines the tag constants used in the Erlang Interface (EI) format for encoding
+//! and decoding Erlang terms. These constants match the definitions in
+//! `lib/erl_interface/src/eidef.h` and are used throughout the code loading
+//! infrastructure.
+//!
+//! ## Overview
+//!
+//! The EI (Erlang Interface) format is a binary serialization format used for
+//! encoding Erlang terms for network transmission, file storage, and inter-process
+//! communication. Each term type has a unique tag byte that identifies its type
+//! and encoding format.
+//!
+//! ## Tag Categories
+//!
+//! - **Immediate Values**: Small integers, atoms, nil
+//! - **Boxed Values**: Large integers, floats, binaries
+//! - **Compound Types**: Tuples, lists, maps
+//! - **Process Types**: PIDs, ports, references
+//! - **Special Types**: Functions, exports, traces
+//!
+//! ## Usage
+//!
+//! These constants are used by encoding and decoding functions to identify term types:
+//!
+//! ```rust
+//! use infrastructure_code_loading::constants::*;
+//!
+//! // Check if a tag represents a small integer
+//! if tag == ERL_SMALL_INTEGER_EXT {
+//!     // Handle small integer
+//! }
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_integers`](super::encode_integers/index.html): Integer encoding functions
+//! - [`decode_integers`](super::decode_integers/index.html): Integer decoding functions
+//! - [`infrastructure_data_handling`](../infrastructure_data_handling/index.html): High-level term encoding/decoding
 
 /// Small integer (0-255)
 pub const ERL_SMALL_INTEGER_EXT: u8 = 97;

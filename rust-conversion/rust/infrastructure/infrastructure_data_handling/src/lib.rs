@@ -1,19 +1,34 @@
 //! Infrastructure Layer: Data Handling
 //!
-//! Provides data handling utilities for Erlang Interface (EI) format:
-//! - Decoding EI-encoded terms (atoms, binaries, terms)
-//! - Encoding terms to EI format (atoms, binaries)
-//! - Printing terms in readable format
+//! Provides data handling utilities for Erlang Interface (EI) format in the Erlang/OTP
+//! runtime system. This crate implements encoding, decoding, and printing operations for
+//! Erlang terms in the EI format.
 //!
-//! Based on:
-//! - lib/erl_interface/src/misc/ei_decode_term.c
-//! - lib/erl_interface/src/encode/encode_atom.c
-//! - lib/erl_interface/src/decode/decode_binary.c
-//! - lib/erl_interface/src/encode/encode_binary.c
-//! - lib/erl_interface/src/decode/decode_atom.c
-//! - lib/erl_interface/src/misc/ei_printterm.c
+//! ## Overview
 //!
-//! Depends on Entities layer (entities_data_handling).
+//! The `infrastructure_data_handling` crate is part of the infrastructure layer in the
+//! CLEAN architecture implementation of Erlang/OTP. It provides high-level operations
+//! for working with Erlang terms in the EI format, which is used for serialization and
+//! network communication.
+//!
+//! ## Modules
+//!
+//! - **[`decode_term`](decode_term/index.html)**: Decode complete Erlang terms from EI format
+//! - **[`decode_atom`](decode_atom/index.html)**: Decode atoms from EI format
+//! - **[`decode_binary`](decode_binary/index.html)**: Decode binaries from EI format
+//! - **[`encode_atom`](encode_atom/index.html)**: Encode atoms to EI format
+//! - **[`encode_binary`](encode_binary/index.html)**: Encode binaries to EI format
+//! - **[`print_term`](print_term/index.html)**: Print terms in human-readable format
+//!
+//! ## Architecture
+//!
+//! This crate is based on the C implementation in various `lib/erl_interface/src/` files.
+//! It depends on the Entities layer (`entities_data_handling`) for fundamental term types.
+//!
+//! ## See Also
+//!
+//! - [`entities_data_handling`](../../entities/entities_data_handling/index.html): Core term types
+//! - [`infrastructure_code_loading`](../infrastructure_code_loading/index.html): Low-level encoding/decoding
 
 /*
  * %CopyrightBegin%

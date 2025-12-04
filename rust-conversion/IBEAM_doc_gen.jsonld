@@ -60,8 +60,14 @@
         {
           "severity": "absolute",
           "action": "Evaluate or execute source code or tests",
-          "details": "NEVER evaluate or execute Rust source code or tests. The tool performs read-only code analysis for documentation generation only.",
+          "details": "NEVER evaluate or execute Rust source code or tests. The tool performs read-only code analysis for documentation generation only. Exception: Error detection mode may compile example code from documentation to verify it compiles, but must not execute the compiled code.",
           "appliesTo": ["code analysis", "example extraction", "all operations"]
+        },
+        {
+          "severity": "absolute",
+          "action": "Create or delete markdown files",
+          "details": "NEVER create markdown files. NEVER delete existing markdown files. The tool only generates inline Rust doc comments (///, //!). If markdown files are found, leave them unchanged.",
+          "appliesTo": ["documentation generation", "all operations"]
         },
         {
           "severity": "critical",
@@ -114,7 +120,8 @@
         "Preserve existing documentation in Generate mode - only create new documentation where gaps exist",
         "Force Replace mode replaces all documentation from scratch (does not use existing docs as input)",
         "Read-only for source code and tests - never modify or execute code",
-        "Generate both inline Rust doc comments (///, //!) and separate markdown files",
+        "Generate only inline Rust doc comments (///, //!) - do NOT create markdown files",
+        "Never delete existing markdown files - if markdown files are found, leave them unchanged",
         "License header (Apache-2.0) at top of each module file before module doc comment",
         "Test functions receive brief descriptions only (what they are testing)",
         "Developer suggestions presented as chat messages and applied automatically",
@@ -130,14 +137,8 @@
         {
           "severity": "critical",
           "action": "Detect existing documentation before generating",
-          "details": "MANDATORY: Check both inline Rust doc comments (///, //!) and separate markdown files to determine if documentation exists. In Generate mode, only create documentation where gaps exist.",
+          "details": "MANDATORY: Check inline Rust doc comments (///, //!) to determine if documentation exists. In Generate mode, only create documentation where gaps exist. Do NOT create or delete markdown files.",
           "appliesTo": ["CodeAnalysisMode", "DocumentationGenerationMode"]
-        },
-        {
-          "severity": "critical",
-          "action": "Generate both inline comments and markdown files",
-          "details": "MANDATORY: Generate both inline Rust doc comments (/// for items, //! for modules) and separate markdown files for each module. Both formats must be generated.",
-          "appliesTo": ["DocumentationGenerationMode"]
         },
         {
           "severity": "critical",
@@ -168,13 +169,13 @@
         "show": "Explain how the user uses the IBEAM_doc_gen tool",
         "include": [
           "Tool purpose: Generate Rust convention and best-practices documentation for all crates, modules, functions, and components",
-          "Documentation format: Both inline Rust doc comments (///, //!) and separate markdown files",
+          "Documentation format: Inline Rust doc comments (///, //!) only",
           "Documentation scope: All items (public and private), all types, including test modules",
           "License: Apache-2.0 header included at top of each module file",
           "User commands:",
           "  - 'generate [directory]' - Generate new documentation (preserves existing, creates only gaps). If directory specified, limits scope to that directory. If no directory specified, scans entire rust directory.",
           "  - 'force replace [directory]' - Replace all documentation from scratch. If directory specified, limits scope to that directory. If no directory specified, scans entire rust directory.",
-          "  - 'search errors [directory]' - Search for documentation errors and missing documentation. If directory specified, limits scope to that directory. If no directory specified, scans entire rust directory.",
+          "  - 'search errors [directory]' - Search for documentation errors and missing documentation. Extracts example code from documentation, compiles it, and fixes examples that don't compile. If directory specified, limits scope to that directory. If no directory specified, scans entire rust directory.",
           "Documentation structure:",
           "  - Modules: License declaration, short description, long description",
           "  - Functions: Short description, long description, 2-3 usage examples, 'also see' references",
@@ -184,8 +185,10 @@
           "Constraints:",
           "  - Never modifies source code or tests",
           "  - Never references C files or code origins",
+          "  - Never creates or deletes markdown files",
           "  - Generate mode preserves existing documentation",
           "  - Force replace mode replaces everything from scratch",
+          "  - Error search compiles example code and fixes non-compiling examples",
           "",
           "Created using AALang and Gab"
         ],
@@ -223,12 +226,13 @@
     {
       "@id": "ex:DocumentationGenerationMode",
       "@type": "Mode",
-      "purpose": "Generate new documentation (inline comments and markdown files) following Rust conventions and best practices",
+      "purpose": "Generate new documentation (inline comments only) following Rust conventions and best practices",
       "constraints": [
         "Activate after Code Analysis Mode completes",
         "Generate mode: Only create new documentation where gaps exist (preserve existing)",
         "Force Replace mode: Replace all documentation from scratch (do not use existing as input)",
-        "Generate both inline Rust doc comments (///, //!) and separate markdown files",
+        "Generate only inline Rust doc comments (///, //!) - do NOT create markdown files",
+        "Never delete existing markdown files",
         "Include Apache-2.0 license header at top of module files",
         "Generate examples from code analysis (2-3 per function, code snippets only)",
         "Generate 'also see' references based on type relationships",
@@ -246,13 +250,15 @@
     {
       "@id": "ex:ErrorDetectionMode",
       "@type": "Mode",
-      "purpose": "Search existing documentation for errors and missing documentation",
+      "purpose": "Search existing documentation for errors and missing documentation, compile example code, and fix non-compiling examples",
       "constraints": [
         "Activate when user issues 'search errors' command",
         "Examine all code and existing documentation in rust directory (or specified scope)",
         "Detect explanation errors, usage example errors, missing documentation",
+        "Extract example code from documentation, compile it using Rust compiler, and fix examples that don't compile",
+        "Update documentation with fixed examples",
         "Report findings to user",
-        "Do NOT modify documentation - only detect and report issues"
+        "Do NOT modify source code or tests - only modify documentation examples"
       ],
       "isolatedState": "ex:ErrorDetectionModeState",
       "contains": ["ex:ErrorDetectorPersona", "ex:MissingDocumentationFinderPersona"],
@@ -407,7 +413,6 @@
         "Extract crate structure, module structure, function signatures, type definitions (structs, enums, traits, impl blocks, constants)",
         "Identify all items (public and private) including test modules",
         "Detect existing inline documentation (/// doc comments, //! module comments)",
-        "Detect existing markdown documentation files",
         "Handle Rust macros and attributes during parsing: Parse macro invocations and attributes to understand code structure, but do not expand macros (read-only analysis)",
         "Handle conditional compilation (#[cfg(...)]): Identify conditional compilation attributes to understand which code paths are available",
         "Detect documentation in doc tests (/// # Example): Identify examples embedded in doc comments",
@@ -440,7 +445,7 @@
         "Handle nested modules and module paths: Track module nesting structure and full module paths (e.g., crate::module::submodule)",
         "Identify test modules and test functions",
         "Build type relationship map (which functions work with which types)",
-        "Detect existing documentation locations (inline comments and markdown files)",
+        "Detect existing documentation locations (inline comments only)",
         "Identify documentation gaps (items without documentation)",
         "Handle errors if structure extraction fails - report extraction errors, identify problematic code sections",
         "Send structure extraction results to ex:DocumentationStatePersona",
@@ -466,15 +471,15 @@
       "responsibilities": [
         "Receive structure extraction results and type relationship map",
         "Check generation mode: Generate (preserve existing) or Force Replace (replace all)",
-        "For Generate mode: Only create documentation where gaps exist (check both inline comments and markdown files)",
+        "For Generate mode: Only create documentation where gaps exist (check inline comments)",
         "For Force Replace mode: Replace all documentation from scratch (do not use existing as input)",
         "Generate module documentation: License declaration (Apache-2.0), short description, long description",
         "Generate function documentation: Short description, long description, 2-3 usage examples (from ex:ExampleExtractorPersona), 'also see' references (from ex:TypeRelationshipMapperPersona)",
         "Generate test function documentation: Brief description of what they are testing",
         "Generate documentation for all types: structs, enums, traits, impl blocks, constants",
         "Include Apache-2.0 license header at top of each module file (before module doc comment)",
-        "Generate both inline Rust doc comments (/// for items, //! for modules) and separate markdown files",
-        "Markdown file naming and location: Markdown files are named to match the module name (e.g., module_name.md), and are placed in a 'docs' directory that is in the same directory as the rust directory. The rust directory is rust-conversion/rust, so the docs directory is rust-conversion/docs (e.g., rust-conversion/docs/module_name.md). Paths are resolved relative to the rust-conversion directory root.",
+        "Generate only inline Rust doc comments (/// for items, //! for modules) - do NOT create markdown files",
+        "Never delete existing markdown files: If markdown files are found during analysis, leave them unchanged. Do not modify, delete, or create markdown files.",
         "Handle documentation for associated functions vs methods: Distinguish between associated functions (no self parameter) and methods (with self parameter) in documentation",
         "Handle generic type parameters in documentation: Document generic type parameters and their constraints in function and type documentation",
         "Never reference C files, code origins, or code replacements in documentation",
@@ -560,18 +565,23 @@
       "responsibilities": [
         "Examine all code and existing documentation in rust directory (or specified scope)",
         "Detect explanation errors in documentation: Explanation errors occur when the documentation explanation does not match the actual source code behavior",
-        "Detect usage example errors in documentation: Usage example errors occur when example code does not match the actual source code behavior or contains broken code snippets",
+        "Detect usage example errors in documentation: Extract example code from documentation (from doc comments and doc tests), compile each example using Rust compiler (cargo check or rustc), and if compilation fails, fix the example code to make it compile correctly. Update the documentation with the fixed example.",
         "Detect outdated documentation: Identify when documentation describes behavior that no longer matches the current source code (e.g., function signature changed, return type changed)",
         "Verify documentation accuracy against actual code",
+        "Extract and validate example code: For each example found in documentation, extract the code, create a temporary test file, compile it using Rust compiler, and if it doesn't compile, fix the example code and update the documentation",
+        "Compile example code: Use Rust compiler (cargo check or rustc) to verify example code compiles. Create minimal test harness if needed to compile examples in isolation.",
+        "Fix non-compiling examples: When example code fails to compile, analyze compilation errors, fix the code (add missing imports, correct syntax, fix type mismatches, etc.), and update the documentation with the corrected example",
         "Report findings to user with specific error locations and descriptions",
-        "Do NOT modify documentation - only detect and report issues",
+        "Do NOT modify source code or tests - only modify documentation examples",
         "Handle errors if error detection fails - report detection failures to user",
         "When asking user questions, follow ex:UserQuestionProtocol (see index.jsonld ex:UserQuestionProtocol - read complete protocol definition and execute all steps)"
       ],
       "aalangKnowledge": [
         "Full access to index.jsonld (complete AALang language specification)",
         "Understanding of Rust documentation conventions",
-        "Understanding of Rust code patterns"
+        "Understanding of Rust code patterns",
+        "Understanding of Rust compilation (cargo check, rustc)",
+        "Understanding of Rust compilation errors and how to fix them"
       ],
       "canMessage": ["ex:MissingDocumentationFinderPersona", "user"],
       "canReceiveFrom": ["user", "ex:MissingDocumentationFinderPersona"]
@@ -587,7 +597,7 @@
       "responsibilities": [
         "Examine all code in rust directory (or specified scope)",
         "Identify items without documentation (functions, modules, types, constants)",
-        "Check both inline comments and markdown files for missing documentation",
+        "Check inline comments for missing documentation",
         "Handle re-exports: When items are re-exported (documented in source but re-exported elsewhere), check documentation at the original source location, not the re-export location",
         "Report findings to user with specific missing documentation locations",
         "Do NOT modify documentation - only detect and report issues",

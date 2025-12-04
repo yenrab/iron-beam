@@ -1,10 +1,54 @@
 //! Function Decoding Module
 //!
-//! Provides functionality to decode functions from EI format.
-//! Based on lib/erl_interface/src/decode/decode_fun.c
+//! Provides functionality to decode Functions from EI (Erlang Interface) format.
+//! Functions in Erlang can be either closures (with free variables) or exports
+//! (module:function/arity references).
 //!
-//! Note: This is a simplified implementation. Full function decoding
-//! requires skipping terms for free variables, which is complex.
+//! ## Overview
+//!
+//! Erlang functions can be encoded in two forms:
+//! - **Closure**: A function with captured free variables, including the PID of
+//!   the process that created it
+//! - **Export**: A reference to a module:function/arity that can be called
+//!
+//! ## Supported Formats
+//!
+//! - **ERL_EXPORT_EXT**: Export references (fully supported)
+//! - **ERL_FUN_EXT**: Old format closures (not yet fully implemented)
+//! - **ERL_NEW_FUN_EXT**: New format closures with MD5 hash (not yet fully implemented)
+//!
+//! ## Implementation Status
+//!
+//! Export decoding is fully implemented. Closure decoding requires term skipping
+//! for free variables, which is complex and not yet fully implemented. Attempts
+//! to decode closures will return `DecodeError::NotImplemented`.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::decode_fun;
+//!
+//! // Decode an export function
+//! let mut index = 0;
+//! let fun_type = decode_fun(&buf, &mut index)?;
+//!
+//! match fun_type {
+//!     ErlangFunType::Export { module, function, arity } => {
+//!         println!("Export: {}:{}/{}", module, function, arity);
+//!     }
+//!     ErlangFunType::Closure { .. } => {
+//!         // Closures not yet fully supported
+//!     }
+//! }
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_fun`](super::encode_fun/index.html): Function encoding functions
+//! - [`decode_pid`](super::decode_pid/index.html): PID decoding (used in closures)
+//! - [`entities_io_operations::export`](../../entities/entities_io_operations/export/index.html): Export table management
+//!
+//! Based on `lib/erl_interface/src/decode/decode_fun.c`
 
 use crate::constants::{ERL_FUN_EXT, ERL_NEW_FUN_EXT, ERL_EXPORT_EXT};
 use super::decode_pid::decode_pid;

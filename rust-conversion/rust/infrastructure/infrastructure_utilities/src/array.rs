@@ -1,7 +1,39 @@
 //! Array and Collection Utilities
 //!
-//! Provides utility functions for working with arrays, vectors, and collections.
-//! These utilities handle common array/collection operations.
+//! Provides utility functions for working with arrays, vectors, and collections in the
+//! Erlang/OTP runtime system. These utilities handle common array/collection operations
+//! used throughout the runtime.
+//!
+//! ## Overview
+//!
+//! This module provides a collection of utility functions for:
+//! - **Search Operations**: Finding values and indices in arrays
+//! - **Transformation Operations**: Reversing, slicing, and modifying arrays
+//! - **Query Operations**: Checking array properties (empty, length, etc.)
+//! - **Element Access**: Safe access to first, last, and indexed elements
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_utilities::array::ArrayUtils;
+//!
+//! let arr = vec![1, 2, 3, 4, 5];
+//!
+//! // Check if array contains a value
+//! assert!(ArrayUtils::contains(&arr, &3));
+//!
+//! // Find index of a value
+//! assert_eq!(ArrayUtils::index_of(&arr, &3), Some(2));
+//!
+//! // Reverse an array
+//! let reversed = ArrayUtils::reverse(&arr);
+//! assert_eq!(reversed, vec![5, 4, 3, 2, 1]);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`infrastructure_utilities::helpers`](super::helpers/index.html): General helper utilities
+//! - [`infrastructure_utilities::misc`](super::misc/index.html): Miscellaneous utilities
 
 /// Array and collection utility functions
 pub struct ArrayUtils;

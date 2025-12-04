@@ -1,13 +1,41 @@
 //! Use Cases Layer: Built-in Functions
 //!
-//! Provides built-in functions (BIFs):
-//! - Regular expressions
-//! - Checksums
-//! - Tracing
-//! - Dynamic library loading
-//! - And many more
+//! Provides comprehensive built-in functions (BIFs) for the Erlang/OTP runtime system.
+//! BIFs are functions that are implemented in the runtime itself rather than in Erlang
+//! code, providing access to system-level functionality and optimized operations.
 //!
-//! Depends on Entities layer.
+//! ## Overview
+//!
+//! The `usecases_bifs` crate is part of the use cases layer in the CLEAN architecture
+//! implementation of Erlang/OTP. It provides business logic for implementing Erlang's
+//! built-in functions, which are essential for the runtime's operation.
+//!
+//! ## Modules
+//!
+//! - **[`regex`](regex/index.html)**: Regular expression matching and compilation
+//! - **[`checksum`](checksum/index.html)**: Checksum calculation (CRC, Adler, etc.)
+//! - **[`trace`](trace/index.html)**: Tracing and debugging functionality
+//! - **[`dynamic_library`](dynamic_library/index.html)**: Dynamic library loading and management
+//! - **[`os`](os/index.html)**: Operating system interface operations
+//! - **[`counters`](counters/index.html)**: Atomic counter operations
+//! - **[`unique`](unique/index.html)**: Unique reference and integer generation
+//! - **[`op`](op/index.html)**: Logical, comparison, and type-checking operations
+//! - **[`guard`](guard/index.html)**: Guard expression evaluation
+//! - **[`lists`](lists/index.html)**: List manipulation operations
+//! - **[`persistent`](persistent/index.html)**: Persistent term storage operations
+//! - **[`load`](load/index.html)**: Module loading and code management
+//! - **[`info`](info/index.html)**: System information queries
+//!
+//! ## Architecture
+//!
+//! This crate depends on the Entities layer for fundamental data types and operations.
+//! It implements the business logic for BIFs, which are then exposed through the
+//! API Facades layer to Erlang code.
+//!
+//! ## See Also
+//!
+//! - [`entities_data_handling`](../../entities/entities_data_handling/index.html): Core data handling
+//! - [`api_facades`](../../api_facades/index.html): BIF facade layer
 
 /*
  * %CopyrightBegin%

@@ -1,7 +1,42 @@
 //! Decode Atom Module
 //!
-//! Provides functionality to decode EI-encoded atoms.
-//! Based on lib/erl_interface/src/decode/decode_atom.c
+//! Provides functionality to decode EI-encoded atoms from the Erlang Interface format.
+//! This module handles all atom encoding variants, including Latin1 and UTF-8 encodings.
+//!
+//! ## Overview
+//!
+//! Atoms in EI format can be encoded in several ways:
+//! - **ATOM_EXT** (100): 2-byte length, Latin1 encoding
+//! - **SMALL_ATOM_EXT** (115): 1-byte length, Latin1 encoding
+//! - **ATOM_UTF8_EXT** (118): 2-byte length, UTF-8 encoding
+//! - **SMALL_ATOM_UTF8_EXT** (119): 1-byte length, UTF-8 encoding
+//!
+//! ## Decoding Process
+//!
+//! 1. Read the tag byte to determine the atom format
+//! 2. Read the length (1 or 2 bytes depending on format)
+//! 3. Validate the encoding (Latin1 or UTF-8)
+//! 4. Extract the atom name bytes
+//! 5. Return the atom name and updated buffer position
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_data_handling::decode_atom;
+//!
+//! // Decode a small atom (SMALL_ATOM_EXT)
+//! let buf = vec![115, 5, b'h', b'e', b'l', b'l', b'o']; // tag, len, "hello"
+//! let (atom_name, new_index) = decode_atom(&buf, 0)?;
+//! assert_eq!(atom_name, "atom_<hash>");
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`encode_atom`](super::encode_atom/index.html): Atom encoding functions
+//! - [`entities_data_handling::atom`](../../entities/entities_data_handling/atom/index.html): Atom table management
+//! - [`decode_term`](super::decode_term/index.html): Complete term decoding
+//!
+//! Based on `lib/erl_interface/src/decode/decode_atom.c`
 
 use entities_data_handling::atom::MAX_ATOM_CHARACTERS;
 

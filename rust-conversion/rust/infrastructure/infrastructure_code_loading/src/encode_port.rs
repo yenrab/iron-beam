@@ -1,7 +1,44 @@
 //! Port Encoding Module
 //!
-//! Provides functionality to encode ports to EI format.
-//! Based on lib/erl_interface/src/encode/encode_port.c
+//! Provides functionality to encode Ports to EI (Erlang Interface) format.
+//! Ports represent external resources (files, sockets, etc.) that can communicate
+//! with Erlang processes.
+//!
+//! ## Overview
+//!
+//! Ports in EI format consist of:
+//! - **Node name**: Atom identifying the node where the port exists
+//! - **Port ID**: Unique identifier for the port (32-bit or 64-bit)
+//! - **Creation number**: Node creation number (32 bits in NEW/V4 formats)
+//!
+//! ## Encoding Format
+//!
+//! The encoder automatically selects the format based on port ID size:
+//! - **V4_PORT_EXT**: For port IDs > 0x0FFFFFFF (64-bit ID)
+//! - **NEW_PORT_EXT**: For port IDs ≤ 0x0FFFFFFF (32-bit ID)
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_port::{encode_port, ErlangPort};
+//!
+//! let port = ErlangPort {
+//!     node: "node@host".to_string(),
+//!     id: 12345,
+//!     creation: 789,
+//! };
+//!
+//! let mut buf = vec![0u8; 100];
+//! let mut index = 0;
+//! encode_port(&mut Some(&mut buf), &mut index, &port)?;
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_port`](super::decode_port/index.html): Port decoding functions
+//! - [`encode_pid`](super::encode_pid/index.html): PID encoding (similar structure)
+//!
+//! Based on `lib/erl_interface/src/encode/encode_port.c`
 
 use crate::constants::{ERL_V4_PORT_EXT, ERL_NEW_PORT_EXT};
 use infrastructure_data_handling::encode_atom::{encode_atom, EncodeAtomError};

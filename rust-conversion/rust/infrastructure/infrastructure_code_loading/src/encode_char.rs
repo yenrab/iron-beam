@@ -1,7 +1,37 @@
 //! Character Encoding Module
 //!
-//! Provides functionality to encode characters to EI format.
-//! Based on lib/erl_interface/src/encode/encode_char.c
+//! Provides functionality to encode characters (u8 values) to EI (Erlang Interface)
+//! format. Characters are encoded as small integers (0-255) for efficiency.
+//!
+//! ## Overview
+//!
+//! Characters in EI format are encoded using the `ERL_SMALL_INTEGER_EXT` tag followed
+//! by the byte value. This provides a compact 2-byte encoding for character values.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_char;
+//!
+//! let mut buf = vec![0u8; 10];
+//! let mut index = 0;
+//!
+//! // Encode a character
+//! encode_char(&mut Some(&mut buf), &mut index, b'A')?;
+//! assert_eq!(index, 2);
+//!
+//! // Calculate size without encoding
+//! let mut size_index = 0;
+//! encode_char(&mut None, &mut size_index, b'Z')?;
+//! assert_eq!(size_index, 2);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_char`](super::decode_char/index.html): Character decoding functions
+//! - [`encode_integers`](super::encode_integers/index.html): Integer encoding (similar format)
+//!
+//! Based on `lib/erl_interface/src/encode/encode_char.c`
 
 use crate::constants::ERL_SMALL_INTEGER_EXT;
 

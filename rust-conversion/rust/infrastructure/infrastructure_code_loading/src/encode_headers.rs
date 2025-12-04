@@ -1,7 +1,44 @@
 //! Header Encoding Module
 //!
-//! Provides functionality to encode tuple and list headers to EI format.
-//! Based on lib/erl_interface/src/encode/encode_tuple_header.c
+//! Provides functionality to encode compound type headers (tuples, lists, maps) to
+//! EI (Erlang Interface) format. Headers specify the structure and size of compound
+//! types before encoding their elements.
+//!
+//! ## Overview
+//!
+//! Compound types in EI format require headers that specify:
+//! - **Type tag**: Identifies the type (tuple, list, map)
+//! - **Arity/Length**: Number of elements or key-value pairs
+//!
+//! ## Header Types
+//!
+//! - **Tuple Headers**: `ERL_SMALL_TUPLE_EXT` (≤ 255 elements) or `ERL_LARGE_TUPLE_EXT` (> 255)
+//! - **List Headers**: `ERL_LIST_EXT` (with length) or `ERL_NIL_EXT` (empty list)
+//! - **Map Headers**: `ERL_MAP_EXT` (always 4-byte arity)
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use infrastructure_code_loading::encode_headers::*;
+//!
+//! let mut buf = vec![0u8; 100];
+//! let mut index = 0;
+//!
+//! // Encode a tuple header
+//! encode_tuple_header(&mut Some(&mut buf), &mut index, 3)?;
+//! // Then encode 3 elements...
+//!
+//! // Encode a list header
+//! encode_list_header(&mut Some(&mut buf), &mut index, 5)?;
+//! // Then encode 5 elements...
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`decode_headers`](super::decode_headers/index.html): Header decoding functions
+//! - [`encode_integers`](super::encode_integers/index.html): Integer encoding for arity values
+//!
+//! Based on `lib/erl_interface/src/encode/encode_tuple_header.c`
 
 use crate::constants::*;
 
