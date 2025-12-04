@@ -30,7 +30,7 @@
  * %CopyrightEnd%
  */
 
-use entities_utilities::BigNumber;
+use entities_utilities::{BigNumber, BigRational};
 
 /// Hash value type (32-bit or 64-bit depending on platform)
 pub type HashValue = u64;
@@ -370,6 +370,101 @@ pub fn make_hash(term: Term) -> u32 {
                 }
             }
             
+            Term::Rational(rational) => {
+                // Hash rational number by hashing numerator and denominator separately
+                // Similar to how we hash BigNumber, but we need to hash both parts
+                use malachite::Integer;
+                
+                let numerator = rational.numerator();
+                let denominator = rational.denominator();
+                let is_negative = rational.is_negative();
+                
+                // Hash numerator (similar to BigNumber hashing)
+                let num_abs = if is_negative {
+                    -numerator.clone()
+                } else {
+                    numerator.clone()
+                };
+                let num_limbs = num_abs.to_twos_complement_limbs_asc();
+                let num_n = num_limbs.len();
+                
+                let mut h = hash;
+                
+                if num_n == 0 {
+                    // Zero numerator
+                    h = h.wrapping_mul(HASH_MULT_POSITIVE);
+                } else {
+                    // Hash all numerator limbs except the last one
+                    for i in 0..(num_n - 1) {
+                        let digit = num_limbs[i];
+                        for byte_offset in 0..4 {
+                            let byte = ((digit >> (byte_offset * 8)) & 0xFF) as u32;
+                            h = h.wrapping_mul(HASH_MULT_NUMBER).wrapping_add(byte);
+                        }
+                    }
+                    
+                    // Hash the last numerator limb
+                    let last_digit = num_limbs[num_n - 1];
+                    let bytes_to_hash = {
+                        #[cfg(target_pointer_width = "64")]
+                        {
+                            if (last_digit >> 32) == 0 { 4 } else { 8 }
+                        }
+                        #[cfg(not(target_pointer_width = "64"))]
+                        { 4 }
+                    };
+                    
+                    for byte_offset in 0..bytes_to_hash {
+                        let byte = ((last_digit >> (byte_offset * 8)) & 0xFF) as u32;
+                        h = h.wrapping_mul(HASH_MULT_NUMBER).wrapping_add(byte);
+                    }
+                    
+                    // Multiply by sign-dependent constant for numerator
+                    h = if is_negative {
+                        h.wrapping_mul(HASH_MULT_NEGATIVE)
+                    } else {
+                        h.wrapping_mul(HASH_MULT_POSITIVE)
+                    };
+                }
+                
+                // Hash denominator (always positive for rational numbers)
+                let den_limbs = denominator.to_twos_complement_limbs_asc();
+                let den_n = den_limbs.len();
+                
+                if den_n == 0 {
+                    // Zero denominator (shouldn't happen, but handle it)
+                    hash = h.wrapping_mul(HASH_MULT_POSITIVE);
+                } else {
+                    // Hash all denominator limbs except the last one
+                    for i in 0..(den_n - 1) {
+                        let digit = den_limbs[i];
+                        for byte_offset in 0..4 {
+                            let byte = ((digit >> (byte_offset * 8)) & 0xFF) as u32;
+                            h = h.wrapping_mul(HASH_MULT_NUMBER).wrapping_add(byte);
+                        }
+                    }
+                    
+                    // Hash the last denominator limb
+                    let last_digit = den_limbs[den_n - 1];
+                    let bytes_to_hash = {
+                        #[cfg(target_pointer_width = "64")]
+                        {
+                            if (last_digit >> 32) == 0 { 4 } else { 8 }
+                        }
+                        #[cfg(not(target_pointer_width = "64"))]
+                        { 4 }
+                    };
+                    
+                    for byte_offset in 0..bytes_to_hash {
+                        let byte = ((last_digit >> (byte_offset * 8)) & 0xFF) as u32;
+                        h = h.wrapping_mul(HASH_MULT_NUMBER).wrapping_add(byte);
+                    }
+                    
+                    // Multiply by positive constant for denominator (always positive)
+                    hash = h.wrapping_mul(HASH_MULT_POSITIVE);
+                }
+            }
+            
             Term::Float(value) => {
                 // C: Normalize zero to positive zero before hashing
                 // C: if (ff.fd == 0.0f) { ff.fd = erts_get_positive_zero_float(); }
@@ -671,6 +766,38 @@ pub fn make_hash2(term: Term) -> u32 {
                 }
             }
             
+            Term::Rational(rational) => {
+                // Hash rational number by hashing numerator and denominator separately
+                // Similar to how we hash BigNumber, but we need to hash both parts
+                let numerator = rational.numerator();
+                let denominator = rational.denominator();
+                let is_negative = rational.is_negative();
+                
+                // Hash numerator (similar to BigNumber hashing)
+                let num_abs = if is_negative {
+                    -numerator.clone()
+                } else {
+                    numerator.clone()
+                };
+                let num_limbs = num_abs.to_twos_complement_limbs_asc();
+                for &digit in &num_limbs {
+                    hash = mix_hash(hash, HCONST, digit as u32);
+                }
+                if is_negative {
+                    hash = mix_hash(hash, HCONST_10, 0);
+                } else {
+                    hash = mix_hash(hash, HCONST_11, 0);
+                }
+                
+                // Hash denominator (always positive for rational numbers)
+                let den_limbs = denominator.to_twos_complement_limbs_asc();
+                for &digit in &den_limbs {
+                    hash = mix_hash(hash, HCONST, digit as u32);
+                }
+                // Mark as rational (use a different constant to distinguish from BigNumber)
+                hash = mix_hash(hash, HCONST_12, 0);
+            }
+            
             Term::Float(value) => {
                 // C: Hash float as two 32-bit words
                 let bits = value.to_bits();
@@ -905,6 +1032,7 @@ const HCONST_6: u32 = 0xb54cda56;
 const HCONST_9: u32 = 0x8ff34781;
 const HCONST_10: u32 = 0x2e2ac13a;
 const HCONST_11: u32 = 0xcc623af3;
+const HCONST_12: u32 = 0x9e3779b9; // Additional constant for rational numbers
 
 // Internal hash constants (MurmurHash3-based)
 const IHASH_C1: u64 = 0x87C37B91114253D5;
@@ -1228,6 +1356,60 @@ fn make_internal_hash_impl(term: Term, salt: HashValue) -> HashValue {
                 
                 if i < n {
                     mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, limbs[i] as u64);
+                }
+            }
+            
+            Term::Rational(rational) => {
+                // Hash rational number by hashing numerator and denominator separately
+                // Similar to how we hash BigNumber, but we need to hash both parts
+                let numerator = rational.numerator();
+                let denominator = rational.denominator();
+                let is_negative = rational.is_negative();
+                
+                // Hash numerator (similar to BigNumber hashing)
+                let num_abs = if is_negative {
+                    -numerator.clone()
+                } else {
+                    numerator.clone()
+                };
+                let num_limbs = num_abs.to_twos_complement_limbs_asc();
+                let num_n = num_limbs.len();
+                
+                let num_hash_type = if is_negative {
+                    IHASH_TYPE_NEG_BIGNUM as u32
+                } else {
+                    IHASH_TYPE_POS_BIGNUM as u32
+                };
+                mix_alpha_2f32(&mut hash_alpha, hash_beta, &mut hash_ticks, num_hash_type, num_n as u32);
+                
+                // Process numerator digits in pairs
+                let mut i = 0;
+                while i + 2 <= num_n {
+                    mix_alpha(&mut hash_alpha, hash_beta, &mut hash_ticks, num_limbs[i] as u64);
+                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, num_limbs[i+1] as u64);
+                    i += 2;
+                }
+                
+                if i < num_n {
+                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, num_limbs[i] as u64);
+                }
+                
+                // Hash denominator (always positive for rational numbers)
+                let den_limbs = denominator.to_twos_complement_limbs_asc();
+                let den_n = den_limbs.len();
+                
+                mix_alpha_2f32(&mut hash_alpha, hash_beta, &mut hash_ticks, IHASH_TYPE_POS_BIGNUM as u32, den_n as u32);
+                
+                // Process denominator digits in pairs
+                let mut i = 0;
+                while i + 2 <= den_n {
+                    mix_alpha(&mut hash_alpha, hash_beta, &mut hash_ticks, den_limbs[i] as u64);
+                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, den_limbs[i+1] as u64);
+                    i += 2;
+                }
+                
+                if i < den_n {
+                    mix_beta(hash_alpha, &mut hash_beta, &mut hash_ticks, den_limbs[i] as u64);
                 }
             }
             
@@ -1657,6 +1839,8 @@ pub enum Term {
     Atom(u32),
     /// Big integer (arbitrary precision)
     Big(BigNumber),
+    /// Big rational (arbitrary precision rational number)
+    Rational(BigRational),
     /// Float (f64)
     Float(f64),
     /// Binary (bitstring)
@@ -2496,6 +2680,111 @@ mod tests {
         let hash2 = make_hash(big_neg);
         assert_ne!(hash2, 0);
         assert_ne!(hash2, hash1);
+    }
+    
+    #[test]
+    fn test_make_hash_rational() {
+        use entities_utilities::BigRational;
+        
+        // Test positive rational (22/7)
+        let rational_pos = Term::Rational(
+            BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash1 = make_hash(rational_pos);
+        assert_ne!(hash1, 0);
+        
+        // Test negative rational (-22/7)
+        let rational_neg = Term::Rational(
+            BigRational::from_i64(-22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash2 = make_hash(rational_neg);
+        assert_ne!(hash2, 0);
+        assert_ne!(hash2, hash1);
+        
+        // Test different rational (1/3)
+        let rational_diff = Term::Rational(
+            BigRational::from_i64(1).div(&BigRational::from_i64(3)).unwrap()
+        );
+        let hash3 = make_hash(rational_diff);
+        assert_ne!(hash3, 0);
+        assert_ne!(hash3, hash1);
+        assert_ne!(hash3, hash2);
+        
+        // Test rational that's an integer (5/1)
+        let rational_int = Term::Rational(
+            BigRational::from_i64(5).div(&BigRational::from_i64(1)).unwrap()
+        );
+        let hash4 = make_hash(rational_int);
+        assert_ne!(hash4, 0);
+        
+        // Test zero rational (0/1)
+        let rational_zero = Term::Rational(
+            BigRational::from_i64(0).div(&BigRational::from_i64(1)).unwrap()
+        );
+        let hash5 = make_hash(rational_zero);
+        // Zero rational should hash differently from other values
+        assert_ne!(hash5, hash1);
+    }
+    
+    #[test]
+    fn test_make_hash2_rational() {
+        use entities_utilities::BigRational;
+        
+        // Test positive rational
+        let rational_pos = Term::Rational(
+            BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash1 = make_hash2(rational_pos);
+        assert_ne!(hash1, 0);
+        
+        // Test negative rational
+        let rational_neg = Term::Rational(
+            BigRational::from_i64(-22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash2 = make_hash2(rational_neg);
+        assert_ne!(hash2, 0);
+        assert_ne!(hash2, hash1);
+        
+        // Test that same rational hashes to same value
+        let rational_pos2 = Term::Rational(
+            BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash3 = make_hash2(rational_pos2);
+        assert_eq!(hash1, hash3);
+    }
+    
+    #[test]
+    fn test_erts_internal_hash_rational() {
+        use entities_utilities::BigRational;
+        
+        // Test positive rational
+        let rational_pos = Term::Rational(
+            BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash1 = erts_internal_hash(rational_pos);
+        assert_ne!(hash1, 0);
+        
+        // Test negative rational
+        let rational_neg = Term::Rational(
+            BigRational::from_i64(-22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash2 = erts_internal_hash(rational_neg);
+        assert_ne!(hash2, 0);
+        assert_ne!(hash2, hash1);
+        
+        // Test that same rational hashes to same value
+        let rational_pos2 = Term::Rational(
+            BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap()
+        );
+        let hash3 = erts_internal_hash(rational_pos2);
+        assert_eq!(hash1, hash3);
+        
+        // Test different rational
+        let rational_diff = Term::Rational(
+            BigRational::from_i64(1).div(&BigRational::from_i64(3)).unwrap()
+        );
+        let hash4 = erts_internal_hash(rational_diff);
+        assert_ne!(hash4, hash1);
     }
     
     #[test]

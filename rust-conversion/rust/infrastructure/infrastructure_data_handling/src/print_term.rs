@@ -4,6 +4,7 @@
 //! Based on lib/erl_interface/src/misc/ei_printterm.c
 
 use entities_data_handling::term_hashing::Term;
+use entities_utilities::BigRational;
 
 /// Print a term to stdout
 ///
@@ -160,6 +161,16 @@ fn print_term_internal(
         }
         Term::Big(..) => {
             buf.extend_from_slice(b"<bignum>");
+        }
+        Term::Rational(rational) => {
+            // Print rational as numerator/denominator
+            let numerator = rational.numerator();
+            let denominator = rational.denominator();
+            let num_str = numerator.to_string();
+            let den_str = denominator.to_string();
+            buf.extend_from_slice(num_str.as_bytes());
+            buf.extend_from_slice(b"/");
+            buf.extend_from_slice(den_str.as_bytes());
         }
     }
     Ok(())
@@ -775,6 +786,33 @@ mod tests {
         assert!(output.contains("20"));
         assert!(output.contains("30"));
         assert!(output.ends_with("}"));
+    }
+
+    #[test]
+    fn test_print_rational() {
+        use entities_utilities::BigRational;
+        let rational = BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap();
+        let term = Term::Rational(rational);
+        let result = s_print_term(&term);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        // Should print as numerator/denominator
+        assert!(output.contains("/"));
+        assert!(output.contains("22"));
+        assert!(output.contains("7"));
+    }
+
+    #[test]
+    fn test_print_rational_negative() {
+        use entities_utilities::BigRational;
+        let rational = BigRational::from_i64(-5).div(&BigRational::from_i64(3)).unwrap();
+        let term = Term::Rational(rational);
+        let result = s_print_term(&term);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        // Should print as numerator/denominator
+        assert!(output.contains("/"));
+        assert!(output.contains("3"));
     }
 }
 

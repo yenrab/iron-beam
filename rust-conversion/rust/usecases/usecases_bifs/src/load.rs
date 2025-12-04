@@ -1784,6 +1784,7 @@ impl LoadBif {
                 ErlangTerm::Atom(format!("atom_{}", atom_index))
             }
             Term::Big(bignum) => ErlangTerm::BigInteger(bignum.clone()),
+            Term::Rational(rational) => ErlangTerm::Rational(rational.clone()),
             Term::Float(value) => ErlangTerm::Float(*value),
             Term::Binary { data, bit_offset, bit_size } => {
                 if *bit_offset == 0 && *bit_size % 8 == 0 {
@@ -3478,6 +3479,114 @@ mod tests {
         // Module with old code should still be considered loaded
         let result = LoadBif::module_loaded_1(&ErlangTerm::Atom("old_code_module".to_string())).unwrap();
         assert_eq!(result, ErlangTerm::Atom("true".to_string()));
+    }
+
+    #[test]
+    fn test_term_to_erlang_term_rational() {
+        use entities_data_handling::term_hashing::Term;
+        use entities_utilities::BigRational;
+        
+        // Test positive rational (22/7)
+        let rational = BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap();
+        let term = Term::Rational(rational.clone());
+        let erlang_term = LoadBif::term_to_erlang_term(&term);
+        
+        match erlang_term {
+            ErlangTerm::Rational(r) => {
+                assert_eq!(r, rational);
+            }
+            _ => panic!("Expected ErlangTerm::Rational, got {:?}", erlang_term),
+        }
+        
+        // Test negative rational (-5/3)
+        let rational_neg = BigRational::from_i64(-5).div(&BigRational::from_i64(3)).unwrap();
+        let term_neg = Term::Rational(rational_neg.clone());
+        let erlang_term_neg = LoadBif::term_to_erlang_term(&term_neg);
+        
+        match erlang_term_neg {
+            ErlangTerm::Rational(r) => {
+                assert_eq!(r, rational_neg);
+            }
+            _ => panic!("Expected ErlangTerm::Rational, got {:?}", erlang_term_neg),
+        }
+        
+        // Test rational that's an integer (42/1)
+        let rational_int = BigRational::from_i64(42).div(&BigRational::from_i64(1)).unwrap();
+        let term_int = Term::Rational(rational_int.clone());
+        let erlang_term_int = LoadBif::term_to_erlang_term(&term_int);
+        
+        match erlang_term_int {
+            ErlangTerm::Rational(r) => {
+                assert_eq!(r, rational_int);
+            }
+            _ => panic!("Expected ErlangTerm::Rational, got {:?}", erlang_term_int),
+        }
+        
+        // Test zero rational (0/1)
+        let rational_zero = BigRational::from_i64(0).div(&BigRational::from_i64(1)).unwrap();
+        let term_zero = Term::Rational(rational_zero.clone());
+        let erlang_term_zero = LoadBif::term_to_erlang_term(&term_zero);
+        
+        match erlang_term_zero {
+            ErlangTerm::Rational(r) => {
+                assert_eq!(r, rational_zero);
+            }
+            _ => panic!("Expected ErlangTerm::Rational, got {:?}", erlang_term_zero),
+        }
+    }
+    
+    #[test]
+    fn test_term_to_erlang_term_rational_in_structures() {
+        use entities_data_handling::term_hashing::Term;
+        use entities_utilities::BigRational;
+        
+        // Test rational in tuple
+        let rational = BigRational::from_i64(22).div(&BigRational::from_i64(7)).unwrap();
+        let term = Term::Tuple(vec![
+            Term::Small(1),
+            Term::Rational(rational.clone()),
+            Term::Small(3),
+        ]);
+        let erlang_term = LoadBif::term_to_erlang_term(&term);
+        
+        match erlang_term {
+            ErlangTerm::Tuple(elements) => {
+                assert_eq!(elements.len(), 3);
+                assert_eq!(elements[0], ErlangTerm::Integer(1));
+                match &elements[1] {
+                    ErlangTerm::Rational(r) => {
+                        assert_eq!(r, &rational);
+                    }
+                    _ => panic!("Expected ErlangTerm::Rational in tuple"),
+                }
+                assert_eq!(elements[2], ErlangTerm::Integer(3));
+            }
+            _ => panic!("Expected ErlangTerm::Tuple, got {:?}", erlang_term),
+        }
+        
+        // Test rational in list
+        let term_list = Term::List {
+            head: Box::new(Term::Rational(rational.clone())),
+            tail: Box::new(Term::List {
+                head: Box::new(Term::Small(42)),
+                tail: Box::new(Term::Nil),
+            }),
+        };
+        let erlang_term_list = LoadBif::term_to_erlang_term(&term_list);
+        
+        match erlang_term_list {
+            ErlangTerm::List(elements) => {
+                assert_eq!(elements.len(), 2);
+                match &elements[0] {
+                    ErlangTerm::Rational(r) => {
+                        assert_eq!(r, &rational);
+                    }
+                    _ => panic!("Expected ErlangTerm::Rational in list"),
+                }
+                assert_eq!(elements[1], ErlangTerm::Integer(42));
+            }
+            _ => panic!("Expected ErlangTerm::List, got {:?}", erlang_term_list),
+        }
     }
 }
 
