@@ -73,3 +73,4 @@ pub fn get_failure(port: DriverPort) -> Option<FailureType> {
     registry.get_failure(port)
 }
 
+
