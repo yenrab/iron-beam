@@ -16,10 +16,10 @@
   - Entities: 5 groups
   - Use Cases: 4 groups
   - Adapters: 9 groups
-  - Infrastructure: 10 groups
+  - Infrastructure: 11 groups
   - Frameworks: 5 groups
   - Code Management: 1 group
-- ✅ Total behavior groups: 34
+- ✅ Total behavior groups: 36 (including infrastructure_nif_api)
 - ✅ Dependency graph validated: 81 dependencies, 0 circular dependencies
 - ✅ All behavior groups assigned to CLEAN layers
 - ✅ External callers identified: 52 callers
@@ -87,7 +87,27 @@
 ### Adapters Layer
 - Status: ✅ Complete
 - Groups completed: 9/9
-  - ✅ adapters_nifs (26 files, 755 functions)
+  - ✅ adapters_nifs (27 files, 755 functions)
+    - ✅ nif_loader.rs - **NEW Rust implementation** (no C source file)
+      - **Purpose**: NIF (Native Implemented Function) loading and tracking infrastructure
+      - **Dependencies**:
+        - `entities_process` - Process struct for NIF pointer tracking
+        - `entities_data_handling` - Term types (indirect)
+        - `usecases_bifs` - Dynamic library infrastructure (indirect)
+        - `libloading` (external crate) - Dynamic library loading (.so, .dylib, .dll)
+      - **Depended on by**:
+        - `api_facades::nif_facades` - NIF facade functions (indirect, via adapters_nifs crate)
+        - `usecases_process_management::process_code_tracking` - Reads Process.nif_pointers (indirect, no direct dependency to avoid circular dependency)
+      - **Key Features**:
+        - NIF library loading from file paths
+        - NIF function registration in global registry
+        - Process-NIF association tracking
+        - NIF pointer tracking in Process struct
+        - Thread-safe singleton registry (NifRegistry)
+        - Reference counting for NIF libraries
+        - Code purging safety checks (is_nif_pointer_in_module_area)
+      - **Architecture**: Adapters layer (I/O and external interfaces)
+      - **Note**: This is a new Rust implementation with no direct C source file. It provides infrastructure for loading and tracking NIFs, bridging NIF compilation (usecases_nif_compilation) and NIF runtime tracking (usecases_process_management).
   - ✅ adapters_io_operations (34 files, 226 functions)
   - ✅ adapters_ets_tables (1 file, 2 functions)
   - ✅ adapters_debugging (2 files, 10 functions)
@@ -110,8 +130,8 @@
 - Compilation status: All crates compile successfully (warnings only)
 
 ### Infrastructure Layer
-- Status: ✅ Complete
-- Groups completed: 10/10
+- Status: 🔄 In Progress
+- Groups completed: 10/11
   - ✅ infrastructure_utilities (224 files, 1754 functions)
   - ✅ infrastructure_debugging (9 files, 60 functions)
   - ✅ infrastructure_ets_tables (11 files, 345 functions)
@@ -121,8 +141,26 @@
   - ✅ infrastructure_data_handling (6 files, 16 functions)
   - ✅ infrastructure_bignum_encoding (4 files, 15 functions)  # Includes bignum_codec and rational_codec
   - ✅ infrastructure_trace_encoding (2 files, 2 functions)
+  - 🔄 infrastructure_nif_api - **NEW Rust implementation** (no C code will be shipped)
+    - **Purpose**: Provides the Rust NIF API - equivalent to C `erl_nif.h` API but implemented in pure Rust
+    - **Dependencies**:
+      - `entities_data_handling` - For term type definitions (Term enum)
+      - `entities_utilities` - For BigNumber, BigRational types
+      - `infrastructure_data_handling` - For reference implementations (EI format, for comparison)
+    - **Depended on by**:
+      - `adapters_nifs` - NIF implementations use the NIF API for term creation/decoding
+      - `usecases_nif_compilation` - NIF compilation may verify NIF API usage
+      - NIF examples (e.g., `hello_world_nif`) - Use NIF API functions
+    - **Key Features**:
+      - Term creation functions (`enif_make_atom`, `enif_make_integer`, `enif_make_binary`, `enif_make_tuple`, `enif_make_list`, `enif_make_map`)
+      - Term decoding functions (`enif_get_atom`, `enif_get_int`, `enif_get_binary`, `enif_get_tuple`, `enif_get_list`, `enif_get_map`)
+      - Error handling (`enif_make_badarg`, exception handling)
+      - Resource management (`enif_alloc_resource`, `enif_release_resource`, `enif_make_resource`)
+      - Works with in-memory Erlang terms (u64/Eterm values), not serialized EI format
+    - **Architecture**: Infrastructure layer (provides NIF API infrastructure)
+    - **Note**: This is a new Rust implementation with no C code to be shipped. It replaces the C `erl_nif.h` API with pure Rust functions. The C files listed in the design document (`erts/emulator/beam/erl_nif.c`, `erl_nif.h`) are reference implementations only. This module is distinct from `infrastructure_data_handling` which provides EI format serialization - this provides in-memory term operations for NIFs.
 - Dependencies satisfied: ✅ Entities and Use Cases layers complete
-- Rust crates generated: 9
+- Rust crates generated: 10
   - infrastructure_utilities
   - infrastructure_debugging
   - infrastructure_ets_tables
@@ -132,7 +170,8 @@
   - infrastructure_data_handling
   - infrastructure_bignum_encoding
   - infrastructure_trace_encoding
-- Compilation status: All crates compile successfully (warnings only)
+  - infrastructure_nif_api (to be created)
+- Compilation status: 9/10 crates compile successfully (infrastructure_nif_api pending implementation)
 
 ### Frameworks Layer
 - Status: ✅ Complete

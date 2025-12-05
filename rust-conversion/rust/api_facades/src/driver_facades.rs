@@ -315,8 +315,94 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_driver_facades_placeholder() {
-        // TODO: Add driver facade tests
+    fn test_driver_init() {
+        // Test that driver_init can be called with null pointer
+        let result = unsafe { driver_init(std::ptr::null_mut()) };
+        assert_eq!(result, 0, "driver_init should return 0 for success");
+    }
+
+    #[test]
+    fn test_driver_start() {
+        // Test that driver_start can be called with null pointer
+        let result = unsafe { driver_start(std::ptr::null_mut()) };
+        assert_eq!(result, 0, "driver_start should return 0 for success");
+    }
+
+    #[test]
+    fn test_driver_stop() {
+        // Test that driver_stop can be called with null pointer
+        let result = unsafe { driver_stop(std::ptr::null_mut()) };
+        assert_eq!(result, 0, "driver_stop should return 0 for success");
+    }
+
+    #[test]
+    fn test_driver_lifecycle() {
+        // Test complete driver lifecycle: init -> start -> stop
+        unsafe {
+            let init_result = driver_init(std::ptr::null_mut());
+            assert_eq!(init_result, 0, "Driver initialization should succeed");
+            
+            let start_result = driver_start(std::ptr::null_mut());
+            assert_eq!(start_result, 0, "Driver start should succeed");
+            
+            let stop_result = driver_stop(std::ptr::null_mut());
+            assert_eq!(stop_result, 0, "Driver stop should succeed");
+        }
+    }
+
+    #[test]
+    fn test_driver_init_multiple_calls() {
+        // Test multiple calls to driver_init
+        for _ in 0..10 {
+            let result = unsafe { driver_init(std::ptr::null_mut()) };
+            assert_eq!(result, 0);
+        }
+    }
+
+    #[test]
+    fn test_driver_start_multiple_calls() {
+        // Test multiple calls to driver_start
+        for _ in 0..10 {
+            let result = unsafe { driver_start(std::ptr::null_mut()) };
+            assert_eq!(result, 0);
+        }
+    }
+
+    #[test]
+    fn test_driver_stop_multiple_calls() {
+        // Test multiple calls to driver_stop
+        for _ in 0..10 {
+            let result = unsafe { driver_stop(std::ptr::null_mut()) };
+            assert_eq!(result, 0);
+        }
+    }
+
+    #[test]
+    fn test_driver_facades_signature_compatibility() {
+        // Test that facades maintain correct C function signatures
+        unsafe {
+            let init_result = driver_init(std::ptr::null_mut());
+            let start_result = driver_start(std::ptr::null_mut());
+            let stop_result = driver_stop(std::ptr::null_mut());
+            
+            assert_eq!(init_result, 0);
+            assert_eq!(start_result, 0);
+            assert_eq!(stop_result, 0);
+        }
+    }
+
+    #[test]
+    fn test_driver_start_without_init() {
+        // Test that driver_start can be called without init (current stub allows this)
+        let result = unsafe { driver_start(std::ptr::null_mut()) };
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn test_driver_stop_without_start() {
+        // Test that driver_stop can be called without start (current stub allows this)
+        let result = unsafe { driver_stop(std::ptr::null_mut()) };
+        assert_eq!(result, 0);
     }
 }
 

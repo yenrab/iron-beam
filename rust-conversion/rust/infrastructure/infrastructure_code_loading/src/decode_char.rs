@@ -166,5 +166,190 @@ mod tests {
             assert_eq!(decoded, original, "Roundtrip failed for {}", original);
         }
     }
+
+    #[test]
+    fn test_decode_char_buffer_too_short_empty() {
+        let buf = vec![];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_char_buffer_too_short_tag_only() {
+        let buf = vec![ERL_SMALL_INTEGER_EXT];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_char_integer_ext() {
+        let value = 100u8;
+        let signed = value as i32;
+        let mut buf = vec![ERL_INTEGER_EXT];
+        buf.extend_from_slice(&signed.to_be_bytes());
+        let mut index = 0;
+        let decoded = decode_char(&buf, &mut index).unwrap();
+        assert_eq!(decoded, value);
+        assert_eq!(index, 5);
+    }
+
+    #[test]
+    fn test_decode_char_integer_ext_buffer_too_short() {
+        let buf = vec![ERL_INTEGER_EXT, 0, 0];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_char_integer_ext_negative() {
+        let signed = -1i32;
+        let mut buf = vec![ERL_INTEGER_EXT];
+        buf.extend_from_slice(&signed.to_be_bytes());
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::ValueOutOfRange);
+    }
+
+    #[test]
+    fn test_decode_char_integer_ext_too_large() {
+        let signed = 256i32;
+        let mut buf = vec![ERL_INTEGER_EXT];
+        buf.extend_from_slice(&signed.to_be_bytes());
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::ValueOutOfRange);
+    }
+
+    #[test]
+    fn test_decode_char_integer_ext_boundary_values() {
+        // Test 0 and 255 (valid boundaries)
+        for value in [0u8, 255u8] {
+            let signed = value as i32;
+            let mut buf = vec![ERL_INTEGER_EXT];
+            buf.extend_from_slice(&signed.to_be_bytes());
+            let mut index = 0;
+            let decoded = decode_char(&buf, &mut index).unwrap();
+            assert_eq!(decoded, value);
+        }
+    }
+
+    #[test]
+    fn test_decode_char_small_big_ext() {
+        let value = 42u8;
+        let mut buf = vec![ERL_SMALL_BIG_EXT, 1, 0, value];
+        let mut index = 0;
+        let decoded = decode_char(&buf, &mut index).unwrap();
+        assert_eq!(decoded, value);
+    }
+
+    #[test]
+    fn test_decode_char_small_big_ext_buffer_too_short_arity() {
+        let buf = vec![ERL_SMALL_BIG_EXT];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_char_small_big_ext_buffer_too_short_sign() {
+        let buf = vec![ERL_SMALL_BIG_EXT, 1];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_char_small_big_ext_buffer_too_short_value() {
+        let buf = vec![ERL_SMALL_BIG_EXT, 1, 0];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_char_small_big_ext_negative_sign() {
+        let buf = vec![ERL_SMALL_BIG_EXT, 1, 1, 42];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::ValueOutOfRange);
+    }
+
+    #[test]
+    fn test_decode_char_small_big_ext_non_zero_high_bytes() {
+        let buf = vec![ERL_SMALL_BIG_EXT, 2, 0, 42, 1];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::ValueOutOfRange);
+    }
+
+    #[test]
+    fn test_decode_char_large_big_ext() {
+        let value = 100u8;
+        let mut buf = vec![ERL_LARGE_BIG_EXT];
+        buf.extend_from_slice(&1u32.to_be_bytes());
+        buf.push(0); // sign
+        buf.push(value);
+        let mut index = 0;
+        let decoded = decode_char(&buf, &mut index).unwrap();
+        assert_eq!(decoded, value);
+    }
+
+    #[test]
+    fn test_decode_char_large_big_ext_buffer_too_short_arity() {
+        let buf = vec![ERL_LARGE_BIG_EXT, 0, 0];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::BufferTooShort);
+    }
+
+    #[test]
+    fn test_decode_char_invalid_tag() {
+        let buf = vec![0xFF, 65];
+        let mut index = 0;
+        let result = decode_char(&buf, &mut index);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::InvalidFormat(_) => {},
+            _ => panic!("Expected InvalidFormat error"),
+        }
+    }
+
+    #[test]
+    fn test_decode_char_all_small_integer_values() {
+        for value in 0..=255u8 {
+            let buf = vec![ERL_SMALL_INTEGER_EXT, value];
+            let mut index = 0;
+            let decoded = decode_char(&buf, &mut index).unwrap();
+            assert_eq!(decoded, value);
+            assert_eq!(index, 2);
+        }
+    }
+
+    #[test]
+    fn test_decode_char_index_advancement() {
+        let buf = vec![ERL_SMALL_INTEGER_EXT, 65, ERL_SMALL_INTEGER_EXT, 66];
+        let mut index = 0;
+        let value1 = decode_char(&buf, &mut index).unwrap();
+        assert_eq!(value1, 65);
+        assert_eq!(index, 2);
+        
+        let value2 = decode_char(&buf, &mut index).unwrap();
+        assert_eq!(value2, 66);
+        assert_eq!(index, 4);
+    }
 }
 

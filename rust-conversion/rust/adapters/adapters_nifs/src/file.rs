@@ -43,7 +43,7 @@ impl FileHandle {
     }
 }
 
-use super::buffer::NifError;
+use super::buffer::BufferNifError as NifError;
 
 #[cfg(test)]
 mod tests {

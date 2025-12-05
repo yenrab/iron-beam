@@ -1,0 +1,16 @@
+[package]
+name = "infrastructure_driver_api"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Erlang driver API - equivalent to C erl_driver.h API but implemented in pure Rust"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_utilities = { path = "../../entities/entities_utilities" }
+lazy_static = "1.4"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+

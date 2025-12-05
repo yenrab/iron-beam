@@ -20,12 +20,17 @@
 //!   code to ensure it contains only safe Rust (no unsafe blocks). This provides
 //!   an additional safety layer before loading NIFs.
 //!
+//! - **[`nif_interface_verifier`](nif_interface_verifier/index.html)**: Verification
+//!   that Rust NIF code has the proper interface requirements, including `nif_init()`
+//!   function with `#[no_mangle]` and `extern "C"`, and proper NIF function signatures.
+//!
 //! ## Safety
 //!
 //! This crate prioritizes safety by:
 //! - Verifying that Rust code contains no unsafe blocks
+//! - Verifying that NIF code has proper interface requirements (`nif_init()`, `#[no_mangle]`, `extern "C"`)
 //! - Using safe compilation and loading procedures
-//! - Providing clear error messages for unsafe code
+//! - Providing clear error messages for unsafe code and interface issues
 //!
 //! ## Examples
 //!
@@ -48,7 +53,11 @@
 
 pub mod nif_compiler;
 pub mod safe_rust_verifier;
+pub mod nif_interface_verifier;
 
 pub use nif_compiler::{NifCompiler, CompileOptions, CompileResult, CompileError};
 pub use safe_rust_verifier::{SafeRustVerifier, VerificationResult, VerificationError};
+pub use nif_interface_verifier::{
+    NifInterfaceVerifier, NifInterfaceResult, NifInterfaceError,
+};
 

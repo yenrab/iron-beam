@@ -21408,6 +21408,12 @@
         "erts/emulator/test/dirty_nif_SUITE_data/on_halt_nif.c",
         "erts/emulator/nifs/common/prim_socket_nif.c"
       ],
+      "rustFiles": [
+        "rust-conversion/rust/adapters/adapters_nifs/src/buffer.rs",
+        "rust-conversion/rust/adapters/adapters_nifs/src/file.rs",
+        "rust-conversion/rust/adapters/adapters_nifs/src/nif_common.rs",
+        "rust-conversion/rust/adapters/adapters_nifs/src/nif_loader.rs"
+      ],
       "functions": [
         {
           "@id": "ex:CFunction_erts_example_matrix_nif.c_load",
@@ -29719,7 +29725,7 @@
         "codeRationale": "Functions grouped by CLEAN layer (adapters) and SOLID responsibility (nifs)",
         "solidRationale": "Single Responsibility: All functions handle nifs",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
-        "rustRationale": "Rust module: adapters_nifs as separate module with clear dependency boundaries"
+        "rustRationale": "Rust module: adapters_nifs as separate module with clear dependency boundaries. Includes nif_loader.rs - a new Rust implementation with no C source file, providing NIF library loading and tracking infrastructure."
       }
     },
     {
@@ -117814,6 +117820,126 @@
       }
     },
     {
+      "@id": "ex:BehaviorGroup_35",
+      "name": "infrastructure_nif_api",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "nif_api",
+      "files": [
+        "erts/emulator/beam/erl_nif.c",
+        "erts/emulator/beam/erl_nif.h",
+        "erts/emulator/beam/erl_nif_api_funcs.h"
+      ],
+      "rustFiles": [
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/lib.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/make_atom.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/make_integer.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/make_binary.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/make_tuple.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/make_list.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/make_map.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/get_atom.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/get_integer.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/get_binary.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/get_tuple.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/get_list.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/get_map.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/error_handling.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_nif_api/src/resource_management.rs"
+      ],
+      "functions": [
+        {
+          "@id": "ex:CFunction_erts_emulator_beam_erl_nif.c_enif_make_atom",
+          "name": "enif_make_atom",
+          "filePath": "erts/emulator/beam/erl_nif.c",
+          "lineRange": {
+            "start": 1,
+            "end": 1
+          },
+          "signature": "ERL_NIF_TERM enif_make_atom(ErlNifEnv* env, const char* name)",
+          "isStatic": false,
+          "note": "Reference implementation - Rust version will be pure Rust"
+        },
+        {
+          "@id": "ex:CFunction_erts_emulator_beam_erl_nif.c_enif_make_integer",
+          "name": "enif_make_integer",
+          "filePath": "erts/emulator/beam/erl_nif.c",
+          "lineRange": {
+            "start": 1,
+            "end": 1
+          },
+          "signature": "ERL_NIF_TERM enif_make_integer(ErlNifEnv* env, int value)",
+          "isStatic": false,
+          "note": "Reference implementation - Rust version will be pure Rust"
+        },
+        {
+          "@id": "ex:CFunction_erts_emulator_beam_erl_nif.c_enif_make_binary",
+          "name": "enif_make_binary",
+          "filePath": "erts/emulator/beam/erl_nif.c",
+          "lineRange": {
+            "start": 1,
+            "end": 1
+          },
+          "signature": "ERL_NIF_TERM enif_make_binary(ErlNifEnv* env, ErlNifBinary* bin)",
+          "isStatic": false,
+          "note": "Reference implementation - Rust version will be pure Rust"
+        },
+        {
+          "@id": "ex:CFunction_erts_emulator_beam_erl_nif.c_enif_get_atom",
+          "name": "enif_get_atom",
+          "filePath": "erts/emulator/beam/erl_nif.c",
+          "lineRange": {
+            "start": 1,
+            "end": 1
+          },
+          "signature": "int enif_get_atom(ErlNifEnv* env, ERL_NIF_TERM term, char* buf, unsigned size, ErlNifCharEncoding encoding)",
+          "isStatic": false,
+          "note": "Reference implementation - Rust version will be pure Rust"
+        },
+        {
+          "@id": "ex:CFunction_erts_emulator_beam_erl_nif.c_enif_get_int",
+          "name": "enif_get_int",
+          "filePath": "erts/emulator/beam/erl_nif.c",
+          "lineRange": {
+            "start": 1,
+            "end": 1
+          },
+          "signature": "int enif_get_int(ErlNifEnv* env, ERL_NIF_TERM term, int* ip)",
+          "isStatic": false,
+          "note": "Reference implementation - Rust version will be pure Rust"
+        },
+        {
+          "@id": "ex:CFunction_erts_emulator_beam_erl_nif.c_enif_get_binary",
+          "name": "enif_get_binary",
+          "filePath": "erts/emulator/beam/erl_nif.c",
+          "lineRange": {
+            "start": 1,
+            "end": 1
+          },
+          "signature": "int enif_get_binary(ErlNifEnv* env, ERL_NIF_TERM term, ErlNifBinary* bin)",
+          "isStatic": false,
+          "note": "Reference implementation - Rust version will be pure Rust"
+        },
+        {
+          "@id": "ex:CFunction_erts_emulator_beam_erl_nif.c_enif_make_badarg",
+          "name": "enif_make_badarg",
+          "filePath": "erts/emulator/beam/erl_nif.c",
+          "lineRange": {
+            "start": 1,
+            "end": 1
+          },
+          "signature": "ERL_NIF_TERM enif_make_badarg(ErlNifEnv* env)",
+          "isStatic": false,
+          "note": "Reference implementation - Rust version will be pure Rust"
+        }
+      ],
+      "rationale": {
+        "codeRationale": "Functions grouped by CLEAN layer (infrastructure) and SOLID responsibility (nif_api)",
+        "solidRationale": "Single Responsibility: All functions provide NIF API for term creation and decoding",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure. This module provides the NIF API infrastructure that adapters (adapters_nifs) depend on.",
+        "rustRationale": "Rust module: infrastructure_nif_api as separate module with clear dependency boundaries. This is a NEW Rust implementation that replaces the C erl_nif.h API with pure Rust functions. No C code will be shipped - this provides the complete NIF API in Rust for creating and decoding Erlang terms in memory (as u64/Eterm values), distinct from infrastructure_data_handling which provides EI format serialization."
+      }
+    },
+    {
       "@id": "ex:CFunction_lib_erl_interface_src_encode_encode_trace.c_ei_encode_trace",
       "@type": "ex:CFunction",
       "name": "ei_encode_trace",
@@ -120674,6 +120800,15 @@
       "cleanRationale": "CLEAN Architecture code_management layer: Dependencies flow inward from code_management",
       "rustRationale": "Rust module: code_management_code_loading as separate module with clear dependency boundaries",
       "codeRationale": "Functions grouped by CLEAN layer (code_management) and SOLID responsibility (management_code_loading)"
+    },
+    {
+      "@id": "ex:BehaviorGroup_35_rationale",
+      "@type": "ex:GroupingRationale",
+      "behaviorGroup": "ex:BehaviorGroup_35",
+      "solidRationale": "Single Responsibility: All functions provide NIF API for term creation and decoding",
+      "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure. This module provides the NIF API infrastructure that adapters (adapters_nifs) depend on.",
+      "rustRationale": "Rust module: infrastructure_nif_api as separate module with clear dependency boundaries. This is a NEW Rust implementation that replaces the C erl_nif.h API with pure Rust functions. No C code will be shipped - this provides the complete NIF API in Rust for creating and decoding Erlang terms in memory (as u64/Eterm values), distinct from infrastructure_data_handling which provides EI format serialization.",
+      "codeRationale": "Functions grouped by CLEAN layer (infrastructure) and SOLID responsibility (nif_api)"
     },
     {
       "@id": "ex:ExternalCaller_5272",

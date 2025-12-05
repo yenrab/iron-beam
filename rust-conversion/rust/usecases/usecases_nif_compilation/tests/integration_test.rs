@@ -56,6 +56,50 @@ pub fn safe_function() -> i32 {
 }
 
 #[test]
+fn test_nif_interface_verification_in_compilation() {
+    // Test that NIF interface verification is part of the compilation process
+    let temp_dir = tempfile::tempdir().unwrap();
+    let compiler = NifCompiler::new();
+    
+    // Test 1: Code with missing nif_init should fail
+    let code_without_nif_init = r#"
+#[no_mangle]
+pub extern "C" fn rust_safe_library_marker() -> u32 { 0x53414645 }
+pub fn test() -> i32 { 42 }
+"#;
+    let path1 = create_test_file(temp_dir.path(), "no_nif_init", code_without_nif_init);
+    
+    let compile_result = compiler.compile(&path1, CompileOptions::default());
+    assert!(compile_result.is_err());
+    match compile_result {
+        Err(usecases_nif_compilation::CompileError::InvalidNifInterface { .. }) => {
+            // Expected
+        }
+        _ => {
+            // Other errors are also acceptable (cargo not found, etc.)
+        }
+    }
+    
+    // Test 2: Code with proper nif_init should pass interface check
+    let code_with_nif_init = r#"
+#[no_mangle]
+pub extern "C" fn rust_safe_library_marker() -> u32 { 0x53414645 }
+
+#[no_mangle]
+pub extern "C" fn nif_init() -> *const u8 {
+    std::ptr::null()
+}
+"#;
+    let path2 = create_test_file(temp_dir.path(), "with_nif_init", code_with_nif_init);
+    
+    let compile_result = compiler.compile(&path2, CompileOptions::default());
+    // Should not fail on interface check (may fail on cargo/compilation, but not interface)
+    if let Err(usecases_nif_compilation::CompileError::InvalidNifInterface { .. }) = compile_result {
+        panic!("Should not fail on NIF interface check when nif_init is present");
+    }
+}
+
+#[test]
 fn test_verification_then_compilation_flow() {
     // Test the flow: verify -> compile
     let temp_dir = tempfile::tempdir().unwrap();

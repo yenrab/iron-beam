@@ -46,7 +46,7 @@
 //! - [`infrastructure_bifs`](../infrastructure/infrastructure_bifs/index.html): BIF infrastructure
 //! - [`common_facades`](super::common_facades/index.html): Common facade utilities
 
-use usecases_bifs::{RegexBif, ChecksumBif, TraceBif};
+// use usecases_bifs::{RegexBif, ChecksumBif, TraceBif}; // TODO: Use when implementing facades
 
 /// BIF function facade type
 /// Represents an Erlang term (placeholder - actual implementation needs proper term type)
@@ -91,8 +91,85 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bif_facades_placeholder() {
-        // TODO: Add BIF facade tests
+    fn test_bif_regex_compile() {
+        // Test that bif_regex_compile can be called
+        let result = unsafe { bif_regex_compile(
+            std::ptr::null_mut(),
+            0u64,
+        ) };
+        // Currently returns placeholder value 0
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn test_bif_checksum_crc32() {
+        // Test that bif_checksum_crc32 can be called
+        let result = unsafe { bif_checksum_crc32(
+            std::ptr::null_mut(),
+            0u64,
+        ) };
+        // Currently returns placeholder value 0
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn test_bif_facades_signature_compatibility() {
+        // Test that facades maintain correct C function signatures
+        unsafe {
+            let regex_result = bif_regex_compile(
+                std::ptr::null_mut(),
+                0u64,
+            );
+            let checksum_result = bif_checksum_crc32(
+                std::ptr::null_mut(),
+                0u64,
+            );
+            assert_eq!(regex_result, 0);
+            assert_eq!(checksum_result, 0);
+        }
+    }
+
+    #[test]
+    fn test_bif_regex_compile_multiple_calls() {
+        // Test multiple calls to bif_regex_compile
+        for _ in 0..10 {
+            let result = unsafe { bif_regex_compile(
+                std::ptr::null_mut(),
+                0u64,
+            ) };
+            assert_eq!(result, 0);
+        }
+    }
+
+    #[test]
+    fn test_bif_checksum_crc32_multiple_calls() {
+        // Test multiple calls to bif_checksum_crc32
+        for _ in 0..10 {
+            let result = unsafe { bif_checksum_crc32(
+                std::ptr::null_mut(),
+                0u64,
+            ) };
+            assert_eq!(result, 0);
+        }
+    }
+
+    #[test]
+    fn test_bif_facades_with_different_term_values() {
+        // Test with different Eterm values (even though they're placeholders)
+        unsafe {
+            for term_value in [0u64, 1u64, 100u64, u64::MAX] {
+                let regex_result = bif_regex_compile(
+                    std::ptr::null_mut(),
+                    term_value,
+                );
+                let checksum_result = bif_checksum_crc32(
+                    std::ptr::null_mut(),
+                    term_value,
+                );
+                assert_eq!(regex_result, 0);
+                assert_eq!(checksum_result, 0);
+            }
+        }
     }
 }
 

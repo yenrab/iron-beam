@@ -7,7 +7,8 @@
 //!
 //! The `adapters_system_integration_unix` crate is part of the adapters layer in
 //! the CLEAN architecture implementation of Erlang/OTP. It provides I/O adapters
-//! for Unix-specific system integration operations.
+//! for Unix-specific system integration operations, including file descriptor
+//! management, pipe operations, and terminal window size queries.
 //!
 //! ## Platform Support
 //!
@@ -18,7 +19,17 @@
 //! ## Modules
 //!
 //! - **[`sys_drivers`](sys_drivers/index.html)**: Unix system drivers for low-level
-//!   system operations
+//!   system operations including file descriptor management, pipe operations,
+//!   terminal window size queries, and driver data management
+//!
+//! ## Functions
+//!
+//! - `init_fd_data`: Initialize file descriptor data structure
+//! - `close_pipes`: Close pipe file descriptors
+//! - `fd_get_window_size`: Get terminal window size
+//! - `clear_fd_data`: Clear file descriptor data
+//! - `nbio_stop_fd`: Stop non-blocking I/O on a file descriptor
+//! - `fd_flush`: Mark driver for flushing/termination
 //!
 //! ## Architecture
 //!
@@ -34,7 +45,11 @@
 pub mod sys_drivers;
 
 #[cfg(unix)]
-pub use sys_drivers::SysDrivers;
+pub use sys_drivers::{
+    SysDrivers, FdData, DriverError,
+    init_fd_data, close_pipes, fd_get_window_size,
+    clear_fd_data, nbio_stop_fd, fd_flush,
+};
 
 #[cfg(not(unix))]
 /// Unix-specific functionality is only available on Unix systems

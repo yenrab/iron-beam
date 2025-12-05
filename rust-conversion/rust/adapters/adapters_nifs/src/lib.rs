@@ -21,9 +21,13 @@
 //! - **[`nif_common`](nif_common/index.html)**: Common NIF infrastructure and
 //!   utilities shared across NIF modules
 //!
+//! - **[`nif_loader`](nif_loader/index.html)**: NIF library loading and tracking
+//!   infrastructure for dynamic library loading and process-NIF association
+//!
 //! ## Architecture
 //!
 //! This crate is based on the C implementation in `erts/emulator/nifs/common/*.c`.
+//! The `nif_loader` module is a new Rust implementation with no direct C source file.
 //! It depends on the Entities and Use Cases layers for fundamental operations.
 //!
 //! ## See Also
@@ -34,7 +38,13 @@
 pub mod buffer;
 pub mod file;
 pub mod nif_common;
+pub mod nif_loader;
 
 pub use buffer::BufferNif;
 pub use file::FileNif;
+pub use nif_loader::{
+    NifLoader, NifLibrary, NifLibraryRef, NifFunction, NifRegistry, NifFunctionPtr,
+    NifLoadError, NifUnloadError, NifError,
+    RustNifMetadata, FunctionMetadata, NifGetMetadataFn,
+};
 

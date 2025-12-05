@@ -28,7 +28,13 @@
 //! - [`adapters_nifs::buffer`](super::buffer/index.html): Buffer NIF operations
 //! - [`usecases_nif_compilation`](../../usecases/usecases_nif_compilation/index.html): NIF compilation utilities
 
-/// NIF environment (placeholder)
+/// NIF environment
+///
+/// Provides a context for NIF operations. In a full implementation, this would
+/// wrap the Erlang NIF environment (`ErlNifEnv*`) and provide safe access to
+/// NIF operations.
+///
+/// Currently, this is a minimal implementation that can be extended as needed.
 pub struct NifEnv;
 
 impl NifEnv {

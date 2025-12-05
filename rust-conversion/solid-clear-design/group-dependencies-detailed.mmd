@@ -24,35 +24,36 @@ graph TD
         style UsecasesMemoryManagementApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
     end
     subgraph entities["Entities Layer"]
+        EntitiesDataHandling["✅ [Erlang] Entities Data Handling<br/>379 funcs, 13 files"]
+        style EntitiesDataHandling fill:#90EE90,stroke:#006400,stroke-width:2px
         EntitiesIoOperations["Entities Io Operations<br/>9 funcs, 1 files"]
         EntitiesProcess["✅ [Erlang] Entities Process<br/>Process struct and types"]
         style EntitiesProcess fill:#90EE90,stroke:#006400,stroke-width:2px
         EntitiesSystemIntegrationCommon["Entities System Integration Common<br/>22 funcs, 1 files"]
         EntitiesSystemIntegrationWin32["Entities System Integration Win32<br/>1 funcs, 1 files"]
         EntitiesUtilities["Entities Utilities<br/>65 funcs, 2 files"]
-        EntitiesDataHandling["✅ [Erlang] Entities Data Handling<br/>379 funcs, 13 files"]
-        style EntitiesDataHandling fill:#90EE90,stroke:#006400,stroke-width:2px
     end
     subgraph usecases["Usecases Layer"]
         UsecasesBifs["Usecases Bifs<br/>282 funcs, 13 files"]
-        UsecasesIoOperations["Usecases Io Operations<br/>21 funcs, 2 files"]
-        UsecasesProcessManagement["Usecases Process Management<br/>50 funcs, 6 files"]
+        UsecasesIoOperations["Usecases Io Operations<br/>5 funcs, 0 files"]
         UsecasesMemoryManagement["✅ [Erlang] Usecases Memory Management<br/>107 funcs, 15 files"]
         style UsecasesMemoryManagement fill:#90EE90,stroke:#006400,stroke-width:2px
+        UsecasesNifCompilation["Usecases Nif Compilation"]
+        UsecasesProcessManagement["Usecases Process Management<br/>50 funcs, 6 files"]
     end
     subgraph adapters["Adapters Layer"]
-        AdaptersDistribution["Adapters Distribution<br/>91 funcs, 3 files"]
-        AdaptersEtsTables["Adapters Ets Tables<br/>2 funcs, 1 files"]
-        AdaptersSystemIntegrationCommon["Adapters System Integration Common<br/>11 funcs, 1 files"]
-        AdaptersSystemIntegrationUnix["Adapters System Integration Unix<br/>21 funcs, 1 files"]
         AdaptersDebugging["✅ [Erlang] Adapters Debugging<br/>10 funcs, 2 files"]
         style AdaptersDebugging fill:#90EE90,stroke:#006400,stroke-width:2px
+        AdaptersDistribution["Adapters Distribution<br/>91 funcs, 3 files"]
         AdaptersDrivers["✅ [Erlang] Adapters Drivers<br/>179 funcs, 16 files"]
         style AdaptersDrivers fill:#90EE90,stroke:#006400,stroke-width:2px
+        AdaptersEtsTables["Adapters Ets Tables<br/>2 funcs, 1 files"]
         AdaptersIoOperations["✅ [Erlang] Adapters Io Operations<br/>226 funcs, 34 files"]
         style AdaptersIoOperations fill:#90EE90,stroke:#006400,stroke-width:2px
         AdaptersNifs["✅ [Erlang] Adapters Nifs<br/>755 funcs, 26 files"]
         style AdaptersNifs fill:#90EE90,stroke:#006400,stroke-width:2px
+        AdaptersSystemIntegrationCommon["Adapters System Integration Common<br/>11 funcs, 1 files"]
+        AdaptersSystemIntegrationUnix["Adapters System Integration Unix<br/>21 funcs, 1 files"]
         AdaptersTimeManagement["✅ [Erlang] Adapters Time Management<br/>13 funcs, 4 files"]
         style AdaptersTimeManagement fill:#90EE90,stroke:#006400,stroke-width:2px
     end
@@ -65,22 +66,24 @@ graph TD
     end
     subgraph infrastructure["Infrastructure Layer"]
         InfrastructureBifs["Infrastructure Bifs<br/>113 funcs, 1 files"]
-        InfrastructureBignumEncoding["Infrastructure Bignum Encoding<br/>15 funcs, 4 files"]
+        InfrastructureBignumEncoding["Infrastructure Bignum Encoding<br/>12 funcs, 2 files"]
         InfrastructureCodeLoading["Infrastructure Code Loading<br/>94 funcs, 31 files"]
         InfrastructureDataHandling["Infrastructure Data Handling<br/>16 funcs, 6 files"]
-        InfrastructureTraceEncoding["Infrastructure Trace Encoding<br/>2 funcs, 2 files"]
         InfrastructureDebugging["✅ [Erlang] Infrastructure Debugging<br/>60 funcs, 9 files"]
         style InfrastructureDebugging fill:#90EE90,stroke:#006400,stroke-width:2px
         InfrastructureEtsTables["✅ [Erlang] Infrastructure Ets Tables<br/>345 funcs, 11 files"]
         style InfrastructureEtsTables fill:#90EE90,stroke:#006400,stroke-width:2px
+        InfrastructureNifApi["Infrastructure Nif Api<br/>7 funcs, 3 files"]
         InfrastructureTimeManagement["✅ [Erlang] Infrastructure Time Management<br/>94 funcs, 6 files"]
         style InfrastructureTimeManagement fill:#90EE90,stroke:#006400,stroke-width:2px
+        InfrastructureTraceEncoding["Infrastructure Trace Encoding<br/>2 funcs, 2 files"]
         InfrastructureUtilities["✅ [Erlang] Infrastructure Utilities<br/>1754 funcs, 224 files"]
         style InfrastructureUtilities fill:#90EE90,stroke:#006400,stroke-width:2px
     end
     subgraph code_management["Code Management Layer"]
         CodeManagementCodeLoading["Code Management Code Loading<br/>109 funcs, 9 files"]
     end
+
     AdaptersDriversApi --> AdaptersDrivers
     AdaptersDebuggingApi --> AdaptersDebugging
     AdaptersNifsApi --> AdaptersNifs
@@ -178,4 +181,4 @@ graph TD
     %% GROUP-LEVEL dependencies (from cycle-minimizing grouper)
     %% Dependencies follow CLEAN architecture: outer layers depend on inner layers
     %% API Facades Layer (NEW): Facades that Erlang calls, which then call Rust modules
-    %% Total: 92 dependencies, 0 circular
+    %% Total: 93 dependencies, 0 circular

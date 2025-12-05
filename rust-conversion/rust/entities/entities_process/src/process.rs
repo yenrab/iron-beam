@@ -7,6 +7,7 @@
 //! access instead of raw pointers for maximum safety.
 
 use std::fmt;
+use std::sync::Arc;
 
 /// Process ID type
 pub type ProcessId = u64;
@@ -171,6 +172,13 @@ pub struct Process {
     schedule_count: u8,
     /// Suspend count
     rcount: u32,
+    /// NIF function pointers currently used by this process
+    /// These pointers are tracked for code purging safety checks
+    nif_pointers: Vec<*const u8>,
+    /// References to NIF libraries loaded for this process
+    /// These are reference counted to prevent libraries from being unloaded
+    /// while processes are using them
+    nif_libraries: Vec<std::sync::Arc<dyn std::any::Any + Send + Sync>>,
 }
 
 impl Process {
@@ -205,6 +213,8 @@ impl Process {
             uniq: 0,
             schedule_count: 0,
             rcount: 0,
+            nif_pointers: Vec::new(),
+            nif_libraries: Vec::new(),
         }
     }
 
@@ -335,6 +345,108 @@ impl Process {
     pub fn stop(&self) -> Option<usize> {
         self.stack_top_index
     }
+
+    /// Add a NIF pointer to this process's tracking list
+    ///
+    /// This method is called by nif_loader when a process uses a NIF.
+    /// The pointer is tracked for code purging safety checks.
+    ///
+    /// # Arguments
+    /// * `nif_pointer` - NIF function pointer to track
+    ///
+    /// # Returns
+    /// Error if pointer is invalid
+    pub fn add_nif_pointer(&mut self, nif_pointer: *const u8) -> Result<(), String> {
+        if nif_pointer.is_null() {
+            return Err("Invalid NIF pointer: null pointer".to_string());
+        }
+        // Avoid duplicates
+        if !self.nif_pointers.contains(&nif_pointer) {
+            self.nif_pointers.push(nif_pointer);
+        }
+        Ok(())
+    }
+
+    /// Remove a NIF pointer from this process's tracking list
+    ///
+    /// This method is called by nif_loader when a process no longer uses a NIF.
+    ///
+    /// # Arguments
+    /// * `nif_pointer` - NIF function pointer to remove
+    ///
+    /// # Returns
+    /// Error if pointer not found
+    pub fn remove_nif_pointer(&mut self, nif_pointer: *const u8) -> Result<(), String> {
+        self.nif_pointers.retain(|&ptr| ptr != nif_pointer);
+        Ok(())
+    }
+
+    /// Get all NIF pointers associated with this process
+    ///
+    /// This method returns all NIF function pointers currently used by this process.
+    /// It is used by usecases_process_management to check code usage.
+    ///
+    /// # Returns
+    /// Vector of NIF function pointers
+    pub fn get_nif_pointers(&self) -> Vec<*const u8> {
+        self.nif_pointers.clone()
+    }
+
+    /// Add a NIF library reference to this process
+    ///
+    /// This method is called by nif_loader when a process uses a NIF from a library.
+    /// The library reference is tracked to prevent the library from being unloaded
+    /// while the process is using it.
+    ///
+    /// # Arguments
+    /// * `library` - Reference to NIF library
+    ///
+    /// # Returns
+    /// Error if library cannot be added
+    pub fn add_nif_library(
+        &mut self,
+        library: std::sync::Arc<dyn std::any::Any + Send + Sync>,
+    ) -> Result<(), String> {
+        // Avoid duplicates by checking if we already have this library
+        // We compare by pointer address since Arc doesn't implement Eq
+        let library_ptr = Arc::as_ptr(&library) as *const ();
+        let already_has = self.nif_libraries.iter().any(|lib| {
+            Arc::as_ptr(lib) as *const () == library_ptr
+        });
+        
+        if !already_has {
+            self.nif_libraries.push(library);
+        }
+        Ok(())
+    }
+
+    /// Remove a NIF library reference from this process
+    ///
+    /// This method is called by nif_loader when a process no longer uses a NIF library.
+    ///
+    /// # Arguments
+    /// * `library` - Reference to NIF library to remove
+    ///
+    /// # Returns
+    /// Error if library not found
+    pub fn remove_nif_library(
+        &mut self,
+        library: &std::sync::Arc<dyn std::any::Any + Send + Sync>,
+    ) -> Result<(), String> {
+        let library_ptr = Arc::as_ptr(library) as *const ();
+        self.nif_libraries.retain(|lib| {
+            Arc::as_ptr(lib) as *const () != library_ptr
+        });
+        Ok(())
+    }
+
+    /// Get all NIF library references for this process
+    ///
+    /// # Returns
+    /// Vector of NIF library references
+    pub fn get_nif_libraries(&self) -> &[std::sync::Arc<dyn std::any::Any + Send + Sync>] {
+        &self.nif_libraries
+    }
 }
 
 // Implement Debug trait
@@ -360,6 +472,8 @@ impl fmt::Debug for Process {
             .field("rcount", &self.rcount)
             .field("state", &self.get_state())
             .field("i", &(self.i as usize))
+            .field("nif_pointers_count", &self.nif_pointers.len())
+            .field("nif_libraries_count", &self.nif_libraries.len())
             .finish()
     }
 }

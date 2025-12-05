@@ -8,5 +8,7 @@ authors = ["Erlang/OTP Rust Conversion"]
 
 [dependencies]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_process = { path = "../../entities/entities_process" }
 usecases_bifs = { path = "../../usecases/usecases_bifs" }
+libloading = "0.8"
 
