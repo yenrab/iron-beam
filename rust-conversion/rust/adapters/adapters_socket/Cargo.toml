@@ -1,0 +1,13 @@
+[package]
+name = "adapters_socket"
+version = "0.1.0"
+edition = "2021"
+description = "Adapters layer: Socket and TCP/IP networking support"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+adapters_nif_io = { path = "../adapters_nif_io" }
+adapters_nifs = { path = "../adapters_nifs" }
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+socket2 = { version = "0.5", features = ["all"] }

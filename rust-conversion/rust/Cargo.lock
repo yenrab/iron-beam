@@ -56,6 +56,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "adapters_socket"
+version = "0.1.0"
+dependencies = [
+ "adapters_nif_io",
+ "adapters_nifs",
+ "entities_data_handling",
+ "socket2 0.5.10",
+]
+
+[[package]]
 name = "adapters_system_integration_unix"
 version = "0.1.0"
 dependencies = [

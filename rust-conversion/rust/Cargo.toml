@@ -23,6 +23,7 @@ members = [
     "adapters/adapters_time_management",
     "adapters/adapters_system_integration_unix",
     "adapters/adapters_nif_io",
+    "adapters/adapters_socket",
     "adapters/adapters_distribution",
     
     # Infrastructure layer
@@ -49,7 +50,7 @@ members = [
     
     # API Facades layer
     "api_facades",
-    "entities/entities_process",
+    "entities/entities_process", "adapters/adapters_socket",
 ]
 
 [workspace.package]
