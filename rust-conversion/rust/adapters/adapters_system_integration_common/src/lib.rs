@@ -26,5 +26,8 @@
 
 pub mod check_io;
 
-pub use check_io::CheckIo;
+pub use check_io::{
+    CheckIo, CheckIoConfig, CheckIoInfo, CheckIoError,
+    PollThreadId, IoEvent, IoEventType,
+};
 

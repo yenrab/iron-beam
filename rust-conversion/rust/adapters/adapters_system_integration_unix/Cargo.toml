@@ -9,7 +9,6 @@ authors = ["Erlang/OTP Rust Conversion"]
 [dependencies]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_system_integration_common = { path = "../../entities/entities_system_integration_common" }
-infrastructure_driver_api = { path = "../../infrastructure/infrastructure_driver_api" }
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.27"

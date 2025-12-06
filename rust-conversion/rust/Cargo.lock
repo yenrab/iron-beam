@@ -61,7 +61,6 @@ version = "0.1.0"
 dependencies = [
  "entities_data_handling",
  "entities_system_integration_common",
- "infrastructure_driver_api",
  "libc",
  "nix",
 ]
@@ -1145,16 +1144,6 @@ dependencies = [
  "entities_data_handling",
  "entities_utilities",
  "infrastructure_data_handling",
-]
-
-[[package]]
-name = "infrastructure_driver_api"
-version = "0.1.0"
-dependencies = [
- "entities_data_handling",
- "entities_utilities",
- "lazy_static",
- "libc",
 ]
 
 [[package]]
