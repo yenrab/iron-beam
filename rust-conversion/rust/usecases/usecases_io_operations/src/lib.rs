@@ -25,7 +25,6 @@
 //! ## See Also
 //!
 //! - [`entities_io_operations`](../../entities/entities_io_operations/index.html): I/O entity layer
-//! - [`adapters_io_operations`](../../adapters/adapters_io_operations/index.html): I/O adapter layer
 
 /*
  * %CopyrightBegin%

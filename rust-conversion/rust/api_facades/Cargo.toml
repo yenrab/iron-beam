@@ -16,7 +16,6 @@ usecases_process_management = { path = "../usecases/usecases_process_management"
 usecases_io_operations = { path = "../usecases/usecases_io_operations" }
 usecases_bifs = { path = "../usecases/usecases_bifs" }
 adapters_nifs = { path = "../adapters/adapters_nifs" }
-adapters_io_operations = { path = "../adapters/adapters_io_operations" }
 adapters_drivers = { path = "../adapters/adapters_drivers" }
 infrastructure_utilities = { path = "../infrastructure/infrastructure_utilities" }
 # code_management_code_loading = { path = "../code_management/code_management_code_loading" }  # Commented out - missing modules

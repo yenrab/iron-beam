@@ -25,9 +25,6 @@
 //! - **[`nif_facades`](nif_facades/index.html)**: NIF (Native Implemented Function) facades
 //!   for functions called from NIFs
 //!
-//! - **[`driver_facades`](driver_facades/index.html)**: Driver facades for functions called
-//!   from drivers
-//!
 //! - **[`bif_facades`](bif_facades/index.html)**: BIF (Built-In Function) facades for
 //!   functions called from BIFs
 //!
@@ -48,12 +45,10 @@
 //! - [`entities_data_handling`](../entities/entities_data_handling/index.html): Core data handling
 
 pub mod nif_facades;
-pub mod driver_facades;
 pub mod bif_facades;
 pub mod common_facades;
 
 // Re-export main facade types
 pub use nif_facades::*;
-pub use driver_facades::*;
 pub use bif_facades::*;
 

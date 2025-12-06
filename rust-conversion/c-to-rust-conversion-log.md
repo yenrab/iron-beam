@@ -108,7 +108,6 @@
         - Code purging safety checks (is_nif_pointer_in_module_area)
       - **Architecture**: Adapters layer (I/O and external interfaces)
       - **Note**: This is a new Rust implementation with no direct C source file. It provides infrastructure for loading and tracking NIFs, bridging NIF compilation (usecases_nif_compilation) and NIF runtime tracking (usecases_process_management).
-  - ✅ adapters_io_operations (34 files, 226 functions)
   - ✅ adapters_ets_tables (1 file, 2 functions)
   - ✅ adapters_debugging (2 files, 10 functions)
   - ✅ adapters_drivers (16 files, 179 functions)
@@ -117,9 +116,8 @@
   - ✅ adapters_system_integration_common (1 file, 11 functions)
   - ✅ adapters_distribution (3 files, 91 functions)
 - Dependencies satisfied: ✅ Use Cases and Entities layers complete
-- Rust crates generated: 9
+- Rust crates generated: 8
   - adapters_nifs
-  - adapters_io_operations
   - adapters_ets_tables
   - adapters_debugging
   - adapters_drivers

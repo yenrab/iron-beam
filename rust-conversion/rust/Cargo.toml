@@ -17,7 +17,6 @@ members = [
     
     # Adapters layer
     "adapters/adapters_nifs",
-    "adapters/adapters_io_operations",
     "adapters/adapters_ets_tables",
     "adapters/adapters_debugging",
     "adapters/adapters_drivers",

@@ -25,7 +25,6 @@
 //!
 //! ## See Also
 //!
-//! - [`adapters_io_operations`](../adapters_io_operations/index.html): I/O operations adapters
 //! - [`frameworks_system_integration`](../../frameworks/frameworks_system_integration/index.html): System integration framework
 
 pub mod inet;
