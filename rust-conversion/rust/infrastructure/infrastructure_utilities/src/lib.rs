@@ -41,8 +41,10 @@
 pub mod common;
 pub mod helpers;
 pub mod process_table;
+pub mod atom_table;
 
 pub use common::{CommonUtils, FormatUtils, MathUtils, RationalUtils, MiscUtils, HashUtils, ArrayUtils, ThreadingUtils, TimeUtils, PathUtils, UtilityError};
 pub use helpers::HelperFunctions;
 pub use process_table::{ProcessTable, get_global_process_table, ProcessTableError};
+pub use atom_table::get_global_atom_table;
 

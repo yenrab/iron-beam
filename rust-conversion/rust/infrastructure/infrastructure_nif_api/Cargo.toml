@@ -1,0 +1,14 @@
+[package]
+name = "infrastructure_nif_api"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: NIF API - Rust implementation of erl_nif.h"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_process = { path = "../../entities/entities_process" }
+entities_utilities = { path = "../../entities/entities_utilities" }
+infrastructure_utilities = { path = "../infrastructure_utilities" }
+

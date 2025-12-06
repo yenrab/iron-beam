@@ -7,7 +7,7 @@
 //! access instead of raw pointers for maximum safety.
 
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Process ID type
 pub type ProcessId = u64;
@@ -142,12 +142,12 @@ pub struct Process {
     min_heap_size: usize,
     /// Maximum heap size in words (0 = unlimited)
     max_heap_size: usize,
-    /// Heap data storage (safe Rust Vec)
-    heap_data: Vec<Eterm>,
+    /// Heap data storage (safe Rust Vec, protected by Mutex for concurrent access)
+    heap_data: Mutex<Vec<Eterm>>,
     /// Heap start index (usually 0, but can be offset if needed)
     heap_start_index: usize,
-    /// Heap top index (current position where new data is allocated)
-    heap_top_index: usize,
+    /// Heap top index (current position where new data is allocated, protected by Mutex)
+    heap_top_index: Mutex<usize>,
     /// Stack top index (position of stack top in heap_data)
     /// In Erlang, stack and heap share the same memory block
     stack_top_index: Option<usize>,
@@ -199,9 +199,9 @@ impl Process {
             heap_sz: initial_heap_size,
             min_heap_size: initial_heap_size,
             max_heap_size: 0,    // 0 = unlimited
-            heap_data,
+            heap_data: Mutex::new(heap_data),
             heap_start_index: 0,
-            heap_top_index: 0,
+            heap_top_index: Mutex::new(0),
             stack_top_index: None,
             flags: 0,
             reds: 0,
@@ -255,7 +255,7 @@ impl Process {
 
     /// Get heap top index
     pub fn heap_top_index(&self) -> usize {
-        self.heap_top_index
+        *self.heap_top_index.lock().unwrap()
     }
 
     /// Get heap start index
@@ -264,19 +264,57 @@ impl Process {
     }
 
     /// Get heap data as a slice (safe access to heap contents)
-    pub fn heap_slice(&self) -> &[Eterm] {
-        &self.heap_data
+    /// 
+    /// Returns a cloned copy of the heap data. For mutable access, use `heap_slice_mut()`.
+    pub fn heap_slice(&self) -> Vec<Eterm> {
+        self.heap_data.lock().unwrap().clone()
     }
 
-    /// Get heap data as a mutable slice (for heap modifications)
-    pub fn heap_slice_mut(&mut self) -> &mut [Eterm] {
-        &mut self.heap_data
+    /// Get heap data as a mutable guard (for heap modifications)
+    /// 
+    /// Returns a `MutexGuard` that provides mutable access to the heap data.
+    /// The guard is automatically released when it goes out of scope.
+    pub fn heap_slice_mut(&self) -> std::sync::MutexGuard<'_, Vec<Eterm>> {
+        self.heap_data.lock().unwrap()
+    }
+
+    /// Allocate words on the process heap
+    ///
+    /// Allocates `words` number of words on the process heap and returns
+    /// the index where the allocation starts. This method is thread-safe
+    /// and can be called concurrently.
+    ///
+    /// # Arguments
+    /// * `words` - Number of words to allocate
+    ///
+    /// # Returns
+    /// * `Some(usize)` - Heap index where allocation starts
+    /// * `None` - If allocation fails (heap full, needs GC, etc.)
+    ///
+    /// # Note
+    ///
+    /// This method does not trigger garbage collection or heap growth.
+    /// If the heap is full, it returns `None` and the caller should
+    /// handle GC or heap growth separately.
+    pub fn allocate_heap_words(&self, words: usize) -> Option<usize> {
+        let mut heap_top = self.heap_top_index.lock().unwrap();
+        let heap_data = self.heap_data.lock().unwrap();
+        
+        // Check if we have enough space
+        if *heap_top + words > heap_data.len() {
+            return None; // Need GC or heap growth
+        }
+        
+        let start_index = *heap_top;
+        *heap_top += words;
+        Some(start_index)
     }
 
     /// Calculate stack size in words
     /// Returns None if stack_top_index is not set
     pub fn stack_size_words(&self) -> Option<usize> {
-        self.stack_top_index.map(|stop| stop.saturating_sub(self.heap_top_index))
+        let heap_top = *self.heap_top_index.lock().unwrap();
+        self.stack_top_index.map(|stop| stop.saturating_sub(heap_top))
     }
 
     /// Get process flags
@@ -338,7 +376,7 @@ impl Process {
 
     #[deprecated(note = "Use heap_top_index() instead")]
     pub fn htop(&self) -> Option<usize> {
-        Some(self.heap_top_index)
+        Some(*self.heap_top_index.lock().unwrap())
     }
 
     #[deprecated(note = "Use stack_top_index() instead")]
@@ -457,9 +495,9 @@ impl fmt::Debug for Process {
             .field("heap_sz", &self.heap_sz)
             .field("min_heap_size", &self.min_heap_size)
             .field("max_heap_size", &self.max_heap_size)
-            .field("heap_data_len", &self.heap_data.len())
+            .field("heap_data_len", &self.heap_data.lock().unwrap().len())
             .field("heap_start_index", &self.heap_start_index)
-            .field("heap_top_index", &self.heap_top_index)
+            .field("heap_top_index", &*self.heap_top_index.lock().unwrap())
             .field("stack_top_index", &self.stack_top_index)
             .field("flags", &format!("0x{:x}", self.flags))
             .field("reds", &self.reds)
@@ -581,7 +619,7 @@ mod tests {
         let mut process = Process::new(1);
         // Set stack top index
         process.stack_top_index = Some(100);
-        process.heap_top_index = 50;
+        *process.heap_top_index.lock().unwrap() = 50;
         
         let stack_size = process.stack_size_words();
         assert_eq!(stack_size, Some(50));
@@ -590,10 +628,12 @@ mod tests {
     #[test]
     fn test_process_heap_mutable_access() {
         let mut process = Process::new(1);
-        let heap_slice = process.heap_slice_mut();
+        let mut heap_slice = process.heap_slice_mut();
         // Can safely modify heap data
         heap_slice[0] = 42;
-        assert_eq!(process.heap_slice()[0], 42);
+        drop(heap_slice); // Release the lock
+        let heap_read = process.heap_slice();
+        assert_eq!(heap_read[0], 42);
     }
 }
 

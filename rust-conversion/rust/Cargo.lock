@@ -1167,6 +1167,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "infrastructure_nif_api"
+version = "0.1.0"
+dependencies = [
+ "entities_data_handling",
+ "entities_process",
+ "entities_utilities",
+ "infrastructure_utilities",
+]
+
+[[package]]
 name = "infrastructure_time_management"
 version = "0.1.0"
 dependencies = [
