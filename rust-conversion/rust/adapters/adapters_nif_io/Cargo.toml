@@ -10,3 +10,7 @@ authors = ["Erlang/OTP Rust Conversion"]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_system_integration_common = { path = "../../entities/entities_system_integration_common" }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+nix = "0.27"
+

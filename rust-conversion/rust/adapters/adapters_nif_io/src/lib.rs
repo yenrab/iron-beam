@@ -34,4 +34,5 @@ pub use nif_io::{
     CheckIo, CheckIoConfig, CheckIoInfo, CheckIoError,
     PollThreadId, IoEvent, IoEventType,
     NifIOQueue, NifIOQueueOpts, NifIOVec, NifBinary, SysIOVec,
+    NifSelectFlags, NifSelectResult, enif_select, SysFdType,
 };

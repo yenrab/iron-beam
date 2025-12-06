@@ -43,6 +43,8 @@ version = "0.1.0"
 dependencies = [
  "entities_data_handling",
  "entities_system_integration_common",
+ "libc",
+ "nix",
 ]
 
 [[package]]

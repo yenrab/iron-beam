@@ -274,26 +274,28 @@ mod tests {
     fn test_udp_send_to_recv_from_roundtrip() {
         use std::thread;
         use std::time::Duration;
+        use std::sync::{Arc, Mutex};
         
-        let socket1 = UdpSocket::new(AddressFamily::Ipv4).unwrap();
+        let socket1 = Arc::new(Mutex::new(UdpSocket::new(AddressFamily::Ipv4).unwrap()));
         let socket2 = UdpSocket::new(AddressFamily::Ipv4).unwrap();
         
         let addr1 = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0);
         let addr2 = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0);
         
-        socket1.bind(&addr1).unwrap();
+        socket1.lock().unwrap().bind(&addr1).unwrap();
         socket2.bind(&addr2).unwrap();
         
-        let local_addr1 = socket1.local_addr().unwrap();
+        let local_addr1 = socket1.lock().unwrap().local_addr().unwrap();
         let local_addr2 = socket2.local_addr().unwrap();
         
         // Spawn thread to send data
         let send_addr = local_addr2;
+        let socket1_clone = socket1.clone();
         let sender = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
             let data = b"Hello from socket1!";
             for _ in 0..20 {
-                match socket1.send_to(data, &send_addr) {
+                match socket1_clone.lock().unwrap().send_to(data, &send_addr) {
                     Ok(_) => break,
                     Err(SocketError::WouldBlock) => {
                         thread::sleep(Duration::from_millis(10));
@@ -338,7 +340,6 @@ mod tests {
         socket1.bind(&addr1).unwrap();
         socket2.bind(&addr2).unwrap();
         
-        let local_addr1 = socket1.local_addr().unwrap();
         let local_addr2 = socket2.local_addr().unwrap();
         
         // Connect socket1 to socket2
@@ -348,12 +349,18 @@ mod tests {
         let peer_addr = socket1.peer_addr().unwrap();
         assert_eq!(peer_addr, local_addr2);
         
+        // Get local_addr1 before moving socket1
+        let local_addr1 = socket1.local_addr().unwrap();
+        
         // Spawn thread to send data using connected mode
+        use std::sync::{Arc, Mutex};
+        let socket1_arc = Arc::new(Mutex::new(socket1));
+        let socket1_clone = socket1_arc.clone();
         let sender = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
             let data = b"Connected UDP message!";
             for _ in 0..20 {
-                match socket1.send(data) {
+                match socket1_clone.lock().unwrap().send(data) {
                     Ok(_) => break,
                     Err(SocketError::WouldBlock) => {
                         thread::sleep(Duration::from_millis(10));
@@ -406,11 +413,14 @@ mod tests {
         socket2.connect(&local_addr1).unwrap();
         
         // Spawn thread to send data
+        use std::sync::{Arc, Mutex};
+        let socket1_arc = Arc::new(Mutex::new(socket1));
+        let socket1_clone = socket1_arc.clone();
         let sender = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
             let data = b"Connected recv test!";
             for _ in 0..20 {
-                match socket1.send(data) {
+                match socket1_clone.lock().unwrap().send(data) {
                     Ok(_) => break,
                     Err(SocketError::WouldBlock) => {
                         thread::sleep(Duration::from_millis(10));
@@ -517,11 +527,14 @@ mod tests {
         let local_addr2 = socket2.local_addr().unwrap();
         
         // Send empty packet
+        use std::sync::{Arc, Mutex};
+        let socket1_arc = Arc::new(Mutex::new(socket1));
+        let socket1_clone = socket1_arc.clone();
         let sender = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
             let data = b"";
             for _ in 0..20 {
-                match socket1.send_to(data, &local_addr2) {
+                match socket1_clone.lock().unwrap().send_to(data, &local_addr2) {
                     Ok(_) => break,
                     Err(SocketError::WouldBlock) => {
                         thread::sleep(Duration::from_millis(10));
@@ -555,14 +568,15 @@ mod tests {
     fn test_udp_large_packet() {
         use std::thread;
         use std::time::Duration;
+        use std::sync::{Arc, Mutex};
         
-        let socket1 = UdpSocket::new(AddressFamily::Ipv4).unwrap();
+        let socket1 = Arc::new(Mutex::new(UdpSocket::new(AddressFamily::Ipv4).unwrap()));
         let socket2 = UdpSocket::new(AddressFamily::Ipv4).unwrap();
         
         let addr1 = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0);
         let addr2 = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0);
         
-        socket1.bind(&addr1).unwrap();
+        socket1.lock().unwrap().bind(&addr1).unwrap();
         socket2.bind(&addr2).unwrap();
         
         let local_addr2 = socket2.local_addr().unwrap();
@@ -570,10 +584,11 @@ mod tests {
         // Send large packet (64KB)
         let large_data: Vec<u8> = (0..65536).map(|i| (i % 256) as u8).collect();
         let large_data_clone = large_data.clone();
+        let socket1_clone = socket1.clone();
         let sender = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
             for _ in 0..20 {
-                match socket1.send_to(&large_data_clone, &local_addr2) {
+                match socket1_clone.lock().unwrap().send_to(&large_data_clone, &local_addr2) {
                     Ok(_) => break,
                     Err(SocketError::WouldBlock) => {
                         thread::sleep(Duration::from_millis(10));
@@ -644,25 +659,27 @@ mod tests {
     fn test_udp_multiple_sends() {
         use std::thread;
         use std::time::Duration;
+        use std::sync::{Arc, Mutex};
         
-        let socket1 = UdpSocket::new(AddressFamily::Ipv4).unwrap();
+        let socket1 = Arc::new(Mutex::new(UdpSocket::new(AddressFamily::Ipv4).unwrap()));
         let socket2 = UdpSocket::new(AddressFamily::Ipv4).unwrap();
         
         let addr1 = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0);
         let addr2 = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0);
         
-        socket1.bind(&addr1).unwrap();
+        socket1.lock().unwrap().bind(&addr1).unwrap();
         socket2.bind(&addr2).unwrap();
         
         let local_addr2 = socket2.local_addr().unwrap();
         
         // Send multiple packets
+        let socket1_clone = socket1.clone();
         let sender = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
             for i in 0..5 {
                 let data = format!("Packet {}", i).into_bytes();
                 for _ in 0..20 {
-                    match socket1.send_to(&data, &local_addr2) {
+                    match socket1_clone.lock().unwrap().send_to(&data, &local_addr2) {
                         Ok(_) => break,
                         Err(SocketError::WouldBlock) => {
                             thread::sleep(Duration::from_millis(10));
@@ -726,11 +743,14 @@ mod tests {
         let local_addr2 = socket2.local_addr().unwrap();
         
         // Send large packet
+        use std::sync::{Arc, Mutex};
+        let socket1_arc = Arc::new(Mutex::new(socket1));
+        let socket1_clone = socket1_arc.clone();
         let large_data = vec![0u8; 1000];
         let sender = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
             for _ in 0..20 {
-                match socket1.send_to(&large_data, &local_addr2) {
+                match socket1_clone.lock().unwrap().send_to(&large_data, &local_addr2) {
                     Ok(_) => break,
                     Err(SocketError::WouldBlock) => {
                         thread::sleep(Duration::from_millis(10));
