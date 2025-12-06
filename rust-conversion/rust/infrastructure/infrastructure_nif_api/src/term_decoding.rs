@@ -172,24 +172,28 @@ pub fn enif_get_binary(
     // Extract size from header (upper bits)
     let size = (header >> 2) as usize;
     
+    // Calculate number of words needed for the data
+    let data_words = (size + 7) / 8; // Round up
+    
     // Check if we have enough heap space for the binary data
-    // Binary data follows the header
-    if heap_index + 1 + (size + 7) / 8 > heap_data.len() {
+    if heap_index + 1 + data_words > heap_data.len() {
         return None;
     }
     
     // Read binary data
-    // Binaries are stored as bytes after the header
-    // We need to read size bytes (or size/8 words if size is in bits)
-    // For simplicity, assume size is in bytes
+    // Data is stored as words (little-endian), we need to extract bytes
     let mut data = Vec::with_capacity(size);
-    for i in 0..size {
-        if heap_index + 1 + i >= heap_data.len() {
-            break;
+    for word_idx in 0..data_words {
+        let word = heap_data[heap_index + 1 + word_idx];
+        // Extract bytes from word (little-endian: lower byte first)
+        for byte_idx in 0..8 {
+            let byte_pos = word_idx * 8 + byte_idx;
+            if byte_pos >= size {
+                break;
+            }
+            let byte = ((word >> (byte_idx * 8)) & 0xFF) as u8;
+            data.push(byte);
         }
-        // Extract byte from word (little-endian, lower byte)
-        let word = heap_data[heap_index + 1 + i];
-        data.push((word & 0xFF) as u8);
     }
     
     Some(data)
@@ -547,81 +551,47 @@ fn decode_bignum(env: &NifEnv, term: NifTerm) -> Option<entities_utilities::BigN
     }
     
     // Read bignum header
-    // Bignum header format: (arity << 2) | TAG_PRIMARY_BOXED | POS_BIG_SUBTAG or NEG_BIG_SUBTAG
+    // Bignum header format: (arity << 2) | TAG_PRIMARY_BOXED | sign
     let header = heap_data[heap_index];
     
-    // Extract arity (number of words) from header
+    // Extract arity (number of bytes) from header
     let arity = (header >> 2) as usize;
     
+    // Determine sign from header (lowest bit after tag)
+    let is_negative = (header & 0x1) != 0;
+    
+    // Calculate number of words needed for the data
+    let data_words = (arity + 7) / 8; // Round up
+    
     // Check if we have enough heap space
-    if heap_index + 1 + arity > heap_data.len() {
+    if heap_index + 1 + data_words > heap_data.len() {
         return None;
     }
     
-    // Determine sign from header (check subtag bits)
-    // For now, we'll assume positive and check the actual implementation
-    let is_negative = (header & 0x3) == 0x3; // NEG_BIG_SUBTAG would be 0x3
-    
-    // Read bignum data (little-endian words)
-    let mut words = Vec::with_capacity(arity);
-    for i in 0..arity {
-        words.push(heap_data[heap_index + 1 + i]);
+    // Read bignum data (little-endian words, extract bytes)
+    let mut bytes = Vec::with_capacity(arity);
+    for word_idx in 0..data_words {
+        let word = heap_data[heap_index + 1 + word_idx];
+        // Extract bytes from word (little-endian: lower byte first)
+        for byte_idx in 0..8 {
+            let byte_pos = word_idx * 8 + byte_idx;
+            if byte_pos >= arity {
+                break;
+            }
+            let byte = ((word >> (byte_idx * 8)) & 0xFF) as u8;
+            bytes.push(byte);
+        }
     }
     
-    // Convert words to BigNumber
-    // This is a simplified conversion - in a full implementation,
-    // we'd need to properly handle the bignum format
-    // For now, we'll try to reconstruct from the words
+    // Convert bytes to Integer using the helper from infrastructure_bignum_encoding
+    // This properly handles arbitrary precision
     use entities_utilities::BigNumber;
+    use infrastructure_bignum_encoding::bytes_to_integer;
     
-    // Convert words to bytes (little-endian)
-    let mut bytes = Vec::new();
-    for word in words {
-        bytes.extend_from_slice(&word.to_le_bytes());
-    }
+    // Reconstruct Integer from bytes (little-endian)
+    let value = bytes_to_integer(&bytes, is_negative);
     
-    // Remove trailing zeros
-    while bytes.last() == Some(&0) {
-        bytes.pop();
-    }
-    
-    if bytes.is_empty() {
-        return Some(BigNumber::from_i64(0));
-    }
-    
-    // Convert bytes to BigNumber (little-endian)
-    // We'll use a simple approach: convert to i64 if possible, otherwise use string conversion
-    let mut value = 0i64;
-    let mut multiplier = 1i64;
-    let mut overflow = false;
-    
-    for &byte in &bytes {
-        let byte_value = byte as i64;
-        if let Some(new_value) = value.checked_add(byte_value * multiplier) {
-            value = new_value;
-        } else {
-            overflow = true;
-            break;
-        }
-        if let Some(new_multiplier) = multiplier.checked_mul(256) {
-            multiplier = new_multiplier;
-        } else {
-            overflow = true;
-            break;
-        }
-    }
-    
-    if overflow {
-        // For values that don't fit in i64, we'd need a more sophisticated conversion
-        // For now, return None to indicate we can't handle very large bignums
-        return None;
-    }
-    
-    if is_negative {
-        value = -value;
-    }
-    
-    Some(BigNumber::from_i64(value))
+    Some(BigNumber::from_integer(value))
 }
 
 /// Decode a big rational from a term

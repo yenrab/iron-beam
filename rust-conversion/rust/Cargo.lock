@@ -1173,7 +1173,9 @@ dependencies = [
  "entities_data_handling",
  "entities_process",
  "entities_utilities",
+ "infrastructure_bignum_encoding",
  "infrastructure_utilities",
+ "malachite 0.7.1",
 ]
 
 [[package]]

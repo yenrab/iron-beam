@@ -219,3 +219,78 @@ pub fn decode_big_integer(data: &[u8]) -> Result<(Integer, usize), DecodeError> 
     Ok((value, index))
 }
 
+/// Extract bytes from a malachite Integer (little-endian)
+///
+/// This function extracts the raw bytes from an Integer value without
+/// any EI format tags. It's useful for in-memory representations like
+/// heap-allocated bignums.
+///
+/// # Arguments
+///
+/// * `value` - The Integer value
+///
+/// # Returns
+///
+/// * `(bytes, is_negative)` - Byte vector (little-endian) and sign flag
+pub fn integer_to_bytes(value: &Integer) -> (Vec<u8>, bool) {
+    // Get absolute value and sign
+    let is_negative = *value < Integer::from(0);
+    let abs_value = if is_negative {
+        -value.clone()
+    } else {
+        value.clone()
+    };
+    
+    // Convert Integer to bytes (little-endian)
+    // Extract bytes manually by repeatedly dividing by 256
+    let mut byte_vec = Vec::new();
+    let mut v = abs_value.clone();
+    let base = Integer::from(256u64);
+    
+    // Extract bytes (little-endian)
+    if v == Integer::from(0) {
+        byte_vec.push(0);
+    } else {
+        while v > Integer::from(0) {
+            let remainder = &v % &base;
+            // Remainder is always < 256, so it fits in u64
+            let rem_u64 = u64::try_from(&remainder).unwrap_or(0);
+            byte_vec.push(rem_u64 as u8);
+            v = &v / &base;
+        }
+    }
+    
+    (byte_vec, is_negative)
+}
+
+/// Convert bytes to a malachite Integer (little-endian)
+///
+/// This function reconstructs an Integer from raw bytes without
+/// any EI format parsing. It's useful for in-memory representations
+/// like heap-allocated bignums.
+///
+/// # Arguments
+///
+/// * `bytes` - Byte vector (little-endian)
+/// * `is_negative` - Whether the value is negative
+///
+/// # Returns
+///
+/// * `Integer` - The reconstructed Integer value
+pub fn bytes_to_integer(bytes: &[u8], is_negative: bool) -> Integer {
+    // Convert bytes to Integer (little-endian)
+    let mut value = Integer::from(0);
+    let mut multiplier = Integer::from(1u64);
+    
+    for &byte in bytes {
+        value += Integer::from(byte) * &multiplier;
+        multiplier *= Integer::from(256u64);
+    }
+    
+    if is_negative {
+        -value
+    } else {
+        value
+    }
+}
+

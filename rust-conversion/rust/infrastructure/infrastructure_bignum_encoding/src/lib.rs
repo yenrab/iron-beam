@@ -39,3 +39,6 @@ pub use rational_codec::RationalCodec;
 // Re-export error types for convenience
 pub use common::{EncodeError, DecodeError};
 
+// Re-export byte conversion helpers for in-memory representations
+pub use common::{integer_to_bytes, bytes_to_integer};
+

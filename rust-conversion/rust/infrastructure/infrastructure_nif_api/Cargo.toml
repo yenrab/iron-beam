@@ -11,4 +11,6 @@ entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_process = { path = "../../entities/entities_process" }
 entities_utilities = { path = "../../entities/entities_utilities" }
 infrastructure_utilities = { path = "../infrastructure_utilities" }
+infrastructure_bignum_encoding = { path = "../infrastructure_bignum_encoding" }
+malachite = "0.7"
 
