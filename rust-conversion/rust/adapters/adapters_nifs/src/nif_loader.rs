@@ -2731,5 +2731,698 @@ mod tests {
             }
         }
     }
+    
+    #[test]
+    fn test_nif_library_get_function() {
+        let mut functions = HashMap::new();
+        functions.insert("func1".to_string(), 0x1000 as NifFunctionPtr);
+        functions.insert("func2".to_string(), 0x2000 as NifFunctionPtr);
+        functions.insert("func3".to_string(), 0x3000 as NifFunctionPtr);
+        
+        let library = NifLibrary::new_for_testing(
+            "test_module".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions.clone(),
+        );
+        
+        // Test getting existing functions
+        assert_eq!(library.get_function("func1"), Some(0x1000 as NifFunctionPtr));
+        assert_eq!(library.get_function("func2"), Some(0x2000 as NifFunctionPtr));
+        assert_eq!(library.get_function("func3"), Some(0x3000 as NifFunctionPtr));
+        
+        // Test getting non-existent function
+        assert_eq!(library.get_function("nonexistent"), None);
+        
+        // Test getting with empty string
+        assert_eq!(library.get_function(""), None);
+    }
+    
+    #[test]
+    fn test_nif_library_get_all_functions_empty() {
+        let functions = HashMap::new();
+        let library = NifLibrary::new_for_testing(
+            "test_module".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        let all_funcs = library.get_all_functions();
+        assert_eq!(all_funcs.len(), 0);
+    }
+    
+    #[test]
+    fn test_nif_library_get_all_functions_multiple() {
+        let mut functions = HashMap::new();
+        for i in 0..10 {
+            functions.insert(format!("func_{}", i), (0x1000 + i) as NifFunctionPtr);
+        }
+        
+        let library = NifLibrary::new_for_testing(
+            "test_module".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        let all_funcs = library.get_all_functions();
+        assert_eq!(all_funcs.len(), 10);
+        
+        // Verify all pointers are present
+        for i in 0..10 {
+            assert!(all_funcs.contains(&((0x1000 + i) as NifFunctionPtr)));
+        }
+    }
+    
+    #[test]
+    fn test_nif_library_module_name_and_path() {
+        let functions = HashMap::new();
+        let library = NifLibrary::new_for_testing(
+            "my_module".to_string(),
+            PathBuf::from("/path/to/lib.so"),
+            functions,
+        );
+        
+        assert_eq!(library.module_name(), "my_module");
+        assert_eq!(library.library_path(), Path::new("/path/to/lib.so"));
+    }
+    
+    #[test]
+    fn test_nif_loader_is_nif_pointer_in_module_area_null_pointers() {
+        let memory: [u8; 100] = [0; 100];
+        let mod_start = memory.as_ptr();
+        let mod_size = 100u32;
+        
+        // Test null nif_pointer
+        assert!(!NifLoader::is_nif_pointer_in_module_area(
+            std::ptr::null(),
+            mod_start,
+            mod_size
+        ));
+        
+        // Test null mod_start
+        let nif_ptr = 0x1000 as NifFunctionPtr;
+        assert!(!NifLoader::is_nif_pointer_in_module_area(
+            nif_ptr,
+            std::ptr::null(),
+            mod_size
+        ));
+        
+        // Test both null
+        assert!(!NifLoader::is_nif_pointer_in_module_area(
+            std::ptr::null(),
+            std::ptr::null(),
+            mod_size
+        ));
+    }
+    
+    #[test]
+    fn test_nif_loader_is_nif_pointer_in_module_area_before_start() {
+        let memory: [u8; 100] = [0; 100];
+        let mod_start = memory.as_ptr();
+        let mod_size = 100u32;
+        
+        // Test pointer before start
+        let before_start = unsafe { mod_start.sub(1) };
+        assert!(!NifLoader::is_nif_pointer_in_module_area(
+            before_start,
+            mod_start,
+            mod_size
+        ));
+    }
+    
+    #[test]
+    fn test_nif_loader_is_nif_pointer_in_module_area_middle() {
+        let memory: [u8; 100] = [0; 100];
+        let mod_start = memory.as_ptr();
+        let mod_size = 100u32;
+        
+        // Test pointer in middle
+        let middle = unsafe { mod_start.add(50) };
+        assert!(NifLoader::is_nif_pointer_in_module_area(
+            middle,
+            mod_start,
+            mod_size
+        ));
+    }
+    
+    #[test]
+    fn test_nif_loader_disassociate_nif_from_process_with_library_decrement() {
+        use entities_process::Process;
+        
+        let mut process = Process::new(1);
+        let nif_ptr = 0x7000 as NifFunctionPtr;
+        
+        // Create a test library
+        let mut functions = HashMap::new();
+        functions.insert("test_func".to_string(), nif_ptr);
+        let library = Arc::new(NifLibrary::new_for_testing(
+            "disassoc_test_module".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        ));
+        
+        // Register library
+        let registry = NifRegistry::get_instance();
+        registry.register_library("disassoc_test_module".to_string(), library.clone())
+            .unwrap_or(()); // May fail if already registered
+        
+        // Register function
+        let function = NifFunction {
+            pointer: nif_ptr,
+            name: "test_func".to_string(),
+            arity: 0,
+            module: "disassoc_test_module".to_string(),
+            is_dirty: false,
+        };
+        registry.register_function(function);
+        
+        // Associate first
+        process.add_nif_pointer(nif_ptr).unwrap();
+        library.increment_ref_count();
+        let initial_count = library.ref_count();
+        
+        // Disassociate
+        let result = NifLoader::disassociate_nif_from_process(&mut process, nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify pointer was removed
+        let pointers = NifLoader::get_nif_pointers_for_process(&process);
+        assert!(!pointers.contains(&nif_ptr));
+        
+        // Verify ref count decreased
+        assert_eq!(library.ref_count(), initial_count - 1);
+    }
+    
+    #[test]
+    fn test_nif_loader_disassociate_nif_from_process_no_library() {
+        use entities_process::Process;
+        
+        let mut process = Process::new(1);
+        let nif_ptr = 0x8000 as NifFunctionPtr;
+        
+        // Add pointer manually
+        process.add_nif_pointer(nif_ptr).unwrap();
+        
+        // Register function but no library
+        let registry = NifRegistry::get_instance();
+        let function = NifFunction {
+            pointer: nif_ptr,
+            name: "test_func".to_string(),
+            arity: 0,
+            module: "no_lib_module".to_string(),
+            is_dirty: false,
+        };
+        registry.register_function(function);
+        
+        // Disassociate should still work
+        let result = NifLoader::disassociate_nif_from_process(&mut process, nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify pointer was removed
+        let pointers = NifLoader::get_nif_pointers_for_process(&process);
+        assert!(!pointers.contains(&nif_ptr));
+    }
+    
+    #[test]
+    fn test_nif_registry_get_function_after_unregister() {
+        let registry = NifRegistry::get_instance();
+        let func_ptr = 0xA000 as NifFunctionPtr;
+        
+        // Register function
+        let function = NifFunction {
+            pointer: func_ptr,
+            name: "temp_func".to_string(),
+            arity: 0,
+            module: "temp_module".to_string(),
+            is_dirty: false,
+        };
+        registry.register_function(function.clone());
+        
+        // Verify it's there
+        assert!(registry.get_function(func_ptr).is_some());
+        
+        // Note: There's no unregister_function method, so functions persist
+        // This test verifies the function is accessible
+    }
+    
+    #[test]
+    fn test_nif_loader_get_nif_library_for_module_after_unload() {
+        let mut functions = HashMap::new();
+        functions.insert("test_func".to_string(), 0xC000 as NifFunctionPtr);
+        
+        let library = Arc::new(NifLibrary::new_for_testing(
+            "get_after_unload_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        ));
+        
+        // Register library
+        let registry = NifRegistry::get_instance();
+        registry.register_library("get_after_unload_test".to_string(), library.clone())
+            .unwrap_or(());
+        
+        // Should be able to get it
+        let retrieved = NifLoader::get_nif_library_for_module("get_after_unload_test");
+        assert!(retrieved.is_some());
+        
+        // Unload it
+        library.decrement_ref_count();
+        let _ = NifLoader::unload_nif_library(&library);
+        
+        // Should not be able to get it anymore
+        let retrieved = NifLoader::get_nif_library_for_module("get_after_unload_test");
+        assert!(retrieved.is_none());
+    }
+    
+    #[test]
+    fn test_nif_error_display_implementations() {
+        // Test NifError Display
+        let error = NifError::InvalidPointer;
+        let display = format!("{}", error);
+        assert!(display.contains("Invalid NIF pointer"));
+        
+        let error = NifError::ProcessNotFound;
+        let display = format!("{}", error);
+        assert!(display.contains("Process not found"));
+        
+        let error = NifError::AssociationError("test error".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("NIF association error"));
+        assert!(display.contains("test error"));
+    }
+    
+    #[test]
+    fn test_nif_load_error_display_implementations() {
+        // Test NifLoadError Display
+        let error = NifLoadError::LibraryNotFound(PathBuf::from("/path/lib.so"));
+        let display = format!("{}", error);
+        assert!(display.contains("NIF library not found"));
+        assert!(display.contains("/path/lib.so"));
+        
+        let error = NifLoadError::LoadFailed("load error".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("Failed to load NIF library"));
+        assert!(display.contains("load error"));
+        
+        let error = NifLoadError::InvalidFormat("format error".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("Invalid NIF library format"));
+        assert!(display.contains("format error"));
+        
+        let error = NifLoadError::EntryPointNotFound("entry error".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("NIF entry point not found"));
+        assert!(display.contains("entry error"));
+        
+        let error = NifLoadError::ModuleAlreadyLoaded("module".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("Module already has NIF library loaded"));
+        assert!(display.contains("module"));
+    }
+    
+    #[test]
+    fn test_nif_unload_error_display_implementations() {
+        // Test NifUnloadError Display
+        let error = NifUnloadError::LibraryNotFound("module".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("NIF library not found"));
+        assert!(display.contains("module"));
+        
+        let error = NifUnloadError::ProcessesStillUsing;
+        let display = format!("{}", error);
+        assert!(display.contains("Cannot unload NIF library"));
+        assert!(display.contains("processes are still using it"));
+        
+        let error = NifUnloadError::UnloadFailed("unload error".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("Failed to unload NIF library"));
+        assert!(display.contains("unload error"));
+    }
+    
+    #[test]
+    fn test_nif_library_get_function_case_sensitive() {
+        let mut functions = HashMap::new();
+        functions.insert("Func1".to_string(), 0xD000 as NifFunctionPtr);
+        functions.insert("func1".to_string(), 0xD001 as NifFunctionPtr);
+        
+        let library = NifLibrary::new_for_testing(
+            "test_module".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        // Case-sensitive lookup
+        assert_eq!(library.get_function("Func1"), Some(0xD000 as NifFunctionPtr));
+        assert_eq!(library.get_function("func1"), Some(0xD001 as NifFunctionPtr));
+        assert_eq!(library.get_function("FUNC1"), None);
+    }
+    
+    #[test]
+    fn test_nif_registry_unregister_library_processes_still_using() {
+        let mut functions = HashMap::new();
+        functions.insert("test_func".to_string(), 0xE000 as NifFunctionPtr);
+        
+        let library = Arc::new(NifLibrary::new_for_testing(
+            "unregister_ref_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        ));
+        
+        // Register library
+        let registry = NifRegistry::get_instance();
+        registry.register_library("unregister_ref_test".to_string(), library.clone())
+            .unwrap_or(());
+        
+        // Increment ref count
+        library.increment_ref_count();
+        assert_eq!(library.ref_count(), 2);
+        
+        // Try to unregister - should fail and put it back
+        let result = registry.unregister_library("unregister_ref_test");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), NifUnloadError::ProcessesStillUsing));
+        
+        // Verify library is still registered
+        assert!(registry.get_library("unregister_ref_test").is_some());
+    }
+    
+    #[test]
+    fn test_nif_loader_associate_nif_with_process_function_not_found() {
+        use entities_process::Process;
+        
+        let mut process = Process::new(1);
+        let nif_ptr = 0xF000 as NifFunctionPtr;
+        
+        // Don't register the function - it should still work (just won't find library)
+        let result = NifLoader::associate_nif_with_process(&mut process, nif_ptr);
+        // Should succeed in adding pointer, but won't find library
+        assert!(result.is_ok());
+        
+        // Verify pointer was added
+        let pointers = NifLoader::get_nif_pointers_for_process(&process);
+        assert!(pointers.contains(&nif_ptr));
+    }
+    
+    #[test]
+    fn test_nif_loader_associate_nif_with_process_library_not_found_after_function() {
+        use entities_process::Process;
+        
+        let mut process = Process::new(1);
+        let nif_ptr = 0xF100 as NifFunctionPtr;
+        
+        // Register function but not library
+        let registry = NifRegistry::get_instance();
+        let function = NifFunction {
+            pointer: nif_ptr,
+            name: "test_func".to_string(),
+            arity: 0,
+            module: "no_lib_module_2".to_string(),
+            is_dirty: false,
+        };
+        registry.register_function(function);
+        
+        // Associate - should succeed but won't find library
+        let result = NifLoader::associate_nif_with_process(&mut process, nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify pointer was added
+        let pointers = NifLoader::get_nif_pointers_for_process(&process);
+        assert!(pointers.contains(&nif_ptr));
+    }
+    
+    #[test]
+    fn test_nif_loader_disassociate_nif_from_process_function_not_found() {
+        use entities_process::Process;
+        
+        let mut process = Process::new(1);
+        let nif_ptr = 0xF200 as NifFunctionPtr;
+        
+        // Add pointer manually
+        process.add_nif_pointer(nif_ptr).unwrap();
+        
+        // Don't register function - disassociate should still work
+        let result = NifLoader::disassociate_nif_from_process(&mut process, nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify pointer was removed
+        let pointers = NifLoader::get_nif_pointers_for_process(&process);
+        assert!(!pointers.contains(&nif_ptr));
+    }
+    
+    #[test]
+    fn test_nif_loader_disassociate_nif_from_process_library_not_found_after_function() {
+        use entities_process::Process;
+        
+        let mut process = Process::new(1);
+        let nif_ptr = 0xF300 as NifFunctionPtr;
+        
+        // Add pointer manually
+        process.add_nif_pointer(nif_ptr).unwrap();
+        
+        // Register function but not library
+        let registry = NifRegistry::get_instance();
+        let function = NifFunction {
+            pointer: nif_ptr,
+            name: "test_func".to_string(),
+            arity: 0,
+            module: "no_lib_module_3".to_string(),
+            is_dirty: false,
+        };
+        registry.register_function(function);
+        
+        // Disassociate - should work but won't find library
+        let result = NifLoader::disassociate_nif_from_process(&mut process, nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify pointer was removed
+        let pointers = NifLoader::get_nif_pointers_for_process(&process);
+        assert!(!pointers.contains(&nif_ptr));
+    }
+    
+    #[test]
+    fn test_nif_loader_disassociate_nif_from_process_ref_count_non_zero() {
+        use entities_process::Process;
+        
+        let mut process = Process::new(1);
+        let nif_ptr = 0xF400 as NifFunctionPtr;
+        
+        // Create a test library
+        let mut functions = HashMap::new();
+        functions.insert("test_func".to_string(), nif_ptr);
+        let library = Arc::new(NifLibrary::new_for_testing(
+            "disassoc_ref_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        ));
+        
+        // Register library
+        let registry = NifRegistry::get_instance();
+        registry.register_library("disassoc_ref_test".to_string(), library.clone())
+            .unwrap_or(());
+        
+        // Register function
+        let function = NifFunction {
+            pointer: nif_ptr,
+            name: "test_func".to_string(),
+            arity: 0,
+            module: "disassoc_ref_test".to_string(),
+            is_dirty: false,
+        };
+        registry.register_function(function);
+        
+        // Add pointer and increment ref count multiple times
+        process.add_nif_pointer(nif_ptr).unwrap();
+        library.increment_ref_count();
+        library.increment_ref_count();
+        let initial_count = library.ref_count();
+        assert!(initial_count >= 3);
+        
+        // Disassociate - ref count should decrease but not reach 0
+        let result = NifLoader::disassociate_nif_from_process(&mut process, nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify pointer was removed
+        let pointers = NifLoader::get_nif_pointers_for_process(&process);
+        assert!(!pointers.contains(&nif_ptr));
+        
+        // Verify ref count decreased but not to 0
+        let new_count = library.ref_count();
+        assert_eq!(new_count, initial_count - 1);
+        assert!(new_count > 0);
+    }
+    
+    #[test]
+    fn test_nif_function_dirty_flag_true() {
+        let function = NifFunction {
+            pointer: 0x1000 as NifFunctionPtr,
+            name: "dirty_func".to_string(),
+            arity: 0,
+            module: "test".to_string(),
+            is_dirty: true,
+        };
+        
+        assert!(function.is_dirty);
+    }
+    
+    #[test]
+    fn test_nif_function_dirty_flag_false() {
+        let function = NifFunction {
+            pointer: 0x1000 as NifFunctionPtr,
+            name: "clean_func".to_string(),
+            arity: 0,
+            module: "test".to_string(),
+            is_dirty: false,
+        };
+        
+        assert!(!function.is_dirty);
+    }
+    
+    #[test]
+    fn test_nif_registry_get_library_nonexistent_module() {
+        let registry = NifRegistry::get_instance();
+        let result = registry.get_library("nonexistent_module_xyz");
+        assert!(result.is_none());
+    }
+    
+    #[test]
+    fn test_nif_registry_unregister_library_nonexistent() {
+        let registry = NifRegistry::get_instance();
+        let result = registry.unregister_library("nonexistent_unregister_test");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), NifUnloadError::LibraryNotFound(_)));
+    }
+    
+    #[test]
+    fn test_nif_library_get_function_empty_map() {
+        let functions = HashMap::new();
+        let library = NifLibrary::new_for_testing(
+            "empty_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        assert_eq!(library.get_function("any_func"), None);
+    }
+    
+    #[test]
+    fn test_nif_library_get_all_functions_single() {
+        let mut functions = HashMap::new();
+        functions.insert("single_func".to_string(), 0x9000 as NifFunctionPtr);
+        
+        let library = NifLibrary::new_for_testing(
+            "single_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        let all_funcs = library.get_all_functions();
+        assert_eq!(all_funcs.len(), 1);
+        assert_eq!(all_funcs[0], 0x9000 as NifFunctionPtr);
+    }
+    
+    #[test]
+    fn test_nif_loader_is_nif_pointer_in_module_area_at_exact_end() {
+        let memory: [u8; 100] = [0; 100];
+        let mod_start = memory.as_ptr();
+        let mod_size = 100u32;
+        
+        // Test pointer exactly at end (exclusive, so should be false)
+        let end_ptr = unsafe { mod_start.add(100) };
+        assert!(!NifLoader::is_nif_pointer_in_module_area(end_ptr, mod_start, mod_size));
+    }
+    
+    #[test]
+    fn test_nif_loader_is_nif_pointer_in_module_area_one_before_end() {
+        let memory: [u8; 100] = [0; 100];
+        let mod_start = memory.as_ptr();
+        let mod_size = 100u32;
+        
+        // Test pointer one byte before end (should be true)
+        let before_end = unsafe { mod_start.add(99) };
+        assert!(NifLoader::is_nif_pointer_in_module_area(before_end, mod_start, mod_size));
+    }
+    
+    #[test]
+    fn test_nif_registry_register_function_multiple_times() {
+        let registry = NifRegistry::get_instance();
+        let func_ptr = 0xAA00 as NifFunctionPtr;
+        
+        // Register function first time
+        let function1 = NifFunction {
+            pointer: func_ptr,
+            name: "func1".to_string(),
+            arity: 1,
+            module: "test_module".to_string(),
+            is_dirty: false,
+        };
+        registry.register_function(function1);
+        
+        // Register function second time (should overwrite)
+        let function2 = NifFunction {
+            pointer: func_ptr,
+            name: "func2".to_string(),
+            arity: 2,
+            module: "test_module2".to_string(),
+            is_dirty: true,
+        };
+        registry.register_function(function2);
+        
+        // Should get the second registration
+        let retrieved = registry.get_function(func_ptr);
+        assert!(retrieved.is_some());
+        let func = retrieved.unwrap();
+        assert_eq!(func.name, "func2");
+        assert_eq!(func.arity, 2);
+        assert_eq!(func.module, "test_module2");
+        assert!(func.is_dirty);
+    }
+    
+    #[test]
+    fn test_nif_library_ref_count_initial() {
+        let functions = HashMap::new();
+        let library = NifLibrary::new_for_testing(
+            "ref_count_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        // Initial ref count should be 1
+        assert_eq!(library.ref_count(), 1);
+    }
+    
+    #[test]
+    fn test_nif_library_ref_count_multiple_increments() {
+        let functions = HashMap::new();
+        let library = NifLibrary::new_for_testing(
+            "multi_inc_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        // Increment multiple times
+        for _ in 0..10 {
+            library.increment_ref_count();
+        }
+        
+        assert_eq!(library.ref_count(), 11); // 1 initial + 10 increments
+    }
+    
+    #[test]
+    fn test_nif_library_ref_count_decrement_saturates() {
+        let functions = HashMap::new();
+        let library = NifLibrary::new_for_testing(
+            "saturate_test".to_string(),
+            PathBuf::from("/test/lib.so"),
+            functions,
+        );
+        
+        // Decrement past zero - should saturate at 0
+        library.decrement_ref_count(); // 1 -> 0
+        assert_eq!(library.ref_count(), 0);
+        
+        // Decrement again - should stay at 0
+        let count = library.decrement_ref_count();
+        assert_eq!(count, 0);
+        assert_eq!(library.ref_count(), 0);
+    }
 }
 

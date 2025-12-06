@@ -332,4 +332,418 @@ mod tests {
         let result = SysDrivers::init();
         assert!(result.is_ok());
     }
+    
+    #[test]
+    fn test_fd_data_new() {
+        let fd_data = FdData::new(42);
+        assert_eq!(fd_data.fd, 42);
+        assert_eq!(fd_data.pbuf, [0; 4]);
+        assert_eq!(fd_data.psz, 0);
+        assert!(fd_data.buf.is_none());
+        assert_eq!(fd_data.buf_offset, 0);
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+    }
+    
+    #[test]
+    fn test_fd_data_current_slice_with_buf() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![1, 2, 3, 4, 5]);
+        fd_data.buf_offset = 2;
+        
+        let slice = fd_data.current_slice();
+        assert!(slice.is_some());
+        assert_eq!(slice.unwrap(), &[3, 4, 5]);
+    }
+    
+    #[test]
+    fn test_fd_data_current_slice_no_buf() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = None;
+        
+        let slice = fd_data.current_slice();
+        assert!(slice.is_none());
+    }
+    
+    #[test]
+    fn test_fd_data_current_slice_offset_at_end() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![1, 2, 3]);
+        fd_data.buf_offset = 3; // At end
+        
+        let slice = fd_data.current_slice();
+        assert!(slice.is_none());
+    }
+    
+    #[test]
+    fn test_fd_data_current_slice_offset_past_end() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![1, 2, 3]);
+        fd_data.buf_offset = 5; // Past end
+        
+        let slice = fd_data.current_slice();
+        assert!(slice.is_none());
+    }
+    
+    #[test]
+    fn test_fd_data_advance_with_buf() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![0; 100]);
+        fd_data.buf_offset = 10;
+        
+        fd_data.advance(20);
+        assert_eq!(fd_data.buf_offset, 30);
+    }
+    
+    #[test]
+    fn test_fd_data_advance_no_buf() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = None;
+        fd_data.buf_offset = 10;
+        
+        fd_data.advance(20);
+        // Should not panic, offset should remain unchanged
+        assert_eq!(fd_data.buf_offset, 10);
+    }
+    
+    #[test]
+    fn test_fd_data_advance_past_end() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![0; 50]);
+        fd_data.buf_offset = 40;
+        
+        fd_data.advance(20); // Would go past end
+        assert_eq!(fd_data.buf_offset, 50); // Should clamp to buf.len()
+    }
+    
+    #[test]
+    fn test_fd_data_advance_to_exact_end() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![0; 100]);
+        fd_data.buf_offset = 90;
+        
+        fd_data.advance(10);
+        assert_eq!(fd_data.buf_offset, 100);
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_init_fd_data_preserves_fd() {
+        let mut fd_data = FdData::new(10);
+        fd_data.sz = 100;
+        fd_data.remain = 50;
+        fd_data.buf = Some(vec![1, 2, 3]);
+        fd_data.buf_offset = 2;
+        fd_data.psz = 3;
+        
+        init_fd_data(&mut fd_data, 15);
+        
+        assert_eq!(fd_data.fd, 15);
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+        assert_eq!(fd_data.psz, 0);
+        assert!(fd_data.buf.is_none());
+        assert_eq!(fd_data.buf_offset, 0);
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_clear_fd_data_with_buf() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![1, 2, 3, 4, 5]);
+        fd_data.sz = 100;
+        fd_data.remain = 50;
+        fd_data.buf_offset = 2;
+        fd_data.psz = 3;
+        fd_data.pbuf[0] = 10;
+        fd_data.pbuf[1] = 20;
+        fd_data.pbuf[2] = 30;
+        
+        clear_fd_data(&mut fd_data);
+        
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+        assert_eq!(fd_data.psz, 0);
+        assert_eq!(fd_data.buf_offset, 0);
+        assert!(fd_data.buf.is_none());
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_clear_fd_data_without_buf() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = None;
+        fd_data.sz = 0;
+        fd_data.remain = 0;
+        
+        clear_fd_data(&mut fd_data);
+        
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+        assert_eq!(fd_data.psz, 0);
+        assert!(fd_data.buf.is_none());
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_fd_get_window_size_invalid_fd() {
+        let mut width = 0;
+        let mut height = 0;
+        // Use an invalid file descriptor
+        let result = fd_get_window_size(-1, &mut width, &mut height);
+        // Should fail on invalid FD
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_fd_get_window_size_with_tty() {
+        use std::fs::OpenOptions;
+        use std::os::fd::AsRawFd;
+        
+        // Try to open /dev/tty if available
+        if let Ok(tty) = OpenOptions::new().read(true).write(true).open("/dev/tty") {
+            let fd = tty.as_raw_fd();
+            let mut width = 0;
+            let mut height = 0;
+            let result = fd_get_window_size(fd, &mut width, &mut height);
+            if result.is_ok() {
+                assert!(width > 0);
+                assert!(height > 0);
+            }
+        }
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_fd_flush_false_to_true() {
+        let mut terminating = false;
+        fd_flush(&mut terminating);
+        assert!(terminating);
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_fd_flush_already_true() {
+        let mut terminating = true;
+        fd_flush(&mut terminating);
+        assert!(terminating);
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_nbio_stop_fd_with_negative_fd() {
+        let mut fd_data = FdData::new(-5);
+        fd_data.sz = 100;
+        fd_data.remain = 50;
+        fd_data.buf = Some(vec![1, 2, 3]);
+        fd_data.buf_offset = 1;
+        fd_data.psz = 2;
+        
+        nbio_stop_fd(&mut fd_data);
+        
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+        assert_eq!(fd_data.psz, 0);
+        assert_eq!(fd_data.buf_offset, 0);
+        assert!(fd_data.buf.is_none());
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_nbio_stop_fd_with_positive_fd() {
+        let mut fd_data = FdData::new(10);
+        fd_data.sz = 200;
+        fd_data.remain = 100;
+        fd_data.buf = Some(vec![1, 2, 3, 4, 5]);
+        fd_data.buf_offset = 3;
+        
+        nbio_stop_fd(&mut fd_data);
+        
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+        assert_eq!(fd_data.psz, 0);
+        assert_eq!(fd_data.buf_offset, 0);
+        assert!(fd_data.buf.is_none());
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_nbio_stop_fd_with_zero_fd() {
+        let mut fd_data = FdData::new(0);
+        fd_data.sz = 50;
+        fd_data.remain = 25;
+        
+        nbio_stop_fd(&mut fd_data);
+        
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_close_pipes_success() {
+        use nix::unistd::pipe;
+        
+        // Create pipes
+        let (read1, write1) = pipe().unwrap();
+        let (read2, write2) = pipe().unwrap();
+        
+        let ifd = [read1, write1];
+        let ofd = [read2, write2];
+        
+        // Close pipes - should succeed
+        let result = close_pipes(&ifd, &ofd);
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_close_pipes_already_closed() {
+        use nix::unistd::pipe;
+        
+        // Create pipes
+        let (read1, write1) = pipe().unwrap();
+        let (read2, write2) = pipe().unwrap();
+        
+        let ifd = [read1, write1];
+        let ofd = [read2, write2];
+        
+        // Close them once
+        close_pipes(&ifd, &ofd).unwrap();
+        
+        // Try to close again - should fail
+        let result = close_pipes(&ifd, &ofd);
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_driver_error_variants() {
+        let error1 = DriverError::InitFailed;
+        let error2 = DriverError::InvalidFd;
+        let error3 = DriverError::NotSupported;
+        
+        assert!(matches!(error1, DriverError::InitFailed));
+        assert!(matches!(error2, DriverError::InvalidFd));
+        assert!(matches!(error3, DriverError::NotSupported));
+    }
+    
+    #[test]
+    fn test_driver_error_debug() {
+        let error = DriverError::InitFailed;
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("InitFailed"));
+    }
+    
+    #[test]
+    fn test_driver_error_clone() {
+        let error = DriverError::InvalidFd;
+        let cloned = error.clone();
+        assert_eq!(error, cloned);
+    }
+    
+    #[test]
+    fn test_driver_error_partial_eq() {
+        let error1 = DriverError::InitFailed;
+        let error2 = DriverError::InitFailed;
+        let error3 = DriverError::InvalidFd;
+        
+        assert_eq!(error1, error2);
+        assert_ne!(error1, error3);
+    }
+    
+    #[test]
+    fn test_fd_data_debug() {
+        let fd_data = FdData::new(42);
+        let debug_str = format!("{:?}", fd_data);
+        assert!(debug_str.contains("42"));
+    }
+    
+    #[test]
+    fn test_fd_data_clone() {
+        let mut fd_data = FdData::new(10);
+        fd_data.buf = Some(vec![1, 2, 3]);
+        fd_data.sz = 100;
+        fd_data.remain = 50;
+        fd_data.buf_offset = 1;
+        fd_data.psz = 2;
+        fd_data.pbuf[0] = 10;
+        
+        let cloned = fd_data.clone();
+        
+        assert_eq!(cloned.fd, 10);
+        assert_eq!(cloned.sz, 100);
+        assert_eq!(cloned.remain, 50);
+        assert_eq!(cloned.buf_offset, 1);
+        assert_eq!(cloned.psz, 2);
+        assert_eq!(cloned.pbuf[0], 10);
+        assert_eq!(cloned.buf, Some(vec![1, 2, 3]));
+    }
+    
+    #[test]
+    fn test_fd_data_with_large_buffer() {
+        let mut fd_data = FdData::new(1);
+        let large_buf = vec![0u8; 10000];
+        fd_data.buf = Some(large_buf);
+        fd_data.buf_offset = 5000;
+        fd_data.sz = 10000;
+        
+        let slice = fd_data.current_slice();
+        assert!(slice.is_some());
+        assert_eq!(slice.unwrap().len(), 5000);
+    }
+    
+    #[test]
+    fn test_fd_data_advance_large_amount() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![0; 1000]);
+        fd_data.buf_offset = 0;
+        
+        fd_data.advance(500);
+        assert_eq!(fd_data.buf_offset, 500);
+        
+        fd_data.advance(300);
+        assert_eq!(fd_data.buf_offset, 800);
+        
+        fd_data.advance(300); // Would exceed buffer
+        assert_eq!(fd_data.buf_offset, 1000); // Clamped
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_init_fd_data_resets_all_fields() {
+        let mut fd_data = FdData {
+            fd: 99,
+            pbuf: [1, 2, 3, 4],
+            psz: 4,
+            buf: Some(vec![1, 2, 3]),
+            buf_offset: 2,
+            sz: 100,
+            remain: 50,
+        };
+        
+        init_fd_data(&mut fd_data, 5);
+        
+        assert_eq!(fd_data.fd, 5);
+        assert_eq!(fd_data.sz, 0);
+        assert_eq!(fd_data.remain, 0);
+        assert_eq!(fd_data.psz, 0);
+        assert_eq!(fd_data.buf_offset, 0);
+        assert!(fd_data.buf.is_none());
+        // pbuf is not reset by init_fd_data
+    }
+    
+    #[test]
+    #[cfg(unix)]
+    fn test_clear_fd_data_multiple_times() {
+        let mut fd_data = FdData::new(1);
+        fd_data.buf = Some(vec![1, 2, 3]);
+        fd_data.sz = 100;
+        
+        clear_fd_data(&mut fd_data);
+        clear_fd_data(&mut fd_data); // Should be idempotent
+        
+        assert_eq!(fd_data.sz, 0);
+        assert!(fd_data.buf.is_none());
+    }
 }

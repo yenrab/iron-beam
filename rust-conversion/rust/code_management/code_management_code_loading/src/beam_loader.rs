@@ -768,5 +768,707 @@ mod tests {
         let _genop = BeamLoader::new_genop();
         let _label = BeamLoader::new_label();
     }
+    
+    #[test]
+    fn test_beam_file_read_forx_header() {
+        // Test FORX form ID (alternative to FOR1)
+        let mut data = vec![0u8; 16];
+        data[0..4].copy_from_slice(b"FORX");
+        data[4..8].copy_from_slice(&8u32.to_le_bytes());
+        data[8..12].copy_from_slice(b"BEAM");
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_beam_file_read_missing_beam_type() {
+        // FOR1 header but missing BEAM type
+        let mut data = vec![0u8; 8];
+        data[0..4].copy_from_slice(b"FOR1");
+        data[4..8].copy_from_slice(&8u32.to_le_bytes());
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert_eq!(result, Err(BeamFileReadResult::CorruptFileHeader));
+    }
+    
+    #[test]
+    fn test_beam_file_read_invalid_beam_type() {
+        // FOR1 header with invalid BEAM type
+        let mut data = vec![0u8; 12];
+        data[0..4].copy_from_slice(b"FOR1");
+        data[4..8].copy_from_slice(&8u32.to_le_bytes());
+        data[8..12].copy_from_slice(b"INVA");
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert_eq!(result, Err(BeamFileReadResult::CorruptFileHeader));
+    }
+    
+    #[test]
+    fn test_beam_file_read_attr_chunk() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Attr chunk
+        data[pos..pos+4].copy_from_slice(b"Attr");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&[1, 2, 3, 4]);
+        pos += 4;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert!(beam.attributes_data.is_some());
+        assert_eq!(beam.attributes_data.unwrap(), vec![1, 2, 3, 4]);
+    }
+    
+    #[test]
+    fn test_beam_file_read_cinf_chunk() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // CInf chunk
+        data[pos..pos+4].copy_from_slice(b"CInf");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&[5, 6, 7, 8]);
+        pos += 4;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert!(beam.compile_info_data.is_some());
+        assert_eq!(beam.compile_info_data.unwrap(), vec![5, 6, 7, 8]);
+    }
+    
+    #[test]
+    fn test_beam_file_read_export_table_empty() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // ExpT chunk with 0 exports
+        data[pos..pos+4].copy_from_slice(b"ExpT");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes()); // Size = 4 (just count)
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&0u32.to_be_bytes()); // Count = 0
+        pos += 4;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.exports.len(), 0);
+    }
+    
+    #[test]
+    fn test_beam_file_read_export_table_single() {
+        let mut data = vec![0u8; 48];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&36u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // ExpT chunk with 1 export
+        data[pos..pos+4].copy_from_slice(b"ExpT");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&16u32.to_be_bytes()); // Size = 16 (4 + 12)
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&1u32.to_be_bytes()); // Count = 1
+        pos += 4;
+        // Export entry: function=1, arity=2, label=3
+        data[pos..pos+4].copy_from_slice(&1u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&2u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&3i32.to_be_bytes());
+        pos += 4;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.exports.len(), 1);
+        assert_eq!(beam.exports[0], (1, 2, 3));
+    }
+    
+    #[test]
+    fn test_beam_file_read_export_table_multiple() {
+        let mut data = vec![0u8; 80];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&68u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // ExpT chunk with 2 exports
+        data[pos..pos+4].copy_from_slice(b"ExpT");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&28u32.to_be_bytes()); // Size = 28 (4 + 12*2)
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&2u32.to_be_bytes()); // Count = 2
+        pos += 4;
+        // First export: function=10, arity=20, label=30
+        data[pos..pos+4].copy_from_slice(&10u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&30i32.to_be_bytes());
+        pos += 4;
+        // Second export: function=11, arity=21, label=31
+        data[pos..pos+4].copy_from_slice(&11u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&21u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&31i32.to_be_bytes());
+        pos += 4;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.exports.len(), 2);
+        assert_eq!(beam.exports[0], (10, 20, 30));
+        assert_eq!(beam.exports[1], (11, 21, 31));
+    }
+    
+    #[test]
+    fn test_beam_file_read_export_table_incomplete_entry() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // ExpT chunk with incomplete entry
+        data[pos..pos+4].copy_from_slice(b"ExpT");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&16u32.to_be_bytes()); // Size = 16
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&1u32.to_be_bytes()); // Count = 1
+        pos += 4;
+        // Incomplete entry (only 8 bytes instead of 12)
+        data[pos..pos+8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        pos += 8;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        // Should have 0 exports because entry was incomplete
+        assert_eq!(beam.exports.len(), 0);
+    }
+    
+    #[test]
+    fn test_beam_file_read_export_table_negative_label() {
+        let mut data = vec![0u8; 48];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&36u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // ExpT chunk with negative label
+        data[pos..pos+4].copy_from_slice(b"ExpT");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&16u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&1u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&1u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&2u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&(-1i32).to_be_bytes());
+        pos += 4;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.exports.len(), 1);
+        assert_eq!(beam.exports[0], (1, 2, -1));
+    }
+    
+    #[test]
+    fn test_beam_file_read_chunk_alignment() {
+        // Test chunk alignment to 4-byte boundary
+        let mut data = vec![0u8; 40];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&28u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Code chunk with size 5 (should align to 8)
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&5u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+5].copy_from_slice(&[1, 2, 3, 4, 5]);
+        pos += 5;
+        // Padding to align (3 bytes)
+        pos += 3;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.code_data.len(), 5);
+    }
+    
+    #[test]
+    fn test_beam_file_read_unknown_chunk() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Unknown chunk
+        data[pos..pos+4].copy_from_slice(b"UNKN");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&[1, 2, 3, 4]);
+        pos += 4;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        // Should succeed (unknown chunks are ignored)
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_beam_file_read_incomplete_chunk_size() {
+        let mut data = vec![0u8; 20];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&8u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Chunk ID but incomplete size
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        // Only 2 bytes of size (incomplete)
+        if pos + 2 <= data.len() {
+            data[pos..pos+2].copy_from_slice(&[0, 0]);
+            pos += 2;
+        }
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        // Should succeed (incomplete chunks are skipped)
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_beam_file_read_incomplete_chunk_data() {
+        let mut data = vec![0u8; 24];
+        let mut pos = 0;
+        
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&12u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        
+        // Chunk with size larger than available data
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&100u32.to_be_bytes()); // Size = 100
+        pos += 4;
+        // Only 2 bytes available (incomplete)
+        if pos + 2 <= data.len() {
+            data[pos..pos+2].copy_from_slice(&[1, 2]);
+            pos += 2;
+        }
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        // Should succeed (incomplete chunks are skipped)
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_prepare_loading_module_mismatch() {
+        let mut data = vec![0u8; 28];
+        let mut pos = 0;
+        
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&16u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&[0u8; 4]);
+        pos += 4;
+        data.truncate(pos);
+        
+        // Module name mismatch (beam.module is 0, but we expect 1)
+        let result = BeamLoader::prepare_loading(&data, Some(1));
+        assert_eq!(result, Err(BeamFileReadResult::CorruptFileHeader));
+    }
+    
+    #[test]
+    fn test_prepare_loading_missing_code_chunk() {
+        let mut data = vec![0u8; 16];
+        data[0..4].copy_from_slice(b"FOR1");
+        data[4..8].copy_from_slice(&8u32.to_le_bytes());
+        data[8..12].copy_from_slice(b"BEAM");
+        
+        let result = BeamLoader::prepare_loading(&data, None);
+        assert_eq!(result, Err(BeamFileReadResult::MissingCodeChunk));
+    }
+    
+    #[test]
+    fn test_finalize_code_empty() {
+        let beam = BeamFile {
+            module: 0,
+            code_data: vec![],
+            code_size: 0,
+            exports: vec![],
+            imports: vec![],
+            atoms: vec![],
+            has_on_load: false,
+            attributes_data: None,
+            compile_info_data: None,
+        };
+        
+        let module_manager = ModuleTableManager::new();
+        let code_ix = get_global_code_ix();
+        let staging_ix = code_ix.staging_code_ix() as usize;
+        let table = module_manager.get_table(staging_ix);
+        let module = table.put_module(1);
+        
+        let result = BeamLoader::finalize_code(&beam, &module, staging_ix);
+        assert_eq!(result, Err(BeamLoadError::InvalidModule));
+    }
+    
+    #[test]
+    fn test_prepare_emit_empty() {
+        let beam = BeamFile {
+            module: 0,
+            code_data: vec![],
+            code_size: 0,
+            exports: vec![],
+            imports: vec![],
+            atoms: vec![],
+            has_on_load: false,
+            attributes_data: None,
+            compile_info_data: None,
+        };
+        
+        let result = BeamLoader::prepare_emit(&beam);
+        assert_eq!(result, Err(BeamLoadError::InvalidModule));
+    }
+    
+    #[test]
+    fn test_finish_emit_empty() {
+        let beam = BeamFile {
+            module: 0,
+            code_data: vec![],
+            code_size: 0,
+            exports: vec![],
+            imports: vec![],
+            atoms: vec![],
+            has_on_load: false,
+            attributes_data: None,
+            compile_info_data: None,
+        };
+        
+        let result = BeamLoader::finish_emit(&beam);
+        assert_eq!(result, Err(BeamLoadError::InvalidModule));
+    }
+    
+    #[test]
+    fn test_report_error_without_function() {
+        // Test error reporting without function/arity
+        BeamLoader::report_error(200, 5, None, None, "module error {}", &[&"test"]);
+    }
+    
+    #[test]
+    fn test_report_error_multiple_args() {
+        // Test error reporting with multiple format arguments
+        BeamLoader::report_error(300, 6, Some(7), Some(8), "error {} and {}", &[&"arg1", &"arg2"]);
+    }
+    
+    #[test]
+    fn test_report_error_no_args() {
+        // Test error reporting with no format arguments
+        BeamLoader::report_error(400, 9, Some(10), Some(11), "simple error", &[]);
+    }
+    
+    #[test]
+    fn test_beam_file_read_result_variants() {
+        let variants = vec![
+            BeamFileReadResult::Success,
+            BeamFileReadResult::CorruptFileHeader,
+            BeamFileReadResult::MissingAtomTable,
+            BeamFileReadResult::ObsoleteAtomTable,
+            BeamFileReadResult::CorruptAtomTable,
+            BeamFileReadResult::MissingCodeChunk,
+            BeamFileReadResult::CorruptCodeChunk,
+            BeamFileReadResult::MissingExportTable,
+            BeamFileReadResult::CorruptExportTable,
+            BeamFileReadResult::MissingImportTable,
+            BeamFileReadResult::CorruptImportTable,
+            BeamFileReadResult::CorruptLambdaTable,
+            BeamFileReadResult::CorruptLineTable,
+            BeamFileReadResult::CorruptLiteralTable,
+            BeamFileReadResult::CorruptLocalsTable,
+            BeamFileReadResult::CorruptTypeTable,
+            BeamFileReadResult::CorruptDebugTable,
+        ];
+        
+        for variant in variants {
+            let debug_str = format!("{:?}", variant);
+            assert!(!debug_str.is_empty());
+        }
+    }
+    
+    #[test]
+    fn test_beam_file_read_result_clone() {
+        let result = BeamFileReadResult::Success;
+        let cloned = result.clone();
+        assert_eq!(result, cloned);
+    }
+    
+    #[test]
+    fn test_beam_file_read_result_partial_eq() {
+        let r1 = BeamFileReadResult::Success;
+        let r2 = BeamFileReadResult::Success;
+        let r3 = BeamFileReadResult::CorruptFileHeader;
+        
+        assert_eq!(r1, r2);
+        assert_ne!(r1, r3);
+    }
+    
+    #[test]
+    fn test_beam_load_error_variants() {
+        let variants = vec![
+            BeamLoadError::ModuleNotFound,
+            BeamLoadError::OldCodeExists,
+            BeamLoadError::InvalidModule,
+        ];
+        
+        for variant in variants {
+            let debug_str = format!("{:?}", variant);
+            assert!(!debug_str.is_empty());
+        }
+    }
+    
+    #[test]
+    fn test_beam_load_error_clone() {
+        let error = BeamLoadError::InvalidModule;
+        let cloned = error.clone();
+        assert_eq!(error, cloned);
+    }
+    
+    #[test]
+    fn test_beam_load_error_partial_eq() {
+        let e1 = BeamLoadError::InvalidModule;
+        let e2 = BeamLoadError::InvalidModule;
+        let e3 = BeamLoadError::ModuleNotFound;
+        
+        assert_eq!(e1, e2);
+        assert_ne!(e1, e3);
+    }
+    
+    #[test]
+    fn test_beam_file_debug() {
+        let beam = BeamFile {
+            module: 1,
+            code_data: vec![1, 2, 3],
+            code_size: 3,
+            exports: vec![(1, 2, 3)],
+            imports: vec![(4, 5, 6)],
+            atoms: vec!["atom1".to_string()],
+            has_on_load: true,
+            attributes_data: Some(vec![7, 8]),
+            compile_info_data: Some(vec![9, 10]),
+        };
+        
+        let debug_str = format!("{:?}", beam);
+        assert!(debug_str.contains("BeamFile"));
+    }
+    
+    #[test]
+    fn test_beam_file_clone() {
+        let beam = BeamFile {
+            module: 1,
+            code_data: vec![1, 2, 3],
+            code_size: 3,
+            exports: vec![(1, 2, 3)],
+            imports: vec![(4, 5, 6)],
+            atoms: vec!["atom1".to_string()],
+            has_on_load: true,
+            attributes_data: Some(vec![7, 8]),
+            compile_info_data: Some(vec![9, 10]),
+        };
+        
+        let cloned = beam.clone();
+        assert_eq!(beam, cloned);
+    }
+    
+    #[test]
+    fn test_beam_file_partial_eq() {
+        let beam1 = BeamFile {
+            module: 1,
+            code_data: vec![1, 2, 3],
+            code_size: 3,
+            exports: vec![],
+            imports: vec![],
+            atoms: vec![],
+            has_on_load: false,
+            attributes_data: None,
+            compile_info_data: None,
+        };
+        
+        let beam2 = BeamFile {
+            module: 1,
+            code_data: vec![1, 2, 3],
+            code_size: 3,
+            exports: vec![],
+            imports: vec![],
+            atoms: vec![],
+            has_on_load: false,
+            attributes_data: None,
+            compile_info_data: None,
+        };
+        
+        let beam3 = BeamFile {
+            module: 2,
+            code_data: vec![1, 2, 3],
+            code_size: 3,
+            exports: vec![],
+            imports: vec![],
+            atoms: vec![],
+            has_on_load: false,
+            attributes_data: None,
+            compile_info_data: None,
+        };
+        
+        assert_eq!(beam1, beam2);
+        assert_ne!(beam1, beam3);
+    }
+    
+    #[test]
+    fn test_init_load() {
+        // Test init_load (should not panic)
+        BeamLoader::init_load();
+    }
+    
+    #[test]
+    fn test_make_current_old() {
+        let module_manager = ModuleTableManager::new();
+        let result = BeamLoader::make_current_old(&module_manager, 1);
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_beam_file_read_code_chunk_size() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+        
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&10u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+10].copy_from_slice(&[0u8; 10]);
+        pos += 10;
+        
+        data.truncate(pos);
+        
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.code_size, 10);
+        assert_eq!(beam.code_data.len(), 10);
+    }
 }
 
