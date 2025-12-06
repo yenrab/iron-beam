@@ -38,6 +38,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "adapters_nif_io"
+version = "0.1.0"
+dependencies = [
+ "entities_data_handling",
+ "entities_system_integration_common",
+]
+
+[[package]]
 name = "adapters_nifs"
 version = "0.1.0"
 dependencies = [
@@ -45,14 +53,6 @@ dependencies = [
  "entities_process",
  "libloading",
  "usecases_bifs",
-]
-
-[[package]]
-name = "adapters_system_integration_common"
-version = "0.1.0"
-dependencies = [
- "entities_data_handling",
- "entities_system_integration_common",
 ]
 
 [[package]]
@@ -665,7 +665,7 @@ dependencies = [
 name = "frameworks_system_integration_common"
 version = "0.1.0"
 dependencies = [
- "adapters_system_integration_common",
+ "adapters_nif_io",
  "entities_data_handling",
  "entities_system_integration_common",
 ]
@@ -683,7 +683,7 @@ dependencies = [
 name = "frameworks_system_integration_win32"
 version = "0.1.0"
 dependencies = [
- "adapters_system_integration_common",
+ "adapters_nif_io",
  "entities_data_handling",
  "entities_system_integration_win32",
 ]

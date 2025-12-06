@@ -38,7 +38,7 @@
 //!
 //! ## See Also
 //!
-//! - [`adapters_system_integration_common`](../adapters_system_integration_common/index.html): Common system integration
+//! - [`adapters_nif_io`](../adapters_nif_io/index.html): NIF I/O polling and event management
 //! - [`frameworks_system_integration_unix`](../../frameworks/frameworks_system_integration_unix/index.html): Unix system integration framework
 
 #[cfg(unix)]

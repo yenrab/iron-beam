@@ -22,7 +22,7 @@ members = [
     "adapters/adapters_drivers",
     "adapters/adapters_time_management",
     "adapters/adapters_system_integration_unix",
-    "adapters/adapters_system_integration_common",
+    "adapters/adapters_nif_io",
     "adapters/adapters_distribution",
     
     # Infrastructure layer

@@ -48,7 +48,7 @@ graph TD
         AdaptersEtsTables["Adapters Ets Tables<br/>2 funcs, 1 files"]
         AdaptersNifs["✅ [Erlang] Adapters Nifs<br/>755 funcs, 26 files"]
         style AdaptersNifs fill:#90EE90,stroke:#006400,stroke-width:2px
-        AdaptersSystemIntegrationCommon["Adapters System Integration Common<br/>11 funcs, 1 files"]
+        AdaptersNifIo["Adapters NIF I/O<br/>11 funcs, 1 files"]
         AdaptersSystemIntegrationUnix["Adapters System Integration Unix<br/>21 funcs, 1 files"]
         AdaptersTimeManagement["✅ [Erlang] Adapters Time Management<br/>13 funcs, 4 files"]
         style AdaptersTimeManagement fill:#90EE90,stroke:#006400,stroke-width:2px
@@ -97,7 +97,7 @@ graph TD
     FrameworksSystemIntegrationUnix --> InfrastructureUtilities
     FrameworksSystemIntegrationUnix --> UsecasesMemoryManagement
     FrameworksSystemIntegrationUnix --> InfrastructureBifs
-    FrameworksSystemIntegrationUnix --> AdaptersSystemIntegrationCommon
+    FrameworksSystemIntegrationUnix --> AdaptersNifIo
     FrameworksSystemIntegrationCommon --> EntitiesUtilities
     FrameworksSystemIntegrationCommon --> UsecasesMemoryManagement
     FrameworksSystemIntegrationCommon --> UsecasesProcessManagement
@@ -106,7 +106,7 @@ graph TD
     AdaptersNifs --> UsecasesProcessManagement
     AdaptersNifs --> EntitiesDataHandling
     AdaptersNifs --> UsecasesBifs
-    AdaptersSystemIntegrationCommon --> UsecasesBifs
+    AdaptersNifIo --> UsecasesBifs
     AdaptersDistribution --> EntitiesUtilities
     AdaptersDistribution --> UsecasesProcessManagement
     AdaptersDistribution --> EntitiesDataHandling
@@ -133,7 +133,7 @@ graph TD
     InfrastructureUtilities --> UsecasesBifs
     InfrastructureUtilities --> InfrastructureBifs
     InfrastructureUtilities --> InfrastructureDebugging
-    InfrastructureUtilities --> AdaptersSystemIntegrationCommon
+    InfrastructureUtilities --> AdaptersNifIo
     InfrastructureUtilities --> CodeManagementCodeLoading
     InfrastructureUtilities --> AdaptersDistribution
     InfrastructureUtilities --> InfrastructureEtsTables

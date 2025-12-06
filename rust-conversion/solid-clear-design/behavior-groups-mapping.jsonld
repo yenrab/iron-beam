@@ -46781,9 +46781,9 @@
     },
     {
       "@id": "ex:BehaviorGroup_17",
-      "name": "adapters_system_integration_common",
+      "name": "adapters_nif_io",
       "cleanLayer": "adapters",
-      "solidResponsibility": "system_integration_common",
+      "solidResponsibility": "nif_io",
       "files": [
         "erts/emulator/sys/common/erl_check_io.c"
       ],
@@ -46914,7 +46914,7 @@
         "codeRationale": "Functions grouped by CLEAN layer (adapters) and SOLID responsibility (system_integration_common)",
         "solidRationale": "Single Responsibility: All functions handle system_integration_common",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
-        "rustRationale": "Rust module: adapters_system_integration_common as separate module with clear dependency boundaries"
+        "rustRationale": "Rust module: adapters_nif_io as separate module with clear dependency boundaries for NIF I/O polling and event management"
       }
     },
     {
@@ -118100,7 +118100,7 @@
       "behaviorGroup": "ex:BehaviorGroup_17",
       "solidRationale": "Single Responsibility: All functions handle system_integration_common",
       "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
-      "rustRationale": "Rust module: adapters_system_integration_common as separate module with clear dependency boundaries",
+      "rustRationale": "Rust module: adapters_nif_io as separate module with clear dependency boundaries for NIF I/O polling and event management",
       "codeRationale": "Functions grouped by CLEAN layer (adapters) and SOLID responsibility (system_integration_common)"
     },
     {
