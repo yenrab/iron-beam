@@ -37,7 +37,7 @@
 //! Based on `lib/erl_interface/src/decode/decode_pid.c`
 
 use crate::constants::{ERL_NEW_PID_EXT, ERL_PID_EXT};
-use infrastructure_data_handling::decode_atom::{decode_atom, DecodeAtomError};
+use infrastructure_data_handling::decode_atom::decode_atom;
 use super::encode_pid::ErlangPid;
 
 /// Decode a PID from EI format

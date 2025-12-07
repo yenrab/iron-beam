@@ -51,7 +51,7 @@
 //! Based on `lib/erl_interface/src/decode/decode_fun.c`
 
 use crate::constants::{ERL_FUN_EXT, ERL_NEW_FUN_EXT, ERL_EXPORT_EXT};
-use super::decode_pid::decode_pid;
+// use super::decode_pid::decode_pid; // TODO: Will be used when implementing decode_fun
 use super::decode_integers::decode_longlong;
 use infrastructure_data_handling::decode_atom::decode_atom;
 use super::encode_fun::ErlangFunType;

@@ -10,5 +10,4 @@ authors = ["Erlang/OTP Rust Conversion"]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_utilities = { path = "../../entities/entities_utilities" }
 infrastructure_data_handling = { path = "../infrastructure_data_handling" }
-adapters_debugging = { path = "../../adapters/adapters_debugging" }
 

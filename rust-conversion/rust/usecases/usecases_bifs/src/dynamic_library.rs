@@ -557,7 +557,7 @@ impl DynamicLibraryLoader {
     /// Path to the compiled library, or an error if compilation fails
     fn compile_and_get_library_path(
         source_path: &Path,
-        name: &str,
+        _name: &str,
         _options: &LoadOptions,
     ) -> Result<PathBuf, LibraryError> {
         // Create a compiler instance

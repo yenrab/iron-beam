@@ -43,9 +43,9 @@
 //! Based on `lib/erl_interface/src/encode/encode_fun.c`
 
 use crate::constants::{ERL_FUN_EXT, ERL_NEW_FUN_EXT, ERL_EXPORT_EXT};
-use super::encode_pid::{encode_pid, ErlangPid, EncodeError as PidEncodeError};
-use super::encode_integers::{encode_long, encode_longlong};
-use infrastructure_data_handling::encode_atom::{encode_atom, EncodeAtomError};
+use super::encode_pid::{encode_pid, ErlangPid};
+use super::encode_integers::encode_longlong;
+use infrastructure_data_handling::encode_atom::encode_atom;
 use entities_data_handling::atom::AtomEncoding;
 
 /// Function type
@@ -133,9 +133,9 @@ pub fn encode_fun(buf: &mut Option<&mut [u8]>, index: &mut usize, fun: &ErlangFu
                 *index += atom_bytes;
 
                 encode_longlong(buf, index, *idx)
-                    .map_err(|e| EncodeError::IntegerEncodeError)?;
+                    .map_err(|_| EncodeError::IntegerEncodeError)?;
                 encode_longlong(buf, index, *uniq)
-                    .map_err(|e| EncodeError::IntegerEncodeError)?;
+                    .map_err(|_| EncodeError::IntegerEncodeError)?;
 
                 if let Some(b) = buf.as_mut() {
                     if *index + free_vars.len() > b.len() {
@@ -177,14 +177,14 @@ pub fn encode_fun(buf: &mut Option<&mut [u8]>, index: &mut usize, fun: &ErlangFu
 
                 if let Some(old_idx) = old_index {
                     encode_longlong(buf, index, *old_idx)
-                        .map_err(|e| EncodeError::IntegerEncodeError)?;
+                        .map_err(|_| EncodeError::IntegerEncodeError)?;
                 } else {
                     encode_longlong(buf, index, 0)
-                        .map_err(|e| EncodeError::IntegerEncodeError)?;
+                        .map_err(|_| EncodeError::IntegerEncodeError)?;
                 }
 
                 encode_longlong(buf, index, *uniq)
-                    .map_err(|e| EncodeError::IntegerEncodeError)?;
+                    .map_err(|_| EncodeError::IntegerEncodeError)?;
 
                 // Encode PID - pass the whole buffer, encode_pid will use index correctly
                 encode_pid(buf, index, pid)
@@ -241,7 +241,7 @@ pub fn encode_fun(buf: &mut Option<&mut [u8]>, index: &mut usize, fun: &ErlangFu
             *index += func_bytes;
 
             encode_longlong(buf, index, *arity as i64)
-                .map_err(|e| EncodeError::IntegerEncodeError)?;
+                .map_err(|_| EncodeError::IntegerEncodeError)?;
         }
     }
 

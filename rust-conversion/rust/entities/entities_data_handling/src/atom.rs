@@ -221,7 +221,7 @@ impl AtomTable {
         truncate: bool,
     ) -> Result<usize, AtomError> {
         // Validate length based on encoding
-        let (validated_name, validated_len) = self.validate_atom_name(name, encoding, truncate)?;
+        let (validated_name, _validated_len) = self.validate_atom_name(name, encoding, truncate)?;
 
         // Check if atom already exists
         {

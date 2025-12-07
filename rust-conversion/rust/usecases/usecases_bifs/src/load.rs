@@ -36,10 +36,9 @@ use crate::op::ErlangTerm;
 use crate::unique::Reference;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
-use std::time::SystemTime;
 use usecases_process_management::process_code_tracking::{ModuleCodeArea, any_process_uses_module, any_dirty_process_uses_module};
 use code_management_code_loading::{get_global_code_ix, get_global_module_manager};
 
@@ -945,7 +944,7 @@ impl LoadBif {
         let registry = PreparedCodeRegistry::get_instance();
         let prepared_map = registry.prepared.read().unwrap();
         let mut found = None;
-        for (ref_key, prepared) in prepared_map.iter() {
+        for (_ref_key, prepared) in prepared_map.iter() {
             if prepared.reference_value() == ref_value {
                 found = Some(prepared.has_on_load);
                 break;
@@ -1041,7 +1040,7 @@ impl LoadBif {
             };
 
             // Find and remove the prepared code by reference value
-            if let Some((ref_key, prepared)) = registry.find_by_reference_value(ref_value) {
+            if let Some((ref_key, _prepared)) = registry.find_by_reference_value(ref_value) {
                 // Remove from registry atomically
                 if let Some(prepared) = registry.remove(&ref_key) {
                     // Check if module already has old code

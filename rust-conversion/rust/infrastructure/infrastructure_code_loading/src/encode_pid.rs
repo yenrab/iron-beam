@@ -42,8 +42,8 @@
 //!
 //! Based on `lib/erl_interface/src/encode/encode_pid.c`
 
-use crate::constants::{ERL_NEW_PID_EXT, ERL_PID_EXT};
-use infrastructure_data_handling::encode_atom::{encode_atom, EncodeAtomError};
+use crate::constants::ERL_NEW_PID_EXT;
+use infrastructure_data_handling::encode_atom::encode_atom;
 use entities_data_handling::atom::AtomEncoding;
 
 /// PID structure

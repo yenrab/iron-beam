@@ -461,7 +461,7 @@ pub fn make_hash(term: Term) -> u32 {
             Term::Big(bignum) => {
                 // Hash bignum byte-wise, matching C implementation exactly
                 // Extract bytes from BigNumber using malachite's Integer representation
-                use malachite::Integer;
+                // Note: Integer type is used implicitly through BigNumber methods
                 
                 let integer = bignum.as_integer();
                 let is_negative = !bignum.is_positive() && !bignum.is_zero();
@@ -533,7 +533,7 @@ pub fn make_hash(term: Term) -> u32 {
             Term::Rational(rational) => {
                 // Hash rational number by hashing numerator and denominator separately
                 // Similar to how we hash BigNumber, but we need to hash both parts
-                use malachite::Integer;
+                // Note: Integer type is used implicitly through BigRational methods
                 
                 let numerator = rational.numerator();
                 let denominator = rational.denominator();

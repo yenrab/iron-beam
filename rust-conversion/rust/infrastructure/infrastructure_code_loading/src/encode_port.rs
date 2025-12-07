@@ -41,7 +41,7 @@
 //! Based on `lib/erl_interface/src/encode/encode_port.c`
 
 use crate::constants::{ERL_V4_PORT_EXT, ERL_NEW_PORT_EXT};
-use infrastructure_data_handling::encode_atom::{encode_atom, EncodeAtomError};
+use infrastructure_data_handling::encode_atom::encode_atom;
 use entities_data_handling::atom::AtomEncoding;
 
 /// Port structure

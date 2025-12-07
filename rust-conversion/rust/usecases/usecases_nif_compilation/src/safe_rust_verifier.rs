@@ -5,7 +5,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use syn::{File, Item, ItemFn, ItemConst, Expr, spanned::Spanned};
+use syn::{File, Item, ItemFn, Expr, spanned::Spanned};
 
 /// Result of safe Rust verification
 #[derive(Debug, Clone, PartialEq, Eq)]

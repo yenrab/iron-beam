@@ -3,7 +3,7 @@
 //! Provides API facades for NIF functions called from Erlang.
 //! Maintains exact C function signatures for compatibility.
 
-use adapters_nifs::{BufferNif, FileNif};
+// use adapters_nifs::{BufferNif, FileNif}; // TODO: Will be used when implementing NIF facades
 
 /// NIF facade functions
 /// These maintain exact C function signatures and call Rust NIF implementations

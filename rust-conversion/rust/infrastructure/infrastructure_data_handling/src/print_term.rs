@@ -46,7 +46,6 @@
 //! Based on `lib/erl_interface/src/misc/ei_printterm.c`
 
 use entities_data_handling::term_hashing::Term;
-use entities_utilities::BigRational;
 
 /// Print a term to stdout
 ///

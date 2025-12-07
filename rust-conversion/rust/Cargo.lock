@@ -1115,7 +1115,6 @@ name = "infrastructure_bifs"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
- "usecases_bifs",
 ]
 
 [[package]]
@@ -1148,7 +1147,6 @@ dependencies = [
 name = "infrastructure_debugging"
 version = "0.1.0"
 dependencies = [
- "adapters_debugging",
  "entities_data_handling",
  "entities_utilities",
  "infrastructure_data_handling",
@@ -1158,7 +1156,6 @@ dependencies = [
 name = "infrastructure_ets_tables"
 version = "0.1.0"
 dependencies = [
- "adapters_ets_tables",
  "entities_data_handling",
 ]
 
@@ -1178,7 +1175,6 @@ dependencies = [
 name = "infrastructure_time_management"
 version = "0.1.0"
 dependencies = [
- "adapters_time_management",
  "entities_data_handling",
 ]
 
@@ -1200,7 +1196,6 @@ dependencies = [
  "malachite 0.7.1",
  "num-traits",
  "num_cpus",
- "usecases_memory_management",
 ]
 
 [[package]]

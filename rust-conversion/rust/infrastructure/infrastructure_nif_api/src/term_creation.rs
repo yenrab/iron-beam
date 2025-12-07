@@ -190,7 +190,7 @@ pub fn enif_make_bignum(env: &NifEnv, value: &entities_utilities::BigNumber) -> 
     
     // Fallback to placeholder if heap allocation fails
     encode_small_integer(0) // Placeholder - will be replaced with proper bignum allocation
-}
+    }
 
 /// Create a rational term
 ///

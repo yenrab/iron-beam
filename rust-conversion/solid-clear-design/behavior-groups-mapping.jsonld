@@ -6,7 +6,7 @@
   "@graph": [
     {
       "@id": "ex:BehaviorGroup_1",
-      "name": "\u2705entities_data_handling",
+      "name": "✅entities_data_handling",
       "cleanLayer": "entities",
       "solidResponsibility": "data_handling",
       "files": [
@@ -4203,7 +4203,10 @@
       },
       "clearLayerOrder": 1,
       "implementationPriority": 1,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_lib_src_common_ethr_atomics.c_ethr_have_native_dw_atomic",
@@ -11067,7 +11070,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_6",
-      "name": "\u2705usecases_memory_management",
+      "name": "✅usecases_memory_management",
       "cleanLayer": "usecases",
       "solidResponsibility": "memory_management",
       "files": [
@@ -12274,7 +12277,10 @@
       },
       "clearLayerOrder": 3,
       "implementationPriority": 3,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_lib_src_yielding_c_fun_test_examples_ycf_stack_alloc.c_sub_fun",
@@ -14134,7 +14140,13 @@
       },
       "clearLayerOrder": 3,
       "implementationPriority": 3,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_24",
+        "ex:BehaviorGroup_36",
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_test_process_SUITE_data_fwd_node.c_ei_node_executor",
@@ -14807,7 +14819,12 @@
       },
       "clearLayerOrder": 3,
       "implementationPriority": 3,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_4",
+        "ex:BehaviorGroup_5"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_erl_bif_port.c_merge_global_environment",
@@ -18004,7 +18021,18 @@
       },
       "clearLayerOrder": 3,
       "implementationPriority": 3,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_24",
+        "ex:BehaviorGroup_30",
+        "ex:BehaviorGroup_34",
+        "ex:BehaviorGroup_36",
+        "ex:BehaviorGroup_4",
+        "ex:BehaviorGroup_5",
+        "ex:BehaviorGroup_7",
+        "ex:BehaviorGroup_usecases_nif_compilation"
+      ]
     },
     {
       "@id": "ex:BehaviorGroup_usecases_nif_compilation",
@@ -18015,7 +18043,7 @@
       "files": [],
       "functions": [],
       "dependencies": [
-        "ex:BehaviorGroup_entities_data_handling"
+        "ex:BehaviorGroup_1"
       ],
       "rationale": {
         "codeRationale": "Rust NIF compilation and safe loading functionality - provides use case for compiling and loading Rust NIFs safely",
@@ -21413,7 +21441,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_10",
-      "name": "\u2705adapters_nifs",
+      "name": "✅adapters_nifs",
       "cleanLayer": "adapters",
       "solidResponsibility": "nifs",
       "files": [
@@ -29765,7 +29793,12 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_36",
+        "ex:BehaviorGroup_9"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_example_matrix_nif.c_load",
@@ -41579,7 +41612,10 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_nifs_common_socket_dbg.c_esock_dbg_init",
@@ -41607,7 +41643,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_13",
-      "name": "\u2705adapters_debugging",
+      "name": "✅adapters_debugging",
       "cleanLayer": "adapters",
       "solidResponsibility": "debugging",
       "files": [
@@ -41734,7 +41770,11 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_9"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_nifs_common_erl_tracer_nif.c_load",
@@ -41858,7 +41898,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_14",
-      "name": "\u2705adapters_drivers",
+      "name": "✅adapters_drivers",
       "cleanLayer": "adapters",
       "solidResponsibility": "drivers",
       "files": [
@@ -43858,7 +43898,11 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_8"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_drivers_unix_sig_drv.c_sig_init",
@@ -46010,7 +46054,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_15",
-      "name": "\u2705adapters_time_management",
+      "name": "✅adapters_time_management",
       "cleanLayer": "adapters",
       "solidResponsibility": "time_management",
       "files": [
@@ -46172,7 +46216,10 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_test_a_SUITE_data_timer_driver.c_timer_start",
@@ -46579,7 +46626,11 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_2"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_unix_sys_drivers.c_set_blocking_data",
@@ -46972,7 +47023,11 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_2"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_common_erl_check_io.c_fd_hash",
@@ -48127,7 +48182,15 @@
       },
       "clearLayerOrder": 5,
       "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_29",
+        "ex:BehaviorGroup_30",
+        "ex:BehaviorGroup_32",
+        "ex:BehaviorGroup_4",
+        "ex:BehaviorGroup_5"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_dist.c_bw",
@@ -51052,7 +51115,10 @@
       },
       "clearLayerOrder": 6,
       "implementationPriority": 6,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_etc_unix_to_erl.c_handle_ctrlc",
@@ -53903,7 +53969,11 @@
       },
       "clearLayerOrder": 6,
       "implementationPriority": 6,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_3"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_etc_win32_msys_tools_vc_coffix.c_main",
@@ -55668,7 +55738,11 @@
       },
       "clearLayerOrder": 6,
       "implementationPriority": 6,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_2"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_unix_sys.c_sys_tty_reset",
@@ -57028,7 +57102,11 @@
       },
       "clearLayerOrder": 6,
       "implementationPriority": 6,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_2"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_common_erl_osenv.c_compare_env_keys",
@@ -57575,7 +57653,11 @@
       },
       "clearLayerOrder": 6,
       "implementationPriority": 6,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_22"
+      ]
     },
     {
       "@id": "ex:CFunction_lib_kernel_test_os_SUITE_data_sys_shell.c_main",
@@ -57591,7 +57673,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_24",
-      "name": "\u2705infrastructure_utilities",
+      "name": "✅infrastructure_utilities",
       "cleanLayer": "infrastructure",
       "solidResponsibility": "utilities",
       "files": [
@@ -77124,7 +77206,12 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_36",
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_test_ethread_SUITE_data_ethread_tests.c_print_line",
@@ -98176,7 +98263,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_25",
-      "name": "\u2705infrastructure_debugging",
+      "name": "✅infrastructure_debugging",
       "cleanLayer": "infrastructure",
       "solidResponsibility": "debugging",
       "files": [
@@ -98860,7 +98947,12 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_30",
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_lib_src_yielding_c_fun_test_examples_debug_ptr_to_stack.c_fun",
@@ -99584,7 +99676,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_26",
-      "name": "\u2705infrastructure_ets_tables",
+      "name": "✅infrastructure_ets_tables",
       "cleanLayer": "infrastructure",
       "solidResponsibility": "ets_tables",
       "files": [
@@ -103405,7 +103497,10 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_erl_db_util.c_dmc_stack_grow",
@@ -107549,7 +107644,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_27",
-      "name": "\u2705infrastructure_time_management",
+      "name": "✅infrastructure_time_management",
       "cleanLayer": "infrastructure",
       "solidResponsibility": "time_management",
       "files": [
@@ -108604,7 +108699,10 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_time.c_if",
@@ -110995,7 +111093,10 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_bif.c_spawn_3",
@@ -113435,7 +113536,12 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_30",
+        "ex:BehaviorGroup_5"
+      ]
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_test_ei_decode_SUITE_data_ei_decode_test.c_decode_double",
@@ -114764,7 +114870,11 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_misc_ei_decode_term.c_ei_decode_ei_term",
@@ -115109,7 +115219,11 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_encode_encode_big.c_ei_encode_big",
@@ -115307,7 +115421,11 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_encode_encode_bignum.c_ei_encode_bignum",
@@ -115386,7 +115504,11 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_29"
+      ]
     },
     {
       "@id": "ex:BehaviorGroup_35",
@@ -115509,7 +115631,14 @@
       },
       "clearLayerOrder": 2,
       "implementationPriority": 2,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_24",
+        "ex:BehaviorGroup_32",
+        "ex:BehaviorGroup_36",
+        "ex:BehaviorGroup_4"
+      ]
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_encode_encode_trace.c_ei_encode_trace",
@@ -116760,7 +116889,12 @@
       },
       "clearLayerOrder": 4,
       "implementationPriority": 4,
-      "clearPrinciple": "inner_layers_before_outer_layers"
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_29",
+        "ex:BehaviorGroup_5"
+      ]
     },
     {
       "@id": "ex:CFunction_erts_example_pg_encode.c_encode_ok",
@@ -118850,6 +118984,78 @@
       "totalDependencies": 101,
       "circularDependencies": 0,
       "groups": 41
+    },
+    {
+      "@id": "ex:BehaviorGroup_36",
+      "@type": "BehaviorGroup",
+      "name": "entities_process",
+      "cleanLayer": "entities",
+      "solidResponsibility": "process",
+      "files": [],
+      "functions": [],
+      "dependencies": [],
+      "rationale": {
+        "codeRationale": "Entities layer: Process management - core Process structure and related types",
+        "solidRationale": "Single Responsibility: Provides process management entities",
+        "cleanRationale": "CLEAN Architecture entities layer: Core data structures for Erlang processes",
+        "rustRationale": "Rust module: entities_process as separate module with clear dependency boundaries"
+      },
+      "clearLayerOrder": 1,
+      "implementationPriority": 1,
+      "clearPrinciple": "inner_layers_before_outer_layers"
+    },
+    {
+      "@id": "ex:BehaviorGroup_37",
+      "@type": "BehaviorGroup",
+      "name": "adapters_socket",
+      "cleanLayer": "adapters",
+      "solidResponsibility": "socket_networking",
+      "files": [],
+      "functions": [],
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_10",
+        "ex:BehaviorGroup_17"
+      ],
+      "rationale": {
+        "codeRationale": "Adapters layer: Socket and TCP/IP networking support",
+        "solidRationale": "Single Responsibility: Handles socket and networking operations",
+        "cleanRationale": "CLEAN Architecture adapters layer: I/O adapters for socket operations",
+        "rustRationale": "Rust module: adapters_socket as separate module with clear dependency boundaries"
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
+    },
+    {
+      "@id": "ex:BehaviorGroup_38",
+      "@type": "BehaviorGroup",
+      "name": "api_facades",
+      "cleanLayer": "frameworks",
+      "solidResponsibility": "api_facades",
+      "files": [],
+      "functions": [],
+      "dependencies": [
+        "ex:BehaviorGroup_1",
+        "ex:BehaviorGroup_10",
+        "ex:BehaviorGroup_14",
+        "ex:BehaviorGroup_24",
+        "ex:BehaviorGroup_4",
+        "ex:BehaviorGroup_5",
+        "ex:BehaviorGroup_6",
+        "ex:BehaviorGroup_7",
+        "ex:BehaviorGroup_8",
+        "ex:BehaviorGroup_9"
+      ],
+      "rationale": {
+        "codeRationale": "API Facades layer: Erlang compatibility layer with exact C function signatures",
+        "solidRationale": "Single Responsibility: Provides API facades for external callers",
+        "cleanRationale": "CLEAN Architecture frameworks layer: Outermost layer maintaining C compatibility",
+        "rustRationale": "Rust module: api_facades as separate module with clear dependency boundaries. Provides facades for external callers while delegating to inner Rust implementations."
+      },
+      "clearLayerOrder": 6,
+      "implementationPriority": 6,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     }
   ]
 }

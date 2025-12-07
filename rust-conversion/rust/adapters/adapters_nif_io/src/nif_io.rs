@@ -40,8 +40,7 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex, RwLock};
 use std::collections::HashMap;
 use std::ptr;
-use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
+use std::hash::Hash;
 
 /// Erlang Process ID type
 ///
@@ -773,6 +772,7 @@ fn fd_hash(fd: SysFdType) -> usize {
 fn fd_hash(fd: SysFdType) -> usize {
     // For Windows, use pointer hash
     use std::hash::{Hash, Hasher};
+    use std::collections::hash_map::DefaultHasher;
     let mut hasher = DefaultHasher::new();
     fd.hash(&mut hasher);
     hasher.finish() as usize

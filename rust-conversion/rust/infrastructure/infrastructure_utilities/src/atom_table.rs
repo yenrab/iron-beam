@@ -8,7 +8,7 @@
 //! names in the system. Atoms are unique identifiers that can be efficiently
 //! compared by index rather than by string comparison.
 
-use entities_data_handling::{AtomTable, AtomEncoding};
+use entities_data_handling::AtomTable;
 
 /// Global atom table instance
 ///
@@ -40,6 +40,7 @@ pub fn get_global_atom_table() -> &'static AtomTable {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entities_data_handling::AtomEncoding;
 
     #[test]
     fn test_global_atom_table() {

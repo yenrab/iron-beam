@@ -37,7 +37,7 @@
  */
 
 use crate::op::ErlangTerm;
-use entities_utilities::{BigNumber, BigRational};
+use entities_utilities::BigNumber;
 
 /// Guard BIF operations
 pub struct GuardBif;
@@ -912,7 +912,7 @@ impl GuardBif {
                 }
                 Ok(ErlangTerm::Binary(data[start_pos..start_pos + len].to_vec()))
             }
-            ErlangTerm::Bitstring(data, bit_length) => {
+            ErlangTerm::Bitstring(data, _bit_length) => {
                 // For bitstrings, we work with bytes
                 let byte_start = start_pos;
                 let byte_len = len;

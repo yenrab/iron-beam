@@ -12,7 +12,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use infrastructure_data_handling::print_term::{print_term, s_print_term};
 use entities_data_handling::term_hashing::Term;
-use entities_utilities::BigNumber;
 
 /// Global debug state
 static DEBUG_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -712,6 +711,7 @@ mod tests {
 
     #[test]
     fn test_display_term_big() {
+        use entities_utilities::BigNumber;
         DebugUtils::enable();
         let term = Term::Big(BigNumber::from_u64(1234567890));
         let result = DebugUtils::display_term(&term);
@@ -760,6 +760,7 @@ mod tests {
 
     #[test]
     fn test_term_to_string_big() {
+        use entities_utilities::BigNumber;
         let term = Term::Big(BigNumber::from_u64(1234567890));
         let result = DebugUtils::term_to_string(&term);
         assert!(result.is_ok());
@@ -806,6 +807,7 @@ mod tests {
 
     #[test]
     fn test_paranoid_display_big() {
+        use entities_utilities::BigNumber;
         DebugUtils::enable();
         let term = Term::Big(BigNumber::from_u64(0).minus(&BigNumber::from_u64(1234567890)));
         let result = DebugUtils::paranoid_display(&term);

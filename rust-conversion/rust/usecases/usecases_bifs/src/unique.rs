@@ -34,7 +34,6 @@
  */
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Reference identifier

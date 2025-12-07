@@ -44,7 +44,7 @@
 //! Based on `lib/erl_interface/src/encode/encode_ref.c`
 
 use crate::constants::ERL_NEWER_REFERENCE_EXT;
-use infrastructure_data_handling::encode_atom::{encode_atom, EncodeAtomError};
+use infrastructure_data_handling::encode_atom::encode_atom;
 use entities_data_handling::atom::AtomEncoding;
 
 /// Reference structure

@@ -6,7 +6,7 @@
 //! - Proper function signatures matching Erlang's expectations
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use syn::{File, Item, ItemFn, ItemStatic, Attribute, Signature, ReturnType, Type, TypePath};
 use crate::safe_rust_verifier::VerificationError;
 

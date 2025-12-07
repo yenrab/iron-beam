@@ -44,7 +44,7 @@
 //!
 //! Based on `lib/erl_interface/src/encode/encode_trace.c`
 
-use super::encode_pid::{encode_pid, ErlangPid, EncodeError as PidEncodeError};
+use super::encode_pid::{encode_pid, ErlangPid};
 use super::encode_headers::encode_tuple_header;
 use super::encode_integers::encode_longlong;
 
