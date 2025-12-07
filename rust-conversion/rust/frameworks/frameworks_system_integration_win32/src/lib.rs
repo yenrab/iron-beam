@@ -33,7 +33,7 @@
 pub mod sys_integration;
 
 #[cfg(windows)]
-pub use sys_integration::SysIntegration;
+pub use sys_integration::{SysIntegration, SysError};
 
 #[cfg(not(windows))]
 /// Windows-specific functionality is only available on Windows

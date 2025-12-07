@@ -33,7 +33,7 @@
 pub mod sys_integration;
 
 #[cfg(unix)]
-pub use sys_integration::SysIntegration;
+pub use sys_integration::{SysIntegration, SysError};
 
 #[cfg(not(unix))]
 /// Unix-specific functionality is only available on Unix systems

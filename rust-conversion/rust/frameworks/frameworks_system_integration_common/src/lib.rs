@@ -26,5 +26,5 @@
 
 pub mod sys_common;
 
-pub use sys_common::SysCommon;
+pub use sys_common::{SysCommon, MemorySegmentAllocator, SysError};
 

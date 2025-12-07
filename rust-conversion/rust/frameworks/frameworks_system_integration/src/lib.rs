@@ -27,5 +27,5 @@
 
 pub mod sys_base;
 
-pub use sys_base::SysBase;
+pub use sys_base::{SysBase, SystemInfo, SysError};
 
