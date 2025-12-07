@@ -22,7 +22,7 @@
 //! ## Architecture
 //!
 //! This crate is based on the C implementation in `sys_time.c` and related Windows system files.
-//! It depends on the Entities and Adapters layers.
+//! It depends on the Entities layer.
 //!
 //! ## See Also
 //!

@@ -9,5 +9,4 @@ authors = ["Erlang/OTP Rust Conversion"]
 [dependencies]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_system_integration_win32 = { path = "../../entities/entities_system_integration_win32" }
-adapters_nif_io = { path = "../../adapters/adapters_nif_io" }
 

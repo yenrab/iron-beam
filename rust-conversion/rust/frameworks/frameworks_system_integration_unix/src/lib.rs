@@ -22,12 +22,12 @@
 //! ## Architecture
 //!
 //! This crate is based on the C implementation in `sys_env.c` and related Unix system files.
-//! It depends on the Entities and Adapters layers.
+//! It depends on the Entities layer.
 //!
 //! ## See Also
 //!
 //! - [`frameworks_system_integration_common`](../frameworks_system_integration_common/index.html): Common system integration
-//! - [`adapters_system_integration_unix`](../../adapters/adapters_system_integration_unix/index.html): Unix adapter layer
+//! - [`entities_system_integration_common`](../../entities/entities_system_integration_common/index.html): Entity-level system integration
 
 #[cfg(unix)]
 pub mod sys_integration;

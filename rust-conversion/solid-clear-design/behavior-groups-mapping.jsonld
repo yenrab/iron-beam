@@ -4200,7 +4200,10 @@
         "solidRationale": "Single Responsibility: All functions handle data_handling",
         "cleanRationale": "CLEAN Architecture entities layer: Dependencies flow inward from entities",
         "rustRationale": "Rust module: entities_data_handling as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 1,
+      "implementationPriority": 1,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_lib_src_common_ethr_atomics.c_ethr_have_native_dw_atomic",
@@ -9007,7 +9010,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration_common",
         "cleanRationale": "CLEAN Architecture entities layer: Dependencies flow inward from entities",
         "rustRationale": "Rust module: entities_system_integration_common as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 1,
+      "implementationPriority": 1,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_common_erl_mmap.c_erts_mem_guard",
@@ -9299,7 +9305,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration_win32",
         "cleanRationale": "CLEAN Architecture entities layer: Dependencies flow inward from entities",
         "rustRationale": "Rust module: entities_system_integration_win32 as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 1,
+      "implementationPriority": 1,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_win32_dosmap.c__dosmaperr",
@@ -10044,7 +10053,10 @@
         "solidRationale": "Single Responsibility: All functions handle utilities",
         "cleanRationale": "CLEAN Architecture entities layer: Dependencies flow inward from entities",
         "rustRationale": "Rust module: entities_utilities as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 1,
+      "implementationPriority": 1,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_big.c_get_digits_per_signed_int",
@@ -10940,7 +10952,10 @@
         "solidRationale": "Single Responsibility: All functions handle io_operations",
         "cleanRationale": "CLEAN Architecture entities layer: Dependencies flow inward from entities",
         "rustRationale": "Rust module: entities_io_operations as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 1,
+      "implementationPriority": 1,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_export.c_create_shared_lambda",
@@ -12256,7 +12271,10 @@
         "solidRationale": "Single Responsibility: All functions handle memory_management",
         "cleanRationale": "CLEAN Architecture usecases layer: Dependencies flow inward from usecases",
         "rustRationale": "Rust module: usecases_memory_management as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 3,
+      "implementationPriority": 3,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_lib_src_yielding_c_fun_test_examples_ycf_stack_alloc.c_sub_fun",
@@ -13555,6 +13573,7 @@
         "erts/emulator/test/process_SUITE_data/fwd_node.c",
         "erts/emulator/beam/erl_process.c"
       ],
+      "note": "Contains process creation and lifecycle management functions from erl_process.c: erl_create_process(), alloc_process(), erts_do_exit_process(), erts_continue_exit_process(), erts_free_proc(), and related process state management. Scheduling functions (erts_schedule(), dequeue_process(), etc.) are in usecases_scheduling.",
       "functions": [
         {
           "@id": "ex:CFunction_erts_emulator_test_process_SUITE_data_fwd_node.c_ei_node_executor",
@@ -14112,7 +14131,10 @@
         "solidRationale": "Single Responsibility: All functions handle process_management",
         "cleanRationale": "CLEAN Architecture usecases layer: Dependencies flow inward from usecases",
         "rustRationale": "Rust module: usecases_process_management as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 3,
+      "implementationPriority": 3,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_test_process_SUITE_data_fwd_node.c_ei_node_executor",
@@ -14782,7 +14804,10 @@
         "solidRationale": "Single Responsibility: All functions handle io_operations",
         "cleanRationale": "CLEAN Architecture usecases layer: Dependencies flow inward from usecases",
         "rustRationale": "Rust module: usecases_io_operations as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 3,
+      "implementationPriority": 3,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_erl_bif_port.c_merge_global_environment",
@@ -14862,8 +14887,11 @@
         "erts/emulator/beam/erl_bif_info.c",
         "erts/emulator/beam/erl_bif_lists.c",
         "erts/emulator/beam/beam_bif_load.c",
-        "erts/emulator/beam/erl_bif_os.c"
+        "erts/emulator/beam/erl_bif_os.c",
+        "erts/emulator/beam/bif.c",
+        "erts/emulator/beam/external.c"
       ],
+      "note": "Contains BIF implementations (business logic). Includes: (1) All BIF implementations from bif.c (spawn, link, send, type conversions, error handling, system BIFs, ~80+ functions), (2) BIF wrappers from external.c (term_to_binary, binary_to_term, ~8 functions), (3) Existing BIF files (erl_bif_*.c). BIF dispatcher infrastructure is in infrastructure_bif_dispatcher.",
       "functions": [
         {
           "@id": "ex:CFunction_erts_emulator_beam_beam_bif_load.c_read_iff_list",
@@ -17973,7 +18001,10 @@
         "solidRationale": "Single Responsibility: All functions handle bifs",
         "cleanRationale": "CLEAN Architecture usecases layer: Dependencies flow inward from usecases",
         "rustRationale": "Rust module: usecases_bifs as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 3,
+      "implementationPriority": 3,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:BehaviorGroup_usecases_nif_compilation",
@@ -17983,13 +18014,18 @@
       "solidResponsibility": "nif_compilation",
       "files": [],
       "functions": [],
-      "dependencies": ["ex:BehaviorGroup_entities_data_handling"],
+      "dependencies": [
+        "ex:BehaviorGroup_entities_data_handling"
+      ],
       "rationale": {
         "codeRationale": "Rust NIF compilation and safe loading functionality - provides use case for compiling and loading Rust NIFs safely",
         "solidRationale": "Single Responsibility: Handles NIF compilation and safe Rust verification",
         "cleanRationale": "CLEAN Architecture usecases layer: Business logic for NIF compilation workflow",
         "rustRationale": "Rust module: usecases_nif_compilation as separate module with clear dependency boundaries. Provides safe Rust verification and on-the-fly compilation of Rust NIFs using cargo."
-      }
+      },
+      "clearLayerOrder": 3,
+      "implementationPriority": 3,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_beam_bif_load.c_read_iff_list",
@@ -29726,7 +29762,10 @@
         "solidRationale": "Single Responsibility: All functions handle nifs",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_nifs as separate module with clear dependency boundaries. Includes nif_loader.rs - a new Rust implementation with no C source file, providing NIF library loading and tracking infrastructure."
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_example_matrix_nif.c_load",
@@ -41537,7 +41576,10 @@
         "solidRationale": "Single Responsibility: All functions handle ets_tables",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_ets_tables as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_nifs_common_socket_dbg.c_esock_dbg_init",
@@ -41689,7 +41731,10 @@
         "solidRationale": "Single Responsibility: All functions handle debugging",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_debugging as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_nifs_common_erl_tracer_nif.c_load",
@@ -43810,7 +43855,10 @@
         "solidRationale": "Single Responsibility: All functions handle drivers",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_drivers as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_drivers_unix_sig_drv.c_sig_init",
@@ -46121,7 +46169,10 @@
         "solidRationale": "Single Responsibility: All functions handle time_management",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_time_management as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_test_a_SUITE_data_timer_driver.c_timer_start",
@@ -46525,7 +46576,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration_unix",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_system_integration_unix as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_unix_sys_drivers.c_set_blocking_data",
@@ -46915,7 +46969,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration_common",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_nif_io as separate module with clear dependency boundaries for NIF I/O polling and event management"
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_common_erl_check_io.c_fd_hash",
@@ -48067,7 +48124,10 @@
         "solidRationale": "Single Responsibility: All functions handle distribution",
         "cleanRationale": "CLEAN Architecture adapters layer: Dependencies flow inward from adapters",
         "rustRationale": "Rust module: adapters_distribution as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_dist.c_bw",
@@ -50989,7 +51049,10 @@
         "solidRationale": "Single Responsibility: All functions handle utilities",
         "cleanRationale": "CLEAN Architecture frameworks layer: Dependencies flow inward from frameworks",
         "rustRationale": "Rust module: frameworks_utilities as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 6,
+      "implementationPriority": 6,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_etc_unix_to_erl.c_handle_ctrlc",
@@ -53837,7 +53900,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration_win32",
         "cleanRationale": "CLEAN Architecture frameworks layer: Dependencies flow inward from frameworks",
         "rustRationale": "Rust module: frameworks_system_integration_win32 as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 6,
+      "implementationPriority": 6,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_etc_win32_msys_tools_vc_coffix.c_main",
@@ -55599,7 +55665,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration_unix",
         "cleanRationale": "CLEAN Architecture frameworks layer: Dependencies flow inward from frameworks",
         "rustRationale": "Rust module: frameworks_system_integration_unix as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 6,
+      "implementationPriority": 6,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_unix_sys.c_sys_tty_reset",
@@ -56956,7 +57025,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration_common",
         "cleanRationale": "CLEAN Architecture frameworks layer: Dependencies flow inward from frameworks",
         "rustRationale": "Rust module: frameworks_system_integration_common as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 6,
+      "implementationPriority": 6,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_sys_common_erl_osenv.c_compare_env_keys",
@@ -57500,7 +57572,10 @@
         "solidRationale": "Single Responsibility: All functions handle system_integration",
         "cleanRationale": "CLEAN Architecture frameworks layer: Dependencies flow inward from frameworks",
         "rustRationale": "Rust module: frameworks_system_integration as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 6,
+      "implementationPriority": 6,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_lib_kernel_test_os_SUITE_data_sys_shell.c_main",
@@ -77046,7 +77121,10 @@
         "solidRationale": "Single Responsibility: All functions handle utilities",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_utilities as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_test_ethread_SUITE_data_ethread_tests.c_print_line",
@@ -98779,7 +98857,10 @@
         "solidRationale": "Single Responsibility: All functions handle debugging",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_debugging as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_lib_src_yielding_c_fun_test_examples_debug_ptr_to_stack.c_fun",
@@ -103321,7 +103402,10 @@
         "solidRationale": "Single Responsibility: All functions handle ets_tables",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_ets_tables as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_erl_db_util.c_dmc_stack_grow",
@@ -108517,7 +108601,10 @@
         "solidRationale": "Single Responsibility: All functions handle time_management",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_time_management as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_time.c_if",
@@ -110905,7 +110992,10 @@
         "solidRationale": "Single Responsibility: All functions handle bifs",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_bifs as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_emulator_beam_bif.c_spawn_3",
@@ -113342,7 +113432,10 @@
         "solidRationale": "Single Responsibility: All functions handle code_loading",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_code_loading as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_test_ei_decode_SUITE_data_ei_decode_test.c_decode_double",
@@ -114668,7 +114761,10 @@
         "solidRationale": "Single Responsibility: All functions handle data_handling",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_data_handling as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_misc_ei_decode_term.c_ei_decode_ei_term",
@@ -115010,7 +115106,10 @@
         "solidRationale": "Single Responsibility: All functions handle bignum_encoding",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_bignum_encoding as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_encode_encode_big.c_ei_encode_big",
@@ -115205,7 +115304,10 @@
         "solidRationale": "Single Responsibility: All functions handle bignum_encoding",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_bignum_encoding as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_encode_encode_bignum.c_ei_encode_bignum",
@@ -115281,7 +115383,10 @@
         "solidRationale": "Single Responsibility: All functions handle trace_encoding",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure",
         "rustRationale": "Rust module: infrastructure_trace_encoding as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:BehaviorGroup_35",
@@ -115401,7 +115506,10 @@
         "solidRationale": "Single Responsibility: All functions provide NIF API for term creation and decoding",
         "cleanRationale": "CLEAN Architecture infrastructure layer: Dependencies flow inward from infrastructure. This module provides the NIF API infrastructure that adapters (adapters_nifs) depend on.",
         "rustRationale": "Rust module: infrastructure_nif_api as separate module with clear dependency boundaries. This is a NEW Rust implementation that replaces the C erl_nif.h API with pure Rust functions. No C code will be shipped - this provides the complete NIF API in Rust for creating and decoding Erlang terms in memory (as u64/Eterm values), distinct from infrastructure_data_handling which provides EI format serialization."
-      }
+      },
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_lib_erl_interface_src_encode_encode_trace.c_ei_encode_trace",
@@ -116649,7 +116757,10 @@
         "solidRationale": "Single Responsibility: All functions handle management_code_loading",
         "cleanRationale": "CLEAN Architecture code_management layer: Dependencies flow inward from code_management",
         "rustRationale": "Rust module: code_management_code_loading as separate module with clear dependency boundaries"
-      }
+      },
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers"
     },
     {
       "@id": "ex:CFunction_erts_example_pg_encode.c_encode_ok",
@@ -118630,11 +118741,115 @@
       "callerLanguage": "erlang"
     },
     {
+      "@id": "ex:BehaviorGroup_infrastructure_bif_dispatcher",
+      "name": "infrastructure_bif_dispatcher",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "bif_dispatching",
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/bif.c",
+        "erts/emulator/beam/bif.h"
+      ],
+      "rustFiles": [],
+      "functions": [],
+      "note": "Contains only BIF dispatcher infrastructure functions from bif.c: erts_init_bif(), erts_init_trap_export(), call_bif(), erts_call_dirty_bif(), and trap handlers. BIF implementations (spawn, link, send, etc.) are in usecases_bifs."
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_runtime_utils",
+      "name": "infrastructure_runtime_utils",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "runtime_utilities",
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/utils.c"
+      ],
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_external_format",
+      "name": "infrastructure_external_format",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "external_term_format",
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/external.c",
+        "erts/emulator/beam/external.h"
+      ],
+      "rustFiles": [],
+      "functions": [],
+      "note": "Contains only encoding/decoding infrastructure functions from external.c: enc_term(), dec_term(), enc_atom(), dec_atom(), enc_pid(), dec_pid(), erts_encode_ext(), erts_decode_ext(), and related infrastructure. BIF wrappers (term_to_binary, binary_to_term) are in usecases_bifs."
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_emulator_loop",
+      "name": "infrastructure_emulator_loop",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "emulator_execution",
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/emu/beam_emu.c"
+      ],
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_usecases_scheduling",
+      "name": "usecases_scheduling",
+      "cleanLayer": "usecases",
+      "solidResponsibility": "process_scheduling",
+      "clearLayerOrder": 3,
+      "implementationPriority": 3,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/erl_process.c",
+        "erts/emulator/beam/erl_process.h"
+      ],
+      "rustFiles": [],
+      "functions": [],
+      "note": "Contains only scheduling functions from erl_process.c: erts_schedule(), dequeue_process(), enqueue_process(), run queue management, scheduler sleep/wake functions. Process creation/lifecycle functions (erl_create_process(), alloc_process(), erts_do_exit_process(), etc.) are in usecases_process_management."
+    },
+    {
+      "@id": "ex:BehaviorGroup_adapters_io_subsystem",
+      "name": "adapters_io_subsystem",
+      "cleanLayer": "adapters",
+      "solidResponsibility": "io_port_management",
+      "clearLayerOrder": 5,
+      "implementationPriority": 5,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/io.c"
+      ],
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_frameworks_emulator_init",
+      "name": "frameworks_emulator_init",
+      "cleanLayer": "frameworks",
+      "solidResponsibility": "emulator_initialization",
+      "clearLayerOrder": 6,
+      "implementationPriority": 6,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/erl_init.c"
+      ],
+      "rustFiles": [],
+      "functions": []
+    },
+    {
       "@id": "ex:DependencyGraph",
       "@type": "ex:DependencyGraph",
-      "totalDependencies": 81,
+      "totalDependencies": 101,
       "circularDependencies": 0,
-      "groups": 34
+      "groups": 41
     }
   ]
 }

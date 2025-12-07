@@ -75,7 +75,6 @@
 //!
 //! ## See Also
 //!
-//! - [`infrastructure_utilities`](../../infrastructure/infrastructure_utilities/index.html): Infrastructure-level utilities
 //! - [`entities_utilities`](../../entities/entities_utilities/index.html): Entity-level utilities
 //! - [`frameworks_system_integration`](../frameworks_system_integration/index.html): System integration framework
 

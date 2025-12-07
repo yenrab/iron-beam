@@ -335,6 +335,7 @@ def main():
     total_source_code = 0
     total_test_code = 0
     total_unsafe_code = 0
+    files_with_unsafe = []  # Track files with unsafe code
     
     for file_path in rust_files:
         non_empty, doc, source, test, unsafe = count_lines_in_file(file_path)
@@ -343,6 +344,10 @@ def main():
         total_source_code += source
         total_test_code += test
         total_unsafe_code += unsafe
+        if unsafe > 0:
+            # Store relative path and unsafe count
+            rel_path = file_path.relative_to(rust_dir)
+            files_with_unsafe.append((rel_path, unsafe))
     
     # Print results
     print(f"Total non-empty lines: {total_non_empty}")
@@ -350,6 +355,14 @@ def main():
     print(f"Source code lines: {total_source_code}")
     print(f"Test code lines: {total_test_code}")
     print(f"Unsafe code lines: {total_unsafe_code}")
+    
+    # Print modules with unsafe code
+    if files_with_unsafe:
+        print(f"\nModules with unsafe code ({len(files_with_unsafe)} files):")
+        # Sort by unsafe count (descending), then by path
+        files_with_unsafe.sort(key=lambda x: (-x[1], str(x[0])))
+        for file_path, unsafe_count in files_with_unsafe:
+            print(f"  {file_path}: {unsafe_count} unsafe lines")
     
     # Verify totals
     calculated_total = total_documentation + total_source_code + total_test_code

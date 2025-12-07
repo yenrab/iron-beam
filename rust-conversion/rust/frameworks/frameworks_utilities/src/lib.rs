@@ -18,12 +18,12 @@
 //! ## Architecture
 //!
 //! This crate is based on the C implementation in `win_erlexec.c` and related utility files.
-//! It depends on the Entities and Infrastructure layers.
+//! It depends on the Entities layer.
 //!
 //! ## See Also
 //!
-//! - [`infrastructure_utilities`](../../infrastructure/infrastructure_utilities/index.html): Infrastructure utilities
 //! - [`entities_utilities`](../../entities/entities_utilities/index.html): Entity utilities
+//! - [`frameworks_system_integration`](../frameworks_system_integration/index.html): System integration framework
 
 pub mod framework_utils;
 

@@ -677,7 +677,6 @@ dependencies = [
 name = "frameworks_system_integration_common"
 version = "0.1.0"
 dependencies = [
- "adapters_nif_io",
  "entities_data_handling",
  "entities_system_integration_common",
 ]
@@ -686,7 +685,6 @@ dependencies = [
 name = "frameworks_system_integration_unix"
 version = "0.1.0"
 dependencies = [
- "adapters_system_integration_unix",
  "entities_data_handling",
  "entities_system_integration_common",
 ]
@@ -695,7 +693,6 @@ dependencies = [
 name = "frameworks_system_integration_win32"
 version = "0.1.0"
 dependencies = [
- "adapters_nif_io",
  "entities_data_handling",
  "entities_system_integration_win32",
 ]
@@ -705,7 +702,6 @@ name = "frameworks_utilities"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
- "infrastructure_utilities",
 ]
 
 [[package]]

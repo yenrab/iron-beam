@@ -16,8 +16,7 @@
 //!
 //! ## Architecture
 //!
-//! This crate is based on the C implementation in `erl_mseg.c`. It depends on the Entities
-//! and Adapters layers.
+//! This crate is based on the C implementation in `erl_mseg.c`. It depends on the Entities layer.
 //!
 //! ## See Also
 //!
