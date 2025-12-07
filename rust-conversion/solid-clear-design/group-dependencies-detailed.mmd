@@ -1,235 +1,153 @@
 graph TD
-    subgraph api_facades["API Facades Layer (NEW)"]
-        AdaptersDebuggingApi["Adapters Debugging API<br/>(Facade)"]
-        style AdaptersDebuggingApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        AdaptersDriversApi["Adapters Drivers API<br/>(Facade)"]
-        style AdaptersDriversApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        AdaptersNifsApi["Adapters Nifs API<br/>(Facade)"]
-        style AdaptersNifsApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        AdaptersTimeManagementApi["Adapters Time Management API<br/>(Facade)"]
-        style AdaptersTimeManagementApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        EntitiesDataHandlingApi["Entities Data Handling API<br/>(Facade)"]
-        style EntitiesDataHandlingApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        InfrastructureDebuggingApi["Infrastructure Debugging API<br/>(Facade)"]
-        style InfrastructureDebuggingApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        InfrastructureEtsTablesApi["Infrastructure Ets Tables API<br/>(Facade)"]
-        style InfrastructureEtsTablesApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        InfrastructureTimeManagementApi["Infrastructure Time Management API<br/>(Facade)"]
-        style InfrastructureTimeManagementApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        InfrastructureUtilitiesApi["Infrastructure Utilities API<br/>(Facade)"]
-        style InfrastructureUtilitiesApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-        UsecasesMemoryManagementApi["Usecases Memory Management API<br/>(Facade)"]
-        style UsecasesMemoryManagementApi fill:#87CEEB,stroke:#0066CC,stroke-width:2px
-    end
-    subgraph entities["Entities Layer"]
-        EntitiesDataHandling["✅ [Erlang] Entities Data Handling<br/>379 funcs, 13 files"]
-        style EntitiesDataHandling fill:#90EE90,stroke:#006400,stroke-width:2px
-        EntitiesIoOperations["Entities Io Operations<br/>9 funcs, 1 files"]
-        EntitiesProcess["✅ [Erlang] Entities Process<br/>Process struct and types"]
-        style EntitiesProcess fill:#90EE90,stroke:#006400,stroke-width:2px
-        EntitiesSystemIntegrationCommon["Entities System Integration Common<br/>22 funcs, 1 files"]
-        EntitiesSystemIntegrationWin32["Entities System Integration Win32<br/>1 funcs, 1 files"]
-        EntitiesUtilities["Entities Utilities<br/>65 funcs, 2 files"]
-    end
-    subgraph usecases["Usecases Layer"]
-        UsecasesBifs["Usecases Bifs<br/>~370 funcs, 15 files<br/>(includes BIFs from bif.c & external.c)"]
-        UsecasesIoOperations["Usecases Io Operations<br/>5 funcs, 0 files"]
-        UsecasesMemoryManagement["✅ [Erlang] Usecases Memory Management<br/>107 funcs, 15 files"]
-        style UsecasesMemoryManagement fill:#90EE90,stroke:#006400,stroke-width:2px
-        UsecasesNifCompilation["Usecases Nif Compilation"]
-        UsecasesProcessManagement["Usecases Process Management<br/>~65 funcs, 6 files<br/>(includes process creation/lifecycle from erl_process.c)"]
-        UsecasesScheduling["Usecases Scheduling<br/>(NEW - scheduling only, ~20 funcs)"]
-        style UsecasesScheduling fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
-    end
-    subgraph adapters["Adapters Layer"]
-        AdaptersDebugging["✅ [Erlang] Adapters Debugging<br/>10 funcs, 2 files"]
-        style AdaptersDebugging fill:#90EE90,stroke:#006400,stroke-width:2px
-        AdaptersDistribution["Adapters Distribution<br/>91 funcs, 3 files"]
-        AdaptersDrivers["✅ [Erlang] Adapters Drivers<br/>179 funcs, 16 files"]
-        style AdaptersDrivers fill:#90EE90,stroke:#006400,stroke-width:2px
-        AdaptersEtsTables["Adapters Ets Tables<br/>2 funcs, 1 files"]
-        AdaptersNifs["✅ [Erlang] Adapters Nifs<br/>755 funcs, 26 files"]
-        style AdaptersNifs fill:#90EE90,stroke:#006400,stroke-width:2px
-        AdaptersNifIo["Adapters NIF I/O<br/>11 funcs, 1 files"]
-        AdaptersSystemIntegrationUnix["Adapters System Integration Unix<br/>21 funcs, 1 files"]
-        AdaptersTimeManagement["✅ [Erlang] Adapters Time Management<br/>13 funcs, 4 files"]
-        style AdaptersTimeManagement fill:#90EE90,stroke:#006400,stroke-width:2px
-        AdaptersIoSubsystem["Adapters Io Subsystem<br/>(NEW - to be converted)"]
-        style AdaptersIoSubsystem fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
-    end
-    subgraph frameworks["Frameworks Layer"]
-        FrameworksSystemIntegration["Frameworks System Integration<br/>1 funcs, 1 files"]
-        FrameworksSystemIntegrationCommon["Frameworks System Integration Common<br/>43 funcs, 4 files"]
-        FrameworksSystemIntegrationUnix["Frameworks System Integration Unix<br/>72 funcs, 6 files"]
-        FrameworksSystemIntegrationWin32["Frameworks System Integration Win32<br/>79 funcs, 7 files"]
-        FrameworksUtilities["Frameworks Utilities<br/>163 funcs, 21 files"]
-        FrameworksEmulatorInit["Frameworks Emulator Init<br/>(NEW - to be converted)"]
-        style FrameworksEmulatorInit fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
-    end
-    subgraph infrastructure["Infrastructure Layer"]
-        InfrastructureBifs["Infrastructure Bifs<br/>113 funcs, 1 files"]
-        InfrastructureBignumEncoding["Infrastructure Bignum Encoding<br/>12 funcs, 2 files"]
-        InfrastructureCodeLoading["Infrastructure Code Loading<br/>94 funcs, 31 files"]
-        InfrastructureDataHandling["Infrastructure Data Handling<br/>16 funcs, 6 files"]
-        InfrastructureDebugging["✅ [Erlang] Infrastructure Debugging<br/>60 funcs, 9 files"]
-        style InfrastructureDebugging fill:#90EE90,stroke:#006400,stroke-width:2px
-        InfrastructureEtsTables["✅ [Erlang] Infrastructure Ets Tables<br/>345 funcs, 11 files"]
-        style InfrastructureEtsTables fill:#90EE90,stroke:#006400,stroke-width:2px
-        InfrastructureNifApi["Infrastructure Nif Api<br/>7 funcs, 3 files"]
-        InfrastructureTimeManagement["✅ [Erlang] Infrastructure Time Management<br/>94 funcs, 6 files"]
-        style InfrastructureTimeManagement fill:#90EE90,stroke:#006400,stroke-width:2px
-        InfrastructureTraceEncoding["Infrastructure Trace Encoding<br/>2 funcs, 2 files"]
-        InfrastructureUtilities["✅ [Erlang] Infrastructure Utilities<br/>1754 funcs, 224 files"]
-        style InfrastructureUtilities fill:#90EE90,stroke:#006400,stroke-width:2px
-        InfrastructureBifDispatcher["Infrastructure Bif Dispatcher<br/>(NEW - dispatcher only, ~10 funcs)"]
-        style InfrastructureBifDispatcher fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
-        InfrastructureRuntimeUtils["Infrastructure Runtime Utils<br/>(NEW - to be converted)"]
-        style InfrastructureRuntimeUtils fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
-        InfrastructureExternalFormat["Infrastructure External Format<br/>(NEW - encoding/decoding only, ~30 funcs)"]
-        style InfrastructureExternalFormat fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
-        InfrastructureEmulatorLoop["Infrastructure Emulator Loop<br/>(NEW - to be converted)"]
-        style InfrastructureEmulatorLoop fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
-    end
-    subgraph code_management["Code Management Layer"]
-        CodeManagementCodeLoading["Code Management Code Loading<br/>109 funcs, 9 files"]
+    subgraph entities["Entities Layer (1)"]
+        ex_BehaviorGroup_5["entities_io_operations"]
+        ex_BehaviorGroup_36["entities_process"]
+        ex_BehaviorGroup_2["entities_system_integration_common"]
+        ex_BehaviorGroup_3["entities_system_integration_win32"]
+        ex_BehaviorGroup_4["entities_utilities"]
+        ex_BehaviorGroup_1["entities_data_handling"]
     end
 
-    AdaptersDriversApi --> AdaptersDrivers
-    AdaptersDebuggingApi --> AdaptersDebugging
-    AdaptersNifsApi --> AdaptersNifs
-    EntitiesDataHandlingApi --> EntitiesDataHandling
-    AdaptersTimeManagementApi --> AdaptersTimeManagement
-    InfrastructureUtilitiesApi --> InfrastructureUtilities
-    InfrastructureTimeManagementApi --> InfrastructureTimeManagement
-    InfrastructureDebuggingApi --> InfrastructureDebugging
-    UsecasesMemoryManagementApi --> UsecasesMemoryManagement
-    InfrastructureEtsTablesApi --> InfrastructureEtsTables
-    FrameworksUtilities --> UsecasesProcessManagement
-    FrameworksSystemIntegrationWin32 --> InfrastructureUtilities
-    FrameworksSystemIntegrationWin32 --> UsecasesMemoryManagement
-    FrameworksSystemIntegrationWin32 --> AdaptersNifs
-    FrameworksSystemIntegrationUnix --> InfrastructureUtilities
-    FrameworksSystemIntegrationUnix --> UsecasesMemoryManagement
-    FrameworksSystemIntegrationUnix --> InfrastructureBifs
-    FrameworksSystemIntegrationUnix --> AdaptersNifIo
-    FrameworksSystemIntegrationCommon --> EntitiesUtilities
-    FrameworksSystemIntegrationCommon --> UsecasesMemoryManagement
-    FrameworksSystemIntegrationCommon --> UsecasesProcessManagement
-    FrameworksSystemIntegrationCommon --> InfrastructureUtilities
-    AdaptersNifs --> EntitiesUtilities
-    AdaptersNifs --> UsecasesProcessManagement
-    AdaptersNifs --> EntitiesDataHandling
-    AdaptersNifs --> UsecasesBifs
-    AdaptersNifIo --> UsecasesBifs
-    AdaptersDistribution --> EntitiesUtilities
-    AdaptersDistribution --> UsecasesProcessManagement
-    AdaptersDistribution --> EntitiesDataHandling
-    UsecasesMemoryManagement --> EntitiesUtilities
-    UsecasesMemoryManagement --> EntitiesSystemIntegrationCommon
-    UsecasesMemoryManagement --> EntitiesDataHandling
-    UsecasesProcessManagement --> EntitiesUtilities
-    UsecasesProcessManagement --> EntitiesDataHandling
-    UsecasesProcessManagement --> EntitiesProcess
-    UsecasesProcessManagement --> InfrastructureUtilities
-    UsecasesIoOperations --> EntitiesUtilities
-    UsecasesIoOperations --> EntitiesDataHandling
-    UsecasesBifs --> EntitiesUtilities
-    UsecasesBifs --> EntitiesDataHandling
-    UsecasesBifs --> EntitiesIoOperations
-    UsecasesBifs --> InfrastructureExternalFormat
-    InfrastructureUtilities --> EntitiesUtilities
-    InfrastructureUtilities --> AdaptersNifs
-    InfrastructureUtilities --> EntitiesSystemIntegrationCommon
-    InfrastructureUtilities --> EntitiesDataHandling
-    InfrastructureUtilities --> EntitiesProcess
-    InfrastructureUtilities --> InfrastructureTimeManagement
-    InfrastructureUtilities --> InfrastructureDataHandling
-    InfrastructureUtilities --> UsecasesMemoryManagement
-    InfrastructureUtilities --> UsecasesBifs
-    InfrastructureUtilities --> InfrastructureBifs
-    InfrastructureUtilities --> InfrastructureDebugging
-    InfrastructureUtilities --> AdaptersNifIo
-    InfrastructureUtilities --> CodeManagementCodeLoading
-    InfrastructureUtilities --> AdaptersDistribution
-    InfrastructureUtilities --> InfrastructureEtsTables
-    InfrastructureDebugging --> EntitiesUtilities
-    InfrastructureDebugging --> AdaptersNifs
-    InfrastructureDebugging --> EntitiesDataHandling
-    InfrastructureDebugging --> UsecasesBifs
-    InfrastructureDebugging --> InfrastructureBifs
-    InfrastructureDebugging --> UsecasesProcessManagement
-    InfrastructureDebugging --> AdaptersDistribution
-    InfrastructureEtsTables --> EntitiesUtilities
-    InfrastructureEtsTables --> AdaptersNifs
-    InfrastructureEtsTables --> EntitiesDataHandling
-    InfrastructureEtsTables --> InfrastructureBifs
-    InfrastructureEtsTables --> EntitiesIoOperations
-    InfrastructureEtsTables --> UsecasesProcessManagement
-    InfrastructureTimeManagement --> EntitiesUtilities
-    InfrastructureTimeManagement --> AdaptersNifs
-    InfrastructureTimeManagement --> UsecasesBifs
-    InfrastructureTimeManagement --> InfrastructureBifs
-    InfrastructureBifs --> EntitiesUtilities
-    InfrastructureBifs --> EntitiesDataHandling
-    InfrastructureBifs --> UsecasesBifs
-    InfrastructureBifs --> UsecasesProcessManagement
-    InfrastructureBifs --> CodeManagementCodeLoading
-    InfrastructureBifs --> AdaptersDistribution
-    InfrastructureCodeLoading --> InfrastructureUtilities
-    InfrastructureCodeLoading --> UsecasesMemoryManagement
-    InfrastructureDataHandling --> UsecasesMemoryManagement
-    InfrastructureBignumEncoding --> InfrastructureCodeLoading
-    CodeManagementCodeLoading --> EntitiesUtilities
-    CodeManagementCodeLoading --> UsecasesProcessManagement
-    CodeManagementCodeLoading --> EntitiesDataHandling
+    subgraph infrastructure["Infrastructure Layer (2)"]
+        ex_BehaviorGroup_infrastructure_bif_dispatcher["infrastructure_bif_dispatcher"]
+        ex_BehaviorGroup_28["infrastructure_bifs"]
+        ex_BehaviorGroup_31["infrastructure_bignum_encoding"]
+        ex_BehaviorGroup_32["infrastructure_bignum_encoding"]
+        ex_BehaviorGroup_29["infrastructure_code_loading"]
+        ex_BehaviorGroup_30["infrastructure_data_handling"]
+        ex_BehaviorGroup_infrastructure_emulator_loop["infrastructure_emulator_loop"]
+        ex_BehaviorGroup_infrastructure_external_format["infrastructure_external_format"]
+        ex_BehaviorGroup_35["infrastructure_nif_api"]
+        ex_BehaviorGroup_infrastructure_runtime_utils["infrastructure_runtime_utils"]
+        ex_BehaviorGroup_33["infrastructure_trace_encoding"]
+        ex_BehaviorGroup_25["infrastructure_debugging"]
+        ex_BehaviorGroup_26["infrastructure_ets_tables"]
+        ex_BehaviorGroup_27["infrastructure_time_management"]
+        ex_BehaviorGroup_24["infrastructure_utilities"]
+    end
 
-    %% New dependencies for Phase 1-3 components
-    %% InfrastructureBifDispatcher calls BIF implementations, so it depends on UsecasesBifs
-    InfrastructureBifDispatcher --> UsecasesBifs
-    InfrastructureBifDispatcher --> EntitiesDataHandling
-    InfrastructureBifDispatcher --> EntitiesProcess
-    InfrastructureBifDispatcher --> InfrastructureUtilities
-    
-    InfrastructureRuntimeUtils --> EntitiesUtilities
-    InfrastructureRuntimeUtils --> EntitiesDataHandling
-    InfrastructureRuntimeUtils --> EntitiesProcess
-    InfrastructureRuntimeUtils --> UsecasesProcessManagement
-    InfrastructureRuntimeUtils --> UsecasesMemoryManagement
-    
-    InfrastructureExternalFormat --> EntitiesDataHandling
-    InfrastructureExternalFormat --> InfrastructureDataHandling
-    %% UsecasesBifs uses InfrastructureExternalFormat for encoding/decoding in term_to_binary/binary_to_term
-    
-    InfrastructureEmulatorLoop --> UsecasesProcessManagement
-    InfrastructureEmulatorLoop --> UsecasesMemoryManagement
-    InfrastructureEmulatorLoop --> InfrastructureBifDispatcher
-    InfrastructureEmulatorLoop --> EntitiesProcess
-    InfrastructureEmulatorLoop --> EntitiesDataHandling
-    InfrastructureEmulatorLoop --> InfrastructureRuntimeUtils
-    
-    UsecasesScheduling --> UsecasesProcessManagement
-    UsecasesScheduling --> EntitiesProcess
-    UsecasesScheduling --> InfrastructureEmulatorLoop
-    
-    AdaptersIoSubsystem --> UsecasesIoOperations
-    AdaptersIoSubsystem --> EntitiesIoOperations
-    AdaptersIoSubsystem --> FrameworksSystemIntegrationCommon
-    AdaptersIoSubsystem --> FrameworksSystemIntegrationUnix
-    AdaptersIoSubsystem --> FrameworksSystemIntegrationWin32
-    
-    FrameworksEmulatorInit --> InfrastructureEmulatorLoop
-    FrameworksEmulatorInit --> InfrastructureBifDispatcher
-    FrameworksEmulatorInit --> InfrastructureRuntimeUtils
-    FrameworksEmulatorInit --> UsecasesScheduling
-    FrameworksEmulatorInit --> AdaptersIoSubsystem
-    FrameworksEmulatorInit --> UsecasesProcessManagement
-    FrameworksEmulatorInit --> UsecasesMemoryManagement
-    FrameworksEmulatorInit --> EntitiesProcess
-    FrameworksEmulatorInit --> EntitiesDataHandling
-    FrameworksEmulatorInit --> InfrastructureUtilities
-    FrameworksEmulatorInit --> CodeManagementCodeLoading
+    subgraph usecases["Use Cases Layer (3)"]
+        ex_BehaviorGroup_9["usecases_bifs"]
+        ex_BehaviorGroup_8["usecases_io_operations"]
+        ex_BehaviorGroup_usecases_nif_compilation["usecases_nif_compilation"]
+        ex_BehaviorGroup_7["usecases_process_management"]
+        ex_BehaviorGroup_usecases_scheduling["usecases_scheduling"]
+        ex_BehaviorGroup_6["usecases_memory_management"]
+    end
 
-    %% GROUP-LEVEL dependencies (from cycle-minimizing grouper)
-    %% Dependencies follow CLEAN architecture: outer layers depend on inner layers
-    %% API Facades Layer (NEW): Facades that Erlang calls, which then call Rust modules
-    %% Total: 101 dependencies, 0 circular
+    subgraph code_management["Code Management Layer (4)"]
+        ex_BehaviorGroup_34["code_management_code_loading"]
+    end
+
+    subgraph adapters["Adapters Layer (5)"]
+        ex_BehaviorGroup_18["adapters_distribution"]
+        ex_BehaviorGroup_12["adapters_ets_tables"]
+        ex_BehaviorGroup_adapters_io_subsystem["adapters_io_subsystem"]
+        ex_BehaviorGroup_17["adapters_nif_io"]
+        ex_BehaviorGroup_37["adapters_socket"]
+        ex_BehaviorGroup_16["adapters_system_integration_unix"]
+        ex_BehaviorGroup_13["adapters_debugging"]
+        ex_BehaviorGroup_14["adapters_drivers"]
+        ex_BehaviorGroup_10["adapters_nifs"]
+        ex_BehaviorGroup_15["adapters_time_management"]
+    end
+
+    subgraph frameworks["Frameworks Layer (6)"]
+        ex_BehaviorGroup_38["api_facades"]
+        ex_BehaviorGroup_frameworks_emulator_init["frameworks_emulator_init"]
+        ex_BehaviorGroup_23["frameworks_system_integration"]
+        ex_BehaviorGroup_22["frameworks_system_integration_common"]
+        ex_BehaviorGroup_21["frameworks_system_integration_unix"]
+        ex_BehaviorGroup_20["frameworks_system_integration_win32"]
+        ex_BehaviorGroup_19["frameworks_utilities"]
+    end
+
+    %% Group dependencies
+    ex_BehaviorGroup_1 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_6 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_7 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_7 --> ex_BehaviorGroup_24
+    ex_BehaviorGroup_7 --> ex_BehaviorGroup_36
+    ex_BehaviorGroup_7 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_8 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_8 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_8 --> ex_BehaviorGroup_5
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_24
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_30
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_34
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_36
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_5
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_7
+    ex_BehaviorGroup_9 --> ex_BehaviorGroup_usecases_nif_compilation
+    ex_BehaviorGroup_usecases_nif_compilation --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_10 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_10 --> ex_BehaviorGroup_36
+    ex_BehaviorGroup_10 --> ex_BehaviorGroup_9
+    ex_BehaviorGroup_12 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_13 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_13 --> ex_BehaviorGroup_9
+    ex_BehaviorGroup_14 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_14 --> ex_BehaviorGroup_8
+    ex_BehaviorGroup_15 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_16 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_16 --> ex_BehaviorGroup_2
+    ex_BehaviorGroup_17 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_17 --> ex_BehaviorGroup_2
+    ex_BehaviorGroup_18 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_18 --> ex_BehaviorGroup_29
+    ex_BehaviorGroup_18 --> ex_BehaviorGroup_30
+    ex_BehaviorGroup_18 --> ex_BehaviorGroup_32
+    ex_BehaviorGroup_18 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_18 --> ex_BehaviorGroup_5
+    ex_BehaviorGroup_19 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_20 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_20 --> ex_BehaviorGroup_3
+    ex_BehaviorGroup_21 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_21 --> ex_BehaviorGroup_2
+    ex_BehaviorGroup_22 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_22 --> ex_BehaviorGroup_2
+    ex_BehaviorGroup_23 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_23 --> ex_BehaviorGroup_22
+    ex_BehaviorGroup_24 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_24 --> ex_BehaviorGroup_36
+    ex_BehaviorGroup_24 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_25 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_25 --> ex_BehaviorGroup_30
+    ex_BehaviorGroup_25 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_26 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_27 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_28 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_29 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_29 --> ex_BehaviorGroup_30
+    ex_BehaviorGroup_29 --> ex_BehaviorGroup_5
+    ex_BehaviorGroup_30 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_30 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_31 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_31 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_32 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_32 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_33 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_33 --> ex_BehaviorGroup_29
+    ex_BehaviorGroup_35 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_35 --> ex_BehaviorGroup_24
+    ex_BehaviorGroup_35 --> ex_BehaviorGroup_32
+    ex_BehaviorGroup_35 --> ex_BehaviorGroup_36
+    ex_BehaviorGroup_35 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_34 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_34 --> ex_BehaviorGroup_29
+    ex_BehaviorGroup_34 --> ex_BehaviorGroup_5
+    ex_BehaviorGroup_37 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_37 --> ex_BehaviorGroup_10
+    ex_BehaviorGroup_37 --> ex_BehaviorGroup_17
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_1
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_10
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_14
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_24
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_4
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_5
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_6
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_7
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_8
+    ex_BehaviorGroup_38 --> ex_BehaviorGroup_9
