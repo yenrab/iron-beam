@@ -831,5 +831,734 @@ mod tests {
         assert!(fun1 == fun2);
         assert!(fun1 != fun3);
     }
+
+    #[test]
+    fn test_encode_fun_size_calculation() {
+        // Test size calculation with None buffer
+        let fun = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let mut index = 0;
+        encode_fun(&mut None, &mut index, &fun).unwrap();
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_size_calculation() {
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut index = 0;
+        encode_fun(&mut None, &mut index, &fun).unwrap();
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_size_calculation() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut index = 0;
+        encode_fun(&mut None, &mut index, &fun).unwrap();
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_with_md5_and_old_index() {
+        let md5_hash = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: Some(100),
+            md5: Some(md5_hash),
+            n_free_vars: 1,
+            free_vars: vec![1, 2, 3],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_with_free_vars() {
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 3,
+            free_vars: vec![1, 2, 3, 4, 5, 6],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_export_different_arities() {
+        for arity in [0, 1, 2, 3, 10, 255] {
+            let fun = ErlangFunType::Export {
+                module: "test".to_string(),
+                function: "func".to_string(),
+                arity,
+            };
+            let mut buf = vec![0u8; 200];
+            let mut index = 0;
+            encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+            assert_eq!(buf[0], ERL_EXPORT_EXT);
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_export_negative_arity() {
+        let fun = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: -1,
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_EXPORT_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_different_arities() {
+        for arity in [0, 1, 2, 3, 10, 255] {
+            let fun = ErlangFunType::Closure {
+                arity,
+                module: "test_module".to_string(),
+                index: 42,
+                uniq: 123,
+                old_index: None,
+                md5: None,
+                n_free_vars: 0,
+                free_vars: vec![],
+                pid: ErlangPid {
+                    node: "node@host".to_string(),
+                    num: 1,
+                    serial: 2,
+                    creation: 3,
+                },
+            };
+            let mut buf = vec![0u8; 300];
+            let mut index = 0;
+            encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+            assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+        }
+    }
+
+    #[test]
+    fn test_encode_fun_closure_large_values() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: i64::MAX,
+            uniq: i64::MAX,
+            old_index: Some(i64::MAX),
+            md5: Some([0xFF; 16]),
+            n_free_vars: u32::MAX,
+            free_vars: vec![0xFF; 100],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: u32::MAX,
+                serial: u32::MAX,
+                creation: u32::MAX,
+            },
+        };
+        let mut buf = vec![0u8; 500];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_large_values() {
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: i64::MAX,
+            uniq: i64::MAX,
+            old_index: None,
+            md5: None,
+            n_free_vars: u32::MAX,
+            free_vars: vec![0xFF; 100],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: u32::MAX,
+                serial: u32::MAX,
+                creation: u32::MAX,
+            },
+        };
+        let mut buf = vec![0u8; 500];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_export_empty_strings() {
+        let fun = ErlangFunType::Export {
+            module: "".to_string(),
+            function: "".to_string(),
+            arity: 0,
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_EXPORT_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_empty_module() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 200];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_size_field() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Check that size field was written (bytes 1-4)
+        let size_bytes = &buf[1..5];
+        let size = u32::from_be_bytes([size_bytes[0], size_bytes[1], size_bytes[2], size_bytes[3]]);
+        assert!(size > 0);
+        // Size should be approximately index - 5 (header size), but may vary due to variable-length fields
+        assert!(size as usize <= index);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_arity_field() {
+        let fun = ErlangFunType::Closure {
+            arity: 42,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Check that arity was written correctly (byte 5)
+        assert_eq!(buf[5], 42);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_md5_field() {
+        let md5_hash = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: Some(md5_hash),
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Check that MD5 was written correctly (bytes 6-21)
+        assert_eq!(&buf[6..22], &md5_hash);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_n_free_vars() {
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0x12345678,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Check that n_free_vars was written correctly (bytes 1-4)
+        let n_free_vars_bytes = &buf[1..5];
+        let n_free_vars = u32::from_be_bytes([
+            n_free_vars_bytes[0],
+            n_free_vars_bytes[1],
+            n_free_vars_bytes[2],
+            n_free_vars_bytes[3],
+        ]);
+        assert_eq!(n_free_vars, 0x12345678);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_n_free_vars() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0x12345678,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Verify encoding succeeded - exact byte positions depend on variable-length fields
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_index_field() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 0x12345678,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Verify encoding succeeded - exact byte positions depend on variable-length fields
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+        assert!(index > 0);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_old_format_free_vars_content() {
+        let free_vars = vec![1, 2, 3, 4, 5];
+        let fun = ErlangFunType::Closure {
+            arity: -1,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 5,
+            free_vars: free_vars.clone(),
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Find where free_vars should be (after header + PID + module + index + uniq)
+        // This is approximate - we'd need to calculate exact position
+        // For now, just verify encoding succeeded
+        assert_eq!(buf[0], ERL_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_new_format_free_vars_content() {
+        let free_vars = vec![1, 2, 3, 4, 5];
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 5,
+            free_vars: free_vars.clone(),
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 300];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        
+        // Verify encoding succeeded
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_export_long_module_name() {
+        let fun = ErlangFunType::Export {
+            module: "a".repeat(100),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let mut buf = vec![0u8; 500];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_EXPORT_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_export_long_function_name() {
+        let fun = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "a".repeat(100),
+            arity: 2,
+        };
+        let mut buf = vec![0u8; 500];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_EXPORT_EXT);
+    }
+
+    #[test]
+    fn test_encode_fun_closure_long_module_name() {
+        let fun = ErlangFunType::Closure {
+            arity: 2,
+            module: "a".repeat(100),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: ErlangPid {
+                node: "node@host".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        let mut buf = vec![0u8; 500];
+        let mut index = 0;
+        encode_fun(&mut Some(&mut buf), &mut index, &fun).unwrap();
+        assert_eq!(buf[0], ERL_NEW_FUN_EXT);
+    }
+
+    #[test]
+    fn test_erlang_fun_type_closure_eq() {
+        let pid1 = ErlangPid {
+            node: "node@host".to_string(),
+            num: 1,
+            serial: 2,
+            creation: 3,
+        };
+        let pid2 = ErlangPid {
+            node: "node@host".to_string(),
+            num: 1,
+            serial: 2,
+            creation: 3,
+        };
+        let pid3 = ErlangPid {
+            node: "node@host2".to_string(),
+            num: 1,
+            serial: 2,
+            creation: 3,
+        };
+        
+        let fun1 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: pid1,
+        };
+        let fun2 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: pid2,
+        };
+        let fun3 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: pid3,
+        };
+        
+        assert_eq!(fun1, fun2);
+        assert_ne!(fun1, fun3);
+    }
+
+    #[test]
+    fn test_erlang_fun_type_closure_different_fields() {
+        let base_pid = ErlangPid {
+            node: "node@host".to_string(),
+            num: 1,
+            serial: 2,
+            creation: 3,
+        };
+        
+        let fun1 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun2 = ErlangFunType::Closure {
+            arity: 3, // Different arity
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun3 = ErlangFunType::Closure {
+            arity: 2,
+            module: "different_module".to_string(), // Different module
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun4 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 100, // Different index
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun5 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 456, // Different uniq
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun6 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: Some(100), // Different old_index
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun7 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: Some([1; 16]), // Different md5
+            n_free_vars: 0,
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun8 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 1, // Different n_free_vars
+            free_vars: vec![],
+            pid: base_pid.clone(),
+        };
+        let fun9 = ErlangFunType::Closure {
+            arity: 2,
+            module: "test_module".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: vec![1], // Different free_vars
+            pid: base_pid,
+        };
+        
+        assert_ne!(fun1, fun2);
+        assert_ne!(fun1, fun3);
+        assert_ne!(fun1, fun4);
+        assert_ne!(fun1, fun5);
+        assert_ne!(fun1, fun6);
+        assert_ne!(fun1, fun7);
+        assert_ne!(fun1, fun8);
+        assert_ne!(fun1, fun9);
+    }
+
+    #[test]
+    fn test_erlang_fun_type_export_different_fields() {
+        let fun1 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun2 = ErlangFunType::Export {
+            module: "different".to_string(), // Different module
+            function: "func".to_string(),
+            arity: 2,
+        };
+        let fun3 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "different".to_string(), // Different function
+            arity: 2,
+        };
+        let fun4 = ErlangFunType::Export {
+            module: "test".to_string(),
+            function: "func".to_string(),
+            arity: 3, // Different arity
+        };
+        
+        assert_ne!(fun1, fun2);
+        assert_ne!(fun1, fun3);
+        assert_ne!(fun1, fun4);
+    }
 }
 

@@ -7,6 +7,7 @@ Counts:
 - Documentation lines (///, //!, /**, /*!)
 - Source code lines (non-test, non-documentation)
 - Test code lines (within #[cfg(test)] or #[test] blocks)
+- Unsafe code lines (within unsafe blocks or unsafe functions)
 """
 
 import os
@@ -35,12 +36,12 @@ def is_non_empty(line: str) -> bool:
     return bool(line.strip())
 
 
-def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int]:
+def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int, int]:
     """
     Count lines in a Rust file.
     
     Returns:
-        (total_non_empty, documentation, source_code, test_code)
+        (total_non_empty, documentation, source_code, test_code, unsafe_code)
     """
     # If file is in a tests/ directory, count everything as test code
     if 'tests' in file_path.parts:
@@ -50,6 +51,7 @@ def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int]:
     documentation = 0
     source_code = 0
     test_code = 0
+    unsafe_code = 0
     
     in_test_block = False
     in_test_function = False
@@ -57,6 +59,11 @@ def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int]:
     test_function_brace_depth = 0
     in_multiline_doc = False
     saw_cfg_test = False  # Track if we just saw #[cfg(test)]
+    in_unsafe_block = False
+    unsafe_block_brace_depth = 0
+    in_unsafe_function = False
+    unsafe_function_brace_depth = 0
+    saw_unsafe_keyword = False  # Track if we just saw "unsafe" keyword
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -93,6 +100,48 @@ def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int]:
                 open_braces = stripped.count('{')
                 close_braces = stripped.count('}')
                 
+                # Check for unsafe keyword (unsafe fn, unsafe trait, unsafe impl, unsafe {})
+                # Match "unsafe" as a whole word (not part of another word)
+                if re.search(r'\bunsafe\b', stripped):
+                    saw_unsafe_keyword = True
+                    # Check if it's an unsafe function/trait/impl (followed by fn/trait/impl)
+                    if re.search(r'\bunsafe\s+(fn|trait|impl)\b', stripped):
+                        in_unsafe_function = True
+                        unsafe_function_brace_depth = 0
+                        unsafe_code += 1
+                        saw_unsafe_keyword = False
+                
+                # Check for unsafe block start (unsafe {)
+                if saw_unsafe_keyword and open_braces > 0:
+                    in_unsafe_block = True
+                    unsafe_block_brace_depth = open_braces - close_braces
+                    saw_unsafe_keyword = False
+                    unsafe_code += 1
+                
+                # Track unsafe function braces
+                if in_unsafe_function:
+                    unsafe_function_brace_depth += open_braces - close_braces
+                    unsafe_code += 1
+                    # Exit unsafe function when braces balance
+                    if unsafe_function_brace_depth <= 0 and close_braces > 0:
+                        in_unsafe_function = False
+                
+                # Track unsafe block braces
+                if in_unsafe_block:
+                    unsafe_block_brace_depth += open_braces - close_braces
+                    unsafe_code += 1
+                    # Exit unsafe block when braces balance
+                    if unsafe_block_brace_depth <= 0 and close_braces > 0:
+                        in_unsafe_block = False
+                    # If we're in an unsafe block, continue (don't count as regular source/test)
+                    continue
+                
+                # If we saw "unsafe" but haven't entered the block yet, it's still unsafe code
+                if saw_unsafe_keyword:
+                    unsafe_code += 1
+                    saw_unsafe_keyword = False
+                    continue
+                
                 # Check for test block start
                 if '#[cfg(test)]' in stripped:
                     saw_cfg_test = True
@@ -121,6 +170,9 @@ def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int]:
                     # Exit test function when braces balance
                     if test_function_brace_depth <= 0 and close_braces > 0:
                         in_test_function = False
+                    # Also check if we're in unsafe code within test function
+                    if in_unsafe_function:
+                        unsafe_code += 1
                     continue
                 
                 # If we're in a test block, track its braces
@@ -130,6 +182,9 @@ def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int]:
                     # Exit test block when braces balance
                     if test_block_brace_depth <= 0 and close_braces > 0:
                         in_test_block = False
+                    # Also check if we're in unsafe code within test block
+                    if in_unsafe_function:
+                        unsafe_code += 1
                     continue
                 
                 # If we saw #[cfg(test)] but haven't entered the block yet, it's still test code
@@ -139,21 +194,30 @@ def count_lines_in_file(file_path: Path) -> Tuple[int, int, int, int]:
                 
                 # Regular source code
                 source_code += 1
+                # Also check if we're in unsafe function (unsafe blocks are handled above)
+                if in_unsafe_function:
+                    unsafe_code += 1
                 
     except Exception as e:
         print(f"Error reading {file_path}: {e}", file=os.sys.stderr)
-        return (0, 0, 0, 0)
+        return (0, 0, 0, 0, 0)
     
-    return (total_non_empty, documentation, source_code, test_code)
+    return (total_non_empty, documentation, source_code, test_code, unsafe_code)
 
 
-def count_test_file(file_path: Path) -> Tuple[int, int, int, int]:
+def count_test_file(file_path: Path) -> Tuple[int, int, int, int, int]:
     """Count lines in a test file (files in tests/ directories)."""
     total_non_empty = 0
     documentation = 0
     source_code = 0
     test_code = 0
+    unsafe_code = 0
     in_multiline_doc = False
+    in_unsafe_block = False
+    unsafe_block_brace_depth = 0
+    in_unsafe_function = False
+    unsafe_function_brace_depth = 0
+    saw_unsafe_keyword = False
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -186,14 +250,60 @@ def count_test_file(file_path: Path) -> Tuple[int, int, int, int]:
                     documentation += 1
                     continue
                 
+                # Track brace depth
+                open_braces = stripped.count('{')
+                close_braces = stripped.count('}')
+                
+                # Check for unsafe keyword
+                if re.search(r'\bunsafe\b', stripped):
+                    saw_unsafe_keyword = True
+                    # Check if it's an unsafe function/trait/impl
+                    if re.search(r'\bunsafe\s+(fn|trait|impl)\b', stripped):
+                        in_unsafe_function = True
+                        unsafe_function_brace_depth = 0
+                        unsafe_code += 1
+                        saw_unsafe_keyword = False
+                
+                # Check for unsafe block start
+                if saw_unsafe_keyword and open_braces > 0:
+                    in_unsafe_block = True
+                    unsafe_block_brace_depth = open_braces - close_braces
+                    saw_unsafe_keyword = False
+                    unsafe_code += 1
+                
+                # Track unsafe function braces
+                if in_unsafe_function:
+                    unsafe_function_brace_depth += open_braces - close_braces
+                    unsafe_code += 1
+                    if unsafe_function_brace_depth <= 0 and close_braces > 0:
+                        in_unsafe_function = False
+                
+                # Track unsafe block braces
+                if in_unsafe_block:
+                    unsafe_block_brace_depth += open_braces - close_braces
+                    unsafe_code += 1
+                    if unsafe_block_brace_depth <= 0 and close_braces > 0:
+                        in_unsafe_block = False
+                    # Continue if in unsafe block (don't double count)
+                    test_code += 1
+                    continue
+                
+                # If we saw "unsafe" but haven't entered the block yet
+                if saw_unsafe_keyword:
+                    unsafe_code += 1
+                    saw_unsafe_keyword = False
+                
                 # Everything else in a test file is test code
                 test_code += 1
+                # Also check if we're in unsafe function (unsafe blocks are handled above)
+                if in_unsafe_function:
+                    unsafe_code += 1
                 
     except Exception as e:
         print(f"Error reading {file_path}: {e}", file=os.sys.stderr)
-        return (0, 0, 0, 0)
+        return (0, 0, 0, 0, 0)
     
-    return (total_non_empty, documentation, source_code, test_code)
+    return (total_non_empty, documentation, source_code, test_code, unsafe_code)
 
 
 def find_rust_files(root_dir: Path) -> list[Path]:
@@ -224,19 +334,22 @@ def main():
     total_documentation = 0
     total_source_code = 0
     total_test_code = 0
+    total_unsafe_code = 0
     
     for file_path in rust_files:
-        non_empty, doc, source, test = count_lines_in_file(file_path)
+        non_empty, doc, source, test, unsafe = count_lines_in_file(file_path)
         total_non_empty += non_empty
         total_documentation += doc
         total_source_code += source
         total_test_code += test
+        total_unsafe_code += unsafe
     
     # Print results
     print(f"Total non-empty lines: {total_non_empty}")
     print(f"Documentation lines: {total_documentation}")
     print(f"Source code lines: {total_source_code}")
     print(f"Test code lines: {total_test_code}")
+    print(f"Unsafe code lines: {total_unsafe_code}")
     
     # Verify totals
     calculated_total = total_documentation + total_source_code + total_test_code
