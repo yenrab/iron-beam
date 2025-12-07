@@ -27,5 +27,5 @@
 
 pub mod framework_utils;
 
-pub use framework_utils::FrameworkUtils;
+pub use framework_utils::{FrameworkUtils, FrameworkError};
 

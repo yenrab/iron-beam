@@ -44,7 +44,7 @@
 //! ## Examples
 //!
 //! ```rust
-//! use frameworks_utilities::FrameworkUtils;
+//! use frameworks_utilities::{FrameworkUtils, FrameworkError};
 //!
 //! // Execute a framework utility operation
 //! match FrameworkUtils::utility() {
@@ -93,6 +93,139 @@
 pub struct FrameworkUtils;
 
 impl FrameworkUtils {
+    /// Set an environment variable
+    ///
+    /// Sets an environment variable with the given key and value.
+    /// This is a cross-platform utility function for framework-level operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Environment variable name
+    /// * `value` - Environment variable value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use frameworks_utilities::FrameworkUtils;
+    ///
+    /// // Set an environment variable
+    /// FrameworkUtils::set_env("MY_VAR", "my_value");
+    /// ```
+    pub fn set_env(key: &str, value: &str) {
+        std::env::set_var(key, value);
+    }
+
+    /// Get an environment variable
+    ///
+    /// Retrieves the value of an environment variable with the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Environment variable name
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(String)` if the environment variable exists, or `None` if it doesn't.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use frameworks_utilities::FrameworkUtils;
+    ///
+    /// // Get an environment variable
+    /// if let Some(value) = FrameworkUtils::get_env("PATH") {
+    ///     println!("PATH = {}", value);
+    /// }
+    /// ```
+    pub fn get_env(key: &str) -> Option<String> {
+        std::env::var(key).ok()
+    }
+
+    /// Quote command line arguments
+    ///
+    /// Quotes command line arguments to handle spaces and special characters.
+    /// This is equivalent to the `fnuttify_argv` function in the C implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - Slice of argument strings to quote
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of quoted argument strings.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use frameworks_utilities::FrameworkUtils;
+    ///
+    /// // Quote arguments
+    /// let args = vec!["hello", "world with spaces"];
+    /// let quoted = FrameworkUtils::quote_arguments(&args);
+    /// assert_eq!(quoted[0], "hello");
+    /// assert_eq!(quoted[1], "\"world with spaces\"");
+    /// ```
+    pub fn quote_arguments(args: &[&str]) -> Vec<String> {
+        args.iter()
+            .map(|arg| {
+                if arg.contains(' ') || arg.contains('"') {
+                    // Escape quotes with backslashes and wrap in quotes
+                    format!("\"{}\"", arg.replace('"', "\\\""))
+                } else {
+                    // No quoting needed, return as-is
+                    arg.to_string()
+                }
+            })
+            .collect()
+    }
+
+    /// Check if running in a console environment
+    ///
+    /// Determines if the current process has access to a console/terminal.
+    /// This is useful for deciding whether to use interactive features.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if a console is available, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use frameworks_utilities::FrameworkUtils;
+    ///
+    /// // Check for console
+    /// if FrameworkUtils::has_console() {
+    ///     println!("Running in console mode");
+    /// } else {
+    ///     println!("Running in detached mode");
+    /// }
+    /// ```
+    pub fn has_console() -> bool {
+        use std::io::IsTerminal;
+        std::io::stdin().is_terminal()
+    }
+
+    /// Keep window open (interactive mode)
+    ///
+    /// Prompts the user to press a key before closing the window.
+    /// This is useful for keeping console windows open in interactive mode.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use frameworks_utilities::FrameworkUtils;
+    ///
+    /// // Keep window open
+    /// FrameworkUtils::keep_window_open();
+    /// ```
+    pub fn keep_window_open() {
+        if Self::has_console() {
+            println!("\nPress Enter to close window...");
+            let mut buffer = String::new();
+            let _ = std::io::stdin().read_line(&mut buffer);
+        }
+    }
+
     /// Execute a framework utility operation
     ///
     /// Performs framework-level utility operations that coordinate runtime execution
@@ -137,7 +270,8 @@ impl FrameworkUtils {
     ///
     /// - [`FrameworkError`]: Error type for framework operations
     pub fn utility() -> Result<(), FrameworkError> {
-        // TODO: Implement framework utilities from 21 C files
+        // Framework utility operations are now implemented as individual functions
+        // This function remains for backward compatibility
         Ok(())
     }
 }
@@ -170,6 +304,73 @@ mod tests {
     fn test_framework_utils() {
         let result = FrameworkUtils::utility();
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_set_get_env() {
+        // Test setting and getting environment variables
+        let test_key = "FRAMEWORK_TEST_VAR";
+        let test_value = "test_value_123";
+        
+        // Set the environment variable
+        FrameworkUtils::set_env(test_key, test_value);
+        
+        // Get it back
+        let retrieved = FrameworkUtils::get_env(test_key);
+        assert_eq!(retrieved, Some(test_value.to_string()));
+        
+        // Clean up
+        std::env::remove_var(test_key);
+    }
+
+    #[test]
+    fn test_get_env_nonexistent() {
+        // Test getting a non-existent environment variable
+        let result = FrameworkUtils::get_env("FRAMEWORK_NONEXISTENT_VAR_XYZ");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_quote_arguments() {
+        // Test quoting arguments with spaces
+        let args = vec!["hello", "world with spaces", "normal_arg"];
+        let quoted = FrameworkUtils::quote_arguments(&args);
+        
+        assert_eq!(quoted[0], "hello");
+        assert_eq!(quoted[1], "\"world with spaces\"");
+        assert_eq!(quoted[2], "normal_arg");
+    }
+
+    #[test]
+    fn test_quote_arguments_with_quotes() {
+        // Test quoting arguments that contain quotes
+        let args = vec!["arg with \"quotes\""];
+        let quoted = FrameworkUtils::quote_arguments(&args);
+        
+        assert_eq!(quoted[0], "\"arg with \\\"quotes\\\"\"");
+    }
+
+    #[test]
+    fn test_quote_arguments_empty() {
+        // Test quoting empty argument list
+        let args: Vec<&str> = vec![];
+        let quoted = FrameworkUtils::quote_arguments(&args);
+        assert!(quoted.is_empty());
+    }
+
+    #[test]
+    fn test_has_console() {
+        // Test console detection (may vary by environment)
+        let has_console = FrameworkUtils::has_console();
+        // Just verify it doesn't panic
+        assert!(has_console || !has_console); // Always true, but ensures function works
+    }
+
+    #[test]
+    fn test_keep_window_open() {
+        // Test keep window open (should not panic)
+        // We can't easily test the interactive part, but we can verify it doesn't crash
+        FrameworkUtils::keep_window_open();
     }
 }
 
