@@ -32,7 +32,7 @@
 
 use entities_process::{Process, ErtsCodePtr, Eterm};
 use infrastructure_utilities::process_table::get_global_process_table;
-// use std::sync::Arc; // TODO: Will be used when implementing process code tracking
+use std::sync::Arc;
 
 /// Module code area information
 ///
