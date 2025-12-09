@@ -1,0 +1,16 @@
+[package]
+name = "usecases_scheduling"
+version = "0.1.0"
+edition = "2021"
+description = "Use Cases layer: Process scheduling - run queues, scheduler management"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_process = { path = "../../entities/entities_process" }
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+infrastructure_utilities = { path = "../../infrastructure/infrastructure_utilities" }
+usecases_process_management = { path = "../usecases_process_management" }
+
+[dev-dependencies]
+

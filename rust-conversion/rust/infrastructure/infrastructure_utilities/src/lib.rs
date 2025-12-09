@@ -24,6 +24,9 @@
 //!
 //! - **[`helpers`](helpers/index.html)**: Helper functions for various runtime operations
 //!
+//! - **[`compression`](compression/index.html)**: Compression and decompression utilities
+//!   using zlib (flate2) and zstd. Provides both chunked and one-shot interfaces.
+//!
 //! - **[`process_table`](process_table/index.html)**: Process table/registry implementation
 //!   (based on `erl_ptab.c`). Note: This is NOT pure data storage; it includes process
 //!   management operations.
@@ -40,11 +43,13 @@
 
 pub mod common;
 pub mod helpers;
+pub mod compression;
 pub mod process_table;
 pub mod atom_table;
 
 pub use common::{CommonUtils, FormatUtils, MathUtils, RationalUtils, MiscUtils, HashUtils, ArrayUtils, ThreadingUtils, TimeUtils, PathUtils, UtilityError};
 pub use helpers::HelperFunctions;
+pub use compression::{CompressionLevel, CompressionError, CompressionResult, ChunkResult, DeflateStream, InflateStream, compress2, uncompress, zstd_compress, zstd_decompress};
 pub use process_table::{ProcessTable, get_global_process_table, ProcessTableError};
 pub use atom_table::get_global_atom_table;
 

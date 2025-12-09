@@ -11,6 +11,7 @@ members = [
     # Use Cases layer
     "usecases/usecases_memory_management",
     "usecases/usecases_process_management",
+    "usecases/usecases_scheduling",
     "usecases/usecases_io_operations",
     "usecases/usecases_bifs",
     "usecases/usecases_nif_compilation",

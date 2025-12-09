@@ -1,153 +1,142 @@
 graph TD
     subgraph entities["Entities Layer (1)"]
-        ex_BehaviorGroup_5["entities_io_operations"]
-        ex_BehaviorGroup_36["entities_process"]
-        ex_BehaviorGroup_2["entities_system_integration_common"]
-        ex_BehaviorGroup_3["entities_system_integration_win32"]
-        ex_BehaviorGroup_4["entities_utilities"]
-        ex_BehaviorGroup_1["entities_data_handling"]
+        BehaviorGroup_5["entities_io_operations"]
+        BehaviorGroup_36["entities_process"]
+        BehaviorGroup_2["entities_system_integration_common"]
+        BehaviorGroup_3["entities_system_integration_win32"]
+        BehaviorGroup_4["entities_utilities"]
+        BehaviorGroup_1["✅entities_data_handling"]
     end
 
     subgraph infrastructure["Infrastructure Layer (2)"]
-        ex_BehaviorGroup_infrastructure_bif_dispatcher["infrastructure_bif_dispatcher"]
-        ex_BehaviorGroup_28["infrastructure_bifs"]
-        ex_BehaviorGroup_31["infrastructure_bignum_encoding"]
-        ex_BehaviorGroup_32["infrastructure_bignum_encoding"]
-        ex_BehaviorGroup_29["infrastructure_code_loading"]
-        ex_BehaviorGroup_30["infrastructure_data_handling"]
-        ex_BehaviorGroup_infrastructure_emulator_loop["infrastructure_emulator_loop"]
-        ex_BehaviorGroup_infrastructure_external_format["infrastructure_external_format"]
-        ex_BehaviorGroup_35["infrastructure_nif_api"]
-        ex_BehaviorGroup_infrastructure_runtime_utils["infrastructure_runtime_utils"]
-        ex_BehaviorGroup_33["infrastructure_trace_encoding"]
-        ex_BehaviorGroup_25["infrastructure_debugging"]
-        ex_BehaviorGroup_26["infrastructure_ets_tables"]
-        ex_BehaviorGroup_27["infrastructure_time_management"]
-        ex_BehaviorGroup_24["infrastructure_utilities"]
+        BehaviorGroup_infrastructure_bif_dispatcher["infrastructure_bif_dispatcher"]
+        BehaviorGroup_28["infrastructure_bifs"]
+        BehaviorGroup_31["infrastructure_bignum_encoding"]
+        BehaviorGroup_32["infrastructure_bignum_encoding"]
+        BehaviorGroup_29["infrastructure_code_loading"]
+        BehaviorGroup_30["infrastructure_data_handling"]
+        BehaviorGroup_infrastructure_emulator_loop["infrastructure_emulator_loop"]
+        BehaviorGroup_infrastructure_external_format["infrastructure_external_format"]
+        BehaviorGroup_35["infrastructure_nif_api"]
+        BehaviorGroup_infrastructure_runtime_utils["infrastructure_runtime_utils"]
+        BehaviorGroup_33["infrastructure_trace_encoding"]
+        BehaviorGroup_25["✅infrastructure_debugging"]
+        BehaviorGroup_26["✅infrastructure_ets_tables"]
+        BehaviorGroup_27["✅infrastructure_time_management"]
+        BehaviorGroup_24["✅infrastructure_utilities"]
     end
 
-    subgraph usecases["Use Cases Layer (3)"]
-        ex_BehaviorGroup_9["usecases_bifs"]
-        ex_BehaviorGroup_8["usecases_io_operations"]
-        ex_BehaviorGroup_usecases_nif_compilation["usecases_nif_compilation"]
-        ex_BehaviorGroup_7["usecases_process_management"]
-        ex_BehaviorGroup_usecases_scheduling["usecases_scheduling"]
-        ex_BehaviorGroup_6["usecases_memory_management"]
+    subgraph usecases["Usecases Layer (3)"]
+        BehaviorGroup_9["usecases_bifs"]
+        BehaviorGroup_8["usecases_io_operations"]
+        BehaviorGroup_usecases_nif_compilation["usecases_nif_compilation"]
+        BehaviorGroup_7["usecases_process_management"]
+        BehaviorGroup_usecases_scheduling["usecases_scheduling"]
+        BehaviorGroup_6["✅usecases_memory_management"]
     end
 
-    subgraph code_management["Code Management Layer (4)"]
-        ex_BehaviorGroup_34["code_management_code_loading"]
+    subgraph codemanagement["Code Management Layer (4)"]
+        BehaviorGroup_34["code_management_code_loading"]
     end
 
     subgraph adapters["Adapters Layer (5)"]
-        ex_BehaviorGroup_18["adapters_distribution"]
-        ex_BehaviorGroup_12["adapters_ets_tables"]
-        ex_BehaviorGroup_adapters_io_subsystem["adapters_io_subsystem"]
-        ex_BehaviorGroup_17["adapters_nif_io"]
-        ex_BehaviorGroup_37["adapters_socket"]
-        ex_BehaviorGroup_16["adapters_system_integration_unix"]
-        ex_BehaviorGroup_13["adapters_debugging"]
-        ex_BehaviorGroup_14["adapters_drivers"]
-        ex_BehaviorGroup_10["adapters_nifs"]
-        ex_BehaviorGroup_15["adapters_time_management"]
+        BehaviorGroup_18["adapters_distribution"]
+        BehaviorGroup_12["adapters_ets_tables"]
+        BehaviorGroup_adapters_io_subsystem["adapters_io_subsystem"]
+        BehaviorGroup_17["adapters_nif_io"]
+        BehaviorGroup_37["adapters_socket"]
+        BehaviorGroup_16["adapters_system_integration_unix"]
+        BehaviorGroup_13["✅adapters_debugging"]
+        BehaviorGroup_14["✅adapters_drivers"]
+        BehaviorGroup_10["✅adapters_nifs"]
+        BehaviorGroup_15["✅adapters_time_management"]
     end
 
     subgraph frameworks["Frameworks Layer (6)"]
-        ex_BehaviorGroup_38["api_facades"]
-        ex_BehaviorGroup_frameworks_emulator_init["frameworks_emulator_init"]
-        ex_BehaviorGroup_23["frameworks_system_integration"]
-        ex_BehaviorGroup_22["frameworks_system_integration_common"]
-        ex_BehaviorGroup_21["frameworks_system_integration_unix"]
-        ex_BehaviorGroup_20["frameworks_system_integration_win32"]
-        ex_BehaviorGroup_19["frameworks_utilities"]
+        BehaviorGroup_frameworks_emulator_init["frameworks_emulator_init"]
+        BehaviorGroup_23["frameworks_system_integration"]
+        BehaviorGroup_22["frameworks_system_integration_common"]
+        BehaviorGroup_21["frameworks_system_integration_unix"]
+        BehaviorGroup_20["frameworks_system_integration_win32"]
+        BehaviorGroup_19["frameworks_utilities"]
     end
 
     %% Group dependencies
-    ex_BehaviorGroup_1 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_6 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_7 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_7 --> ex_BehaviorGroup_24
-    ex_BehaviorGroup_7 --> ex_BehaviorGroup_36
-    ex_BehaviorGroup_7 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_8 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_8 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_8 --> ex_BehaviorGroup_5
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_24
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_30
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_34
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_36
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_5
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_7
-    ex_BehaviorGroup_9 --> ex_BehaviorGroup_usecases_nif_compilation
-    ex_BehaviorGroup_usecases_nif_compilation --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_10 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_10 --> ex_BehaviorGroup_36
-    ex_BehaviorGroup_10 --> ex_BehaviorGroup_9
-    ex_BehaviorGroup_12 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_13 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_13 --> ex_BehaviorGroup_9
-    ex_BehaviorGroup_14 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_14 --> ex_BehaviorGroup_8
-    ex_BehaviorGroup_15 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_16 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_16 --> ex_BehaviorGroup_2
-    ex_BehaviorGroup_17 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_17 --> ex_BehaviorGroup_2
-    ex_BehaviorGroup_18 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_18 --> ex_BehaviorGroup_29
-    ex_BehaviorGroup_18 --> ex_BehaviorGroup_30
-    ex_BehaviorGroup_18 --> ex_BehaviorGroup_32
-    ex_BehaviorGroup_18 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_18 --> ex_BehaviorGroup_5
-    ex_BehaviorGroup_19 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_20 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_20 --> ex_BehaviorGroup_3
-    ex_BehaviorGroup_21 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_21 --> ex_BehaviorGroup_2
-    ex_BehaviorGroup_22 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_22 --> ex_BehaviorGroup_2
-    ex_BehaviorGroup_23 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_23 --> ex_BehaviorGroup_22
-    ex_BehaviorGroup_24 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_24 --> ex_BehaviorGroup_36
-    ex_BehaviorGroup_24 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_25 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_25 --> ex_BehaviorGroup_30
-    ex_BehaviorGroup_25 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_26 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_27 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_28 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_29 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_29 --> ex_BehaviorGroup_30
-    ex_BehaviorGroup_29 --> ex_BehaviorGroup_5
-    ex_BehaviorGroup_30 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_30 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_31 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_31 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_32 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_32 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_33 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_33 --> ex_BehaviorGroup_29
-    ex_BehaviorGroup_35 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_35 --> ex_BehaviorGroup_24
-    ex_BehaviorGroup_35 --> ex_BehaviorGroup_32
-    ex_BehaviorGroup_35 --> ex_BehaviorGroup_36
-    ex_BehaviorGroup_35 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_34 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_34 --> ex_BehaviorGroup_29
-    ex_BehaviorGroup_34 --> ex_BehaviorGroup_5
-    ex_BehaviorGroup_37 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_37 --> ex_BehaviorGroup_10
-    ex_BehaviorGroup_37 --> ex_BehaviorGroup_17
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_1
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_10
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_14
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_24
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_4
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_5
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_6
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_7
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_8
-    ex_BehaviorGroup_38 --> ex_BehaviorGroup_9
+    BehaviorGroup_1 --> BehaviorGroup_4
+    BehaviorGroup_10 --> BehaviorGroup_1
+    BehaviorGroup_10 --> BehaviorGroup_36
+    BehaviorGroup_10 --> BehaviorGroup_9
+    BehaviorGroup_12 --> BehaviorGroup_1
+    BehaviorGroup_13 --> BehaviorGroup_1
+    BehaviorGroup_13 --> BehaviorGroup_9
+    BehaviorGroup_14 --> BehaviorGroup_1
+    BehaviorGroup_14 --> BehaviorGroup_8
+    BehaviorGroup_15 --> BehaviorGroup_1
+    BehaviorGroup_16 --> BehaviorGroup_1
+    BehaviorGroup_16 --> BehaviorGroup_2
+    BehaviorGroup_17 --> BehaviorGroup_1
+    BehaviorGroup_17 --> BehaviorGroup_2
+    BehaviorGroup_18 --> BehaviorGroup_1
+    BehaviorGroup_18 --> BehaviorGroup_29
+    BehaviorGroup_18 --> BehaviorGroup_30
+    BehaviorGroup_18 --> BehaviorGroup_32
+    BehaviorGroup_18 --> BehaviorGroup_4
+    BehaviorGroup_18 --> BehaviorGroup_5
+    BehaviorGroup_19 --> BehaviorGroup_1
+    BehaviorGroup_20 --> BehaviorGroup_1
+    BehaviorGroup_20 --> BehaviorGroup_3
+    BehaviorGroup_21 --> BehaviorGroup_1
+    BehaviorGroup_21 --> BehaviorGroup_2
+    BehaviorGroup_22 --> BehaviorGroup_1
+    BehaviorGroup_22 --> BehaviorGroup_2
+    BehaviorGroup_23 --> BehaviorGroup_1
+    BehaviorGroup_23 --> BehaviorGroup_22
+    BehaviorGroup_24 --> BehaviorGroup_1
+    BehaviorGroup_24 --> BehaviorGroup_36
+    BehaviorGroup_24 --> BehaviorGroup_4
+    BehaviorGroup_25 --> BehaviorGroup_1
+    BehaviorGroup_25 --> BehaviorGroup_30
+    BehaviorGroup_25 --> BehaviorGroup_4
+    BehaviorGroup_26 --> BehaviorGroup_1
+    BehaviorGroup_27 --> BehaviorGroup_1
+    BehaviorGroup_28 --> BehaviorGroup_1
+    BehaviorGroup_29 --> BehaviorGroup_1
+    BehaviorGroup_29 --> BehaviorGroup_30
+    BehaviorGroup_29 --> BehaviorGroup_5
+    BehaviorGroup_30 --> BehaviorGroup_1
+    BehaviorGroup_30 --> BehaviorGroup_4
+    BehaviorGroup_31 --> BehaviorGroup_1
+    BehaviorGroup_31 --> BehaviorGroup_4
+    BehaviorGroup_32 --> BehaviorGroup_1
+    BehaviorGroup_32 --> BehaviorGroup_4
+    BehaviorGroup_33 --> BehaviorGroup_1
+    BehaviorGroup_33 --> BehaviorGroup_29
+    BehaviorGroup_34 --> BehaviorGroup_1
+    BehaviorGroup_34 --> BehaviorGroup_29
+    BehaviorGroup_34 --> BehaviorGroup_5
+    BehaviorGroup_35 --> BehaviorGroup_1
+    BehaviorGroup_35 --> BehaviorGroup_24
+    BehaviorGroup_35 --> BehaviorGroup_32
+    BehaviorGroup_35 --> BehaviorGroup_36
+    BehaviorGroup_35 --> BehaviorGroup_4
+    BehaviorGroup_37 --> BehaviorGroup_1
+    BehaviorGroup_37 --> BehaviorGroup_10
+    BehaviorGroup_37 --> BehaviorGroup_17
+    BehaviorGroup_6 --> BehaviorGroup_1
+    BehaviorGroup_7 --> BehaviorGroup_1
+    BehaviorGroup_7 --> BehaviorGroup_24
+    BehaviorGroup_7 --> BehaviorGroup_36
+    BehaviorGroup_7 --> BehaviorGroup_4
+    BehaviorGroup_8 --> BehaviorGroup_1
+    BehaviorGroup_8 --> BehaviorGroup_4
+    BehaviorGroup_8 --> BehaviorGroup_5
+    BehaviorGroup_9 --> BehaviorGroup_1
+    BehaviorGroup_9 --> BehaviorGroup_24
+    BehaviorGroup_9 --> BehaviorGroup_30
+    BehaviorGroup_9 --> BehaviorGroup_34
+    BehaviorGroup_9 --> BehaviorGroup_36
+    BehaviorGroup_9 --> BehaviorGroup_4
+    BehaviorGroup_9 --> BehaviorGroup_5
+    BehaviorGroup_9 --> BehaviorGroup_7
+    BehaviorGroup_9 --> BehaviorGroup_usecases_nif_compilation
+    BehaviorGroup_usecases_nif_compilation --> BehaviorGroup_1

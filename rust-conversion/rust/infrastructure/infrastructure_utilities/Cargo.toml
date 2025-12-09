@@ -13,5 +13,8 @@ entities_process = { path = "../../entities/entities_process" }
 malachite = "0.7"
 num-traits = "0.2"
 num_cpus = "1.16"
+flate2 = "1.0"
+zstd = "0.13"
 # Note: num-rational removed - now using BigRational from entities_utilities
+# Note: ruzstd removed - using zstd crate for both compression and decompression
 
