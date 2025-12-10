@@ -272,12 +272,12 @@ All BIF implementations (business logic) should move to `usecases_bifs`:
 
 ---
 
-## 5. `io.c` → Keep in Adapters, but Verify Scope
+## 5. `io.c` → Removed from Design
 
-### Current Assignment: `adapters_io_subsystem`
-**Status**: Correct placement.
+### Previous Assignment: `adapters_io_subsystem`
+**Status**: Removed from design.
 
-**Note**: All functions in `io.c` are related to port/driver I/O, which is adapter-level functionality. No reorganization needed.
+**Note**: This implementation does not include ports and drivers. The `io.c` file and `adapters_io_subsystem` group have been removed from the design.
 
 ---
 

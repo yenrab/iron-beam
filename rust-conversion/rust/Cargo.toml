@@ -33,6 +33,10 @@ members = [
     "infrastructure/infrastructure_ets_tables",
     "infrastructure/infrastructure_time_management",
     "infrastructure/infrastructure_bifs",
+    "infrastructure/infrastructure_bif_dispatcher",
+    "infrastructure/infrastructure_emulator_loop",
+    "infrastructure/infrastructure_external_format",
+    "infrastructure/infrastructure_runtime_utils",
     "infrastructure/infrastructure_code_loading",
     "infrastructure/infrastructure_data_handling",
     "infrastructure/infrastructure_bignum_encoding",
@@ -42,6 +46,7 @@ members = [
     
     # Frameworks layer
     "frameworks/frameworks_utilities",
+    "frameworks/frameworks_emulator_init",
     "frameworks/frameworks_system_integration_win32",
     "frameworks/frameworks_system_integration_unix",
     "frameworks/frameworks_system_integration_common",

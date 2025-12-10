@@ -118951,20 +118951,6 @@
       "note": "Contains only scheduling functions from erl_process.c: erts_schedule(), dequeue_process(), enqueue_process(), run queue management, scheduler sleep/wake functions. Process creation/lifecycle functions (erl_create_process(), alloc_process(), erts_do_exit_process(), etc.) are in usecases_process_management."
     },
     {
-      "@id": "ex:BehaviorGroup_adapters_io_subsystem",
-      "name": "adapters_io_subsystem",
-      "cleanLayer": "adapters",
-      "solidResponsibility": "io_port_management",
-      "clearLayerOrder": 5,
-      "implementationPriority": 5,
-      "clearPrinciple": "inner_layers_before_outer_layers",
-      "files": [
-        "erts/emulator/beam/io.c"
-      ],
-      "rustFiles": [],
-      "functions": []
-    },
-    {
       "@id": "ex:BehaviorGroup_frameworks_emulator_init",
       "name": "frameworks_emulator_init",
       "cleanLayer": "frameworks",

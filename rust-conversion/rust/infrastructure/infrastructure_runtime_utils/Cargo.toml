@@ -1,0 +1,15 @@
+[package]
+name = "infrastructure_runtime_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Runtime utilities from utils.c"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_process = { path = "../../entities/entities_process" }
+entities_utilities = { path = "../../entities/entities_utilities" }
+
+[dev-dependencies]
+

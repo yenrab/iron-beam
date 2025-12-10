@@ -1,0 +1,17 @@
+[package]
+name = "infrastructure_emulator_loop"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: Emulator loop - BEAM instruction execution"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_process = { path = "../../entities/entities_process" }
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+infrastructure_bif_dispatcher = { path = "../infrastructure_bif_dispatcher" }
+usecases_scheduling = { path = "../../usecases/usecases_scheduling" }
+infrastructure_utilities = { path = "../infrastructure_utilities" }
+
+[dev-dependencies]
+

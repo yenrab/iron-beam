@@ -1,0 +1,16 @@
+[package]
+name = "infrastructure_bif_dispatcher"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: BIF dispatcher - routing calls to BIF implementations"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+entities_process = { path = "../../entities/entities_process" }
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+infrastructure_bifs = { path = "../infrastructure_bifs" }
+usecases_bifs = { path = "../../usecases/usecases_bifs" }
+
+[dev-dependencies]
+

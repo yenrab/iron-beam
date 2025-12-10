@@ -666,6 +666,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "frameworks_emulator_init"
+version = "0.1.0"
+dependencies = [
+ "entities_data_handling",
+ "entities_process",
+ "entities_utilities",
+ "infrastructure_bif_dispatcher",
+ "infrastructure_emulator_loop",
+ "infrastructure_runtime_utils",
+ "infrastructure_time_management",
+ "infrastructure_utilities",
+ "usecases_process_management",
+ "usecases_scheduling",
+]
+
+[[package]]
 name = "frameworks_system_integration"
 version = "0.1.0"
 dependencies = [
@@ -1111,6 +1127,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "infrastructure_bif_dispatcher"
+version = "0.1.0"
+dependencies = [
+ "entities_data_handling",
+ "entities_process",
+ "infrastructure_bifs",
+ "usecases_bifs",
+]
+
+[[package]]
 name = "infrastructure_bifs"
 version = "0.1.0"
 dependencies = [
@@ -1153,10 +1179,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "infrastructure_emulator_loop"
+version = "0.1.0"
+dependencies = [
+ "entities_data_handling",
+ "entities_process",
+ "infrastructure_bif_dispatcher",
+ "infrastructure_utilities",
+ "usecases_scheduling",
+]
+
+[[package]]
 name = "infrastructure_ets_tables"
 version = "0.1.0"
 dependencies = [
  "entities_data_handling",
+]
+
+[[package]]
+name = "infrastructure_external_format"
+version = "0.1.0"
+dependencies = [
+ "entities_data_handling",
+ "entities_process",
+ "infrastructure_bignum_encoding",
+ "infrastructure_code_loading",
+ "infrastructure_data_handling",
 ]
 
 [[package]]
@@ -1169,6 +1217,15 @@ dependencies = [
  "infrastructure_bignum_encoding",
  "infrastructure_utilities",
  "malachite 0.7.1",
+]
+
+[[package]]
+name = "infrastructure_runtime_utils"
+version = "0.1.0"
+dependencies = [
+ "entities_data_handling",
+ "entities_process",
+ "entities_utilities",
 ]
 
 [[package]]
