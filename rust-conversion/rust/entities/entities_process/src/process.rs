@@ -627,13 +627,566 @@ mod tests {
 
     #[test]
     fn test_process_heap_mutable_access() {
-        let mut process = Process::new(1);
+        let process = Process::new(1);
         let mut heap_slice = process.heap_slice_mut();
         // Can safely modify heap data
         heap_slice[0] = 42;
         drop(heap_slice); // Release the lock
         let heap_read = process.heap_slice();
         assert_eq!(heap_read[0], 42);
+    }
+
+    #[test]
+    fn test_process_state_from_flags_all_variants() {
+        // Test all ProcessState variants
+        // FREE
+        assert!(matches!(ProcessState::from_flags(0x10), ProcessState::Free));
+        
+        // EXITING
+        assert!(matches!(ProcessState::from_flags(0x20), ProcessState::Exiting));
+        
+        // DIRTY_RUNNING_SYS
+        assert!(matches!(ProcessState::from_flags(0x01000000), ProcessState::DirtyRunningSys));
+        
+        // DIRTY_RUNNING
+        assert!(matches!(ProcessState::from_flags(0x00800000), ProcessState::DirtyRunning));
+        
+        // RUNNING_SYS
+        assert!(matches!(ProcessState::from_flags(0x00008000), ProcessState::RunningSys));
+        
+        // RUNNING
+        assert!(matches!(ProcessState::from_flags(0x00000200), ProcessState::Running));
+        
+        // GC
+        assert!(matches!(ProcessState::from_flags(0x00000800), ProcessState::Gc));
+        
+        // SUSPENDED
+        assert!(matches!(ProcessState::from_flags(0x00000400), ProcessState::Suspended));
+        
+        // SYS_TASKS
+        assert!(matches!(ProcessState::from_flags(0x00001000), ProcessState::SysTasks));
+        
+        // DELAYED_SYS
+        assert!(matches!(ProcessState::from_flags(0x00020000), ProcessState::DelayedSys));
+        
+        // PROXY
+        assert!(matches!(ProcessState::from_flags(0x00010000), ProcessState::Proxy));
+        
+        // ACTIVE
+        assert!(matches!(ProcessState::from_flags(0x00000080), ProcessState::Active));
+        
+        // Unknown state - use a value with no known flags set
+        // 0x00000001 has no known flags (all known flags are higher bits)
+        assert!(matches!(ProcessState::from_flags(0x00000001), ProcessState::Unknown(0x00000001)));
+    }
+
+    #[test]
+    fn test_process_state_from_flags_priority() {
+        // Test that FREE has priority over other flags
+        assert!(matches!(ProcessState::from_flags(0x10 | 0x20 | 0x80), ProcessState::Free));
+        
+        // Test that EXITING has priority over ACTIVE
+        assert!(matches!(ProcessState::from_flags(0x20 | 0x80), ProcessState::Exiting));
+    }
+
+    #[test]
+    fn test_allocate_heap_words_success() {
+        let process = Process::new(1);
+        
+        // Allocate some words
+        let index1 = process.allocate_heap_words(10);
+        assert_eq!(index1, Some(0));
+        
+        // Allocate more words
+        let index2 = process.allocate_heap_words(20);
+        assert_eq!(index2, Some(10));
+        
+        // Verify heap_top_index was updated
+        assert_eq!(process.heap_top_index(), 30);
+    }
+
+    #[test]
+    fn test_allocate_heap_words_failure() {
+        let process = Process::new(1);
+        
+        // Try to allocate more than available
+        let heap_size = process.heap_sz();
+        let result = process.allocate_heap_words(heap_size + 1);
+        
+        // Should return None when heap is full
+        assert_eq!(result, None);
+        
+        // Heap top should not have changed
+        assert_eq!(process.heap_top_index(), 0);
+    }
+
+    #[test]
+    fn test_allocate_heap_words_exact_fit() {
+        let process = Process::new(1);
+        
+        // Allocate exactly the heap size
+        let heap_size = process.heap_sz();
+        let result = process.allocate_heap_words(heap_size);
+        
+        // Should succeed
+        assert_eq!(result, Some(0));
+        assert_eq!(process.heap_top_index(), heap_size);
+    }
+
+    #[test]
+    fn test_allocate_heap_words_zero() {
+        let process = Process::new(1);
+        
+        // Allocate zero words
+        let result = process.allocate_heap_words(0);
+        
+        // Should succeed (returns current heap_top)
+        assert_eq!(result, Some(0));
+        assert_eq!(process.heap_top_index(), 0);
+    }
+
+    #[test]
+    fn test_stack_size_words_none() {
+        let process = Process::new(1);
+        
+        // When stack_top_index is None, should return None
+        let stack_size = process.stack_size_words();
+        assert_eq!(stack_size, None);
+    }
+
+    #[test]
+    fn test_stack_size_words_some() {
+        let mut process = Process::new(1);
+        
+        // Set stack top index
+        process.stack_top_index = Some(100);
+        *process.heap_top_index.lock().unwrap() = 50;
+        
+        let stack_size = process.stack_size_words();
+        assert_eq!(stack_size, Some(50));
+    }
+
+    #[test]
+    fn test_stack_size_words_saturating() {
+        let mut process = Process::new(1);
+        
+        // Test saturating_sub when stack_top < heap_top
+        process.stack_top_index = Some(50);
+        *process.heap_top_index.lock().unwrap() = 100;
+        
+        let stack_size = process.stack_size_words();
+        // saturating_sub(50, 100) = 0
+        assert_eq!(stack_size, Some(0));
+    }
+
+    #[test]
+    fn test_add_nif_pointer_success() {
+        let mut process = Process::new(1);
+        
+        // Create a valid pointer
+        let dummy_value: u8 = 42;
+        let nif_ptr = &dummy_value as *const u8;
+        
+        // Add pointer
+        let result = process.add_nif_pointer(nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify it was added
+        let pointers = process.get_nif_pointers();
+        assert_eq!(pointers.len(), 1);
+        assert_eq!(pointers[0], nif_ptr);
+    }
+
+    #[test]
+    fn test_add_nif_pointer_null() {
+        let mut process = Process::new(1);
+        
+        // Try to add null pointer
+        let result = process.add_nif_pointer(std::ptr::null());
+        
+        // Should return error
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("null pointer"));
+        
+        // No pointers should be added
+        assert_eq!(process.get_nif_pointers().len(), 0);
+    }
+
+    #[test]
+    fn test_add_nif_pointer_duplicate() {
+        let mut process = Process::new(1);
+        
+        let dummy_value: u8 = 42;
+        let nif_ptr = &dummy_value as *const u8;
+        
+        // Add pointer twice
+        process.add_nif_pointer(nif_ptr).unwrap();
+        let result = process.add_nif_pointer(nif_ptr);
+        
+        // Should succeed (no error for duplicates)
+        assert!(result.is_ok());
+        
+        // But should only have one pointer
+        assert_eq!(process.get_nif_pointers().len(), 1);
+    }
+
+    #[test]
+    fn test_remove_nif_pointer_success() {
+        let mut process = Process::new(1);
+        
+        let dummy_value: u8 = 42;
+        let nif_ptr = &dummy_value as *const u8;
+        
+        // Add pointer
+        process.add_nif_pointer(nif_ptr).unwrap();
+        assert_eq!(process.get_nif_pointers().len(), 1);
+        
+        // Remove pointer
+        let result = process.remove_nif_pointer(nif_ptr);
+        assert!(result.is_ok());
+        
+        // Verify it was removed
+        assert_eq!(process.get_nif_pointers().len(), 0);
+    }
+
+    #[test]
+    fn test_remove_nif_pointer_not_found() {
+        let mut process = Process::new(1);
+        
+        let dummy_value: u8 = 42;
+        let nif_ptr = &dummy_value as *const u8;
+        
+        // Try to remove non-existent pointer
+        let result = process.remove_nif_pointer(nif_ptr);
+        
+        // Should succeed (no error, just no-op)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_remove_nif_pointer_multiple() {
+        let mut process = Process::new(1);
+        
+        let dummy_value1: u8 = 42;
+        let dummy_value2: u8 = 43;
+        let dummy_value3: u8 = 44;
+        let nif_ptr1 = &dummy_value1 as *const u8;
+        let nif_ptr2 = &dummy_value2 as *const u8;
+        let nif_ptr3 = &dummy_value3 as *const u8;
+        
+        // Add multiple pointers
+        process.add_nif_pointer(nif_ptr1).unwrap();
+        process.add_nif_pointer(nif_ptr2).unwrap();
+        process.add_nif_pointer(nif_ptr3).unwrap();
+        assert_eq!(process.get_nif_pointers().len(), 3);
+        
+        // Remove middle pointer
+        process.remove_nif_pointer(nif_ptr2).unwrap();
+        
+        // Verify correct pointers remain
+        let pointers = process.get_nif_pointers();
+        assert_eq!(pointers.len(), 2);
+        assert!(pointers.contains(&nif_ptr1));
+        assert!(pointers.contains(&nif_ptr3));
+        assert!(!pointers.contains(&nif_ptr2));
+    }
+
+    #[test]
+    fn test_get_nif_pointers_empty() {
+        let process = Process::new(1);
+        
+        let pointers = process.get_nif_pointers();
+        assert_eq!(pointers.len(), 0);
+    }
+
+    #[test]
+    fn test_add_nif_library_success() {
+        let mut process = Process::new(1);
+        
+        let library: Arc<Vec<u8>> = Arc::new(vec![1, 2, 3]);
+        
+        // Add library - need to cast to trait object
+        let result = process.add_nif_library(library.clone() as Arc<dyn std::any::Any + Send + Sync>);
+        assert!(result.is_ok());
+        
+        // Verify it was added
+        let libraries = process.get_nif_libraries();
+        assert_eq!(libraries.len(), 1);
+    }
+
+    #[test]
+    fn test_add_nif_library_duplicate() {
+        let mut process = Process::new(1);
+        
+        let library: Arc<Vec<u8>> = Arc::new(vec![1, 2, 3]);
+        
+        // Add library twice - need to cast to trait object
+        process.add_nif_library(library.clone() as Arc<dyn std::any::Any + Send + Sync>).unwrap();
+        let result = process.add_nif_library(library.clone() as Arc<dyn std::any::Any + Send + Sync>);
+        
+        // Should succeed (no error for duplicates)
+        assert!(result.is_ok());
+        
+        // But should only have one library
+        assert_eq!(process.get_nif_libraries().len(), 1);
+    }
+
+    #[test]
+    fn test_remove_nif_library_success() {
+        let mut process = Process::new(1);
+        
+        let library: Arc<Vec<u8>> = Arc::new(vec![1, 2, 3]);
+        
+        // Add library
+        process.add_nif_library(library.clone() as Arc<dyn std::any::Any + Send + Sync>).unwrap();
+        assert_eq!(process.get_nif_libraries().len(), 1);
+        
+        // Remove library - need to cast to trait object
+        let library_trait: Arc<dyn std::any::Any + Send + Sync> = library.clone();
+        let result = process.remove_nif_library(&library_trait);
+        assert!(result.is_ok());
+        
+        // Verify it was removed
+        assert_eq!(process.get_nif_libraries().len(), 0);
+    }
+
+    #[test]
+    fn test_remove_nif_library_not_found() {
+        let mut process = Process::new(1);
+        
+        let library1: Arc<Vec<u8>> = Arc::new(vec![1, 2, 3]);
+        let library2: Arc<Vec<u8>> = Arc::new(vec![4, 5, 6]);
+        
+        // Add one library
+        process.add_nif_library(library1.clone() as Arc<dyn std::any::Any + Send + Sync>).unwrap();
+        
+        // Try to remove different library - need to cast to trait object
+        let library2_trait: Arc<dyn std::any::Any + Send + Sync> = library2.clone();
+        let result = process.remove_nif_library(&library2_trait);
+        
+        // Should succeed (no error, just no-op)
+        assert!(result.is_ok());
+        
+        // First library should still be there
+        assert_eq!(process.get_nif_libraries().len(), 1);
+    }
+
+    #[test]
+    fn test_get_nif_libraries_empty() {
+        let process = Process::new(1);
+        
+        let libraries = process.get_nif_libraries();
+        assert_eq!(libraries.len(), 0);
+    }
+
+    #[test]
+    fn test_get_nif_libraries_multiple() {
+        let mut process = Process::new(1);
+        
+        let library1: Arc<Vec<u8>> = Arc::new(vec![1, 2, 3]);
+        let library2: Arc<String> = Arc::new(String::from("test"));
+        let library3: Arc<Vec<i32>> = Arc::new(vec![10, 20, 30]);
+        
+        // Add multiple libraries - need to cast to trait object
+        process.add_nif_library(library1.clone() as Arc<dyn std::any::Any + Send + Sync>).unwrap();
+        process.add_nif_library(library2.clone() as Arc<dyn std::any::Any + Send + Sync>).unwrap();
+        process.add_nif_library(library3.clone() as Arc<dyn std::any::Any + Send + Sync>).unwrap();
+        
+        // Verify all are present
+        let libraries = process.get_nif_libraries();
+        assert_eq!(libraries.len(), 3);
+    }
+
+    #[test]
+    fn test_process_deprecated_heap() {
+        let process = Process::new(1);
+        
+        // Test deprecated heap() method
+        let heap = process.heap();
+        assert_eq!(heap, Some(0)); // heap_start_index
+    }
+
+    #[test]
+    fn test_process_deprecated_htop() {
+        let process = Process::new(1);
+        
+        // Test deprecated htop() method
+        let htop = process.htop();
+        assert_eq!(htop, Some(0)); // heap_top_index
+    }
+
+    #[test]
+    fn test_process_deprecated_stop() {
+        let process = Process::new(1);
+        
+        // Test deprecated stop() method when None
+        let stop = process.stop();
+        assert_eq!(stop, None);
+        
+        // Test when Some
+        let mut process2 = Process::new(2);
+        process2.stack_top_index = Some(100);
+        let stop2 = process2.stop();
+        assert_eq!(stop2, Some(100));
+    }
+
+    #[test]
+    fn test_process_debug_all_fields() {
+        let mut process = Process::new(999);
+        
+        // Modify some fields to ensure they appear in debug output
+        *process.heap_top_index.lock().unwrap() = 50;
+        process.stack_top_index = Some(100);
+        
+        let debug_str = format!("{:?}", process);
+        
+        // Check that all major fields appear in debug output
+        assert!(debug_str.contains("999")); // id
+        assert!(debug_str.contains("heap_sz"));
+        assert!(debug_str.contains("min_heap_size"));
+        assert!(debug_str.contains("max_heap_size"));
+        assert!(debug_str.contains("heap_data_len"));
+        assert!(debug_str.contains("heap_start_index"));
+        assert!(debug_str.contains("heap_top_index"));
+        assert!(debug_str.contains("stack_top_index"));
+        assert!(debug_str.contains("flags"));
+        assert!(debug_str.contains("reds"));
+        assert!(debug_str.contains("fcalls"));
+        assert!(debug_str.contains("arity"));
+        assert!(debug_str.contains("catches"));
+        assert!(debug_str.contains("return_trace_frames"));
+        assert!(debug_str.contains("uniq"));
+        assert!(debug_str.contains("schedule_count"));
+        assert!(debug_str.contains("rcount"));
+        assert!(debug_str.contains("state"));
+        assert!(debug_str.contains("i"));
+        assert!(debug_str.contains("nif_pointers_count"));
+        assert!(debug_str.contains("nif_libraries_count"));
+    }
+
+    #[test]
+    fn test_process_debug_flags_format() {
+        let mut process = Process::new(1);
+        // Set some flags
+        process.flags = 0x12345678;
+        
+        let debug_str = format!("{:?}", process);
+        // Flags should be formatted as hex
+        assert!(debug_str.contains("0x12345678") || debug_str.contains("0x12345678"));
+    }
+
+    #[test]
+    fn test_process_allocate_heap_words_concurrent() {
+        let process = Arc::new(Process::new(1));
+        
+        // Test concurrent allocations
+        let process_clone1 = process.clone();
+        let process_clone2 = process.clone();
+        
+        std::thread::scope(|s| {
+            s.spawn(move || {
+                for _ in 0..10 {
+                    process_clone1.allocate_heap_words(1);
+                }
+            });
+            s.spawn(move || {
+                for _ in 0..10 {
+                    process_clone2.allocate_heap_words(1);
+                }
+            });
+        });
+        
+        // Total allocations should be <= heap size
+        let heap_top = process.heap_top_index();
+        assert!(heap_top <= process.heap_sz());
+    }
+
+    #[test]
+    fn test_process_heap_slice_mut_concurrent() {
+        let process = Arc::new(Process::new(1));
+        
+        // Test that heap_slice_mut properly locks
+        let process_clone = process.clone();
+        
+        std::thread::scope(|s| {
+            s.spawn(move || {
+                let mut heap = process_clone.heap_slice_mut();
+                heap[0] = 100;
+            });
+        });
+        
+        // Verify the write happened
+        let heap = process.heap_slice();
+        assert_eq!(heap[0], 100);
+    }
+
+    #[test]
+    fn test_process_state_unknown() {
+        // Test Unknown state with various flag values
+        let state1 = ProcessState::from_flags(0xFFFFFFFF);
+        // Should be Free because 0x10 is set
+        assert!(matches!(state1, ProcessState::Free));
+        
+        // Test truly unknown flag combination
+        let state2 = ProcessState::from_flags(0x00000001); // No known flags
+        assert!(matches!(state2, ProcessState::Unknown(0x00000001)));
+    }
+
+    #[test]
+    fn test_process_nif_pointers_and_libraries_together() {
+        let mut process = Process::new(1);
+        
+        // Add both pointers and libraries
+        let dummy_value: u8 = 42;
+        let nif_ptr = &dummy_value as *const u8;
+        process.add_nif_pointer(nif_ptr).unwrap();
+        
+        let library: Arc<Vec<u8>> = Arc::new(vec![1, 2, 3]);
+        process.add_nif_library(library.clone() as Arc<dyn std::any::Any + Send + Sync>).unwrap();
+        
+        // Verify both are present
+        assert_eq!(process.get_nif_pointers().len(), 1);
+        assert_eq!(process.get_nif_libraries().len(), 1);
+        
+        // Remove both - need to cast library to trait object
+        process.remove_nif_pointer(nif_ptr).unwrap();
+        let library_trait: Arc<dyn std::any::Any + Send + Sync> = library.clone();
+        process.remove_nif_library(&library_trait).unwrap();
+        
+        // Verify both are removed
+        assert_eq!(process.get_nif_pointers().len(), 0);
+        assert_eq!(process.get_nif_libraries().len(), 0);
+    }
+
+    #[test]
+    fn test_process_allocate_heap_words_sequential() {
+        let process = Process::new(1);
+        
+        // Allocate in sequence
+        let mut expected_index = 0;
+        for i in 0..10 {
+            let result = process.allocate_heap_words(i + 1);
+            assert_eq!(result, Some(expected_index));
+            expected_index += i + 1;
+        }
+        
+        // Verify final heap_top
+        assert_eq!(process.heap_top_index(), expected_index);
+    }
+
+    #[test]
+    fn test_process_stack_size_words_edge_cases() {
+        let mut process = Process::new(1);
+        
+        // Test with equal indices
+        process.stack_top_index = Some(50);
+        *process.heap_top_index.lock().unwrap() = 50;
+        assert_eq!(process.stack_size_words(), Some(0));
+        
+        // Test with stack_top < heap_top (saturating)
+        process.stack_top_index = Some(30);
+        *process.heap_top_index.lock().unwrap() = 50;
+        assert_eq!(process.stack_size_words(), Some(0));
     }
 }
 
