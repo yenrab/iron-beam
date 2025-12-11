@@ -21,13 +21,18 @@
 //! ## Examples
 //!
 //! ```rust
-//! use infrastructure_code_loading::encode_trace::{encode_trace, ErlangTrace, ErlangPid};
+//! use infrastructure_code_loading::{encode_trace, ErlangTrace, ErlangPid};
 //!
 //! let trace = ErlangTrace {
 //!     flags: 1,
 //!     label: 100,
 //!     serial: 1,
-//!     from: ErlangPid { /* ... */ },
+//!     from: ErlangPid {
+//!         node: "node@host".to_string(),
+//!         num: 0,
+//!         serial: 0,
+//!         creation: 0,
+//!     },
 //!     prev: 0,
 //! };
 //!

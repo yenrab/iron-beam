@@ -14,4 +14,6 @@ infrastructure_code_loading = { path = "../infrastructure_code_loading" }
 infrastructure_bignum_encoding = { path = "../infrastructure_bignum_encoding" }
 
 [dev-dependencies]
+entities_utilities = { path = "../../entities/entities_utilities" }
+
 

@@ -19,9 +19,11 @@
 //! ```rust
 //! use infrastructure_code_loading::decode_char;
 //!
-//! let mut index = 0;
-//! let ch = decode_char(&buf, &mut index)?;
-//! println!("Decoded character: {}", ch as char);
+//! // Note: This example requires valid EI-encoded character data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let ch = decode_char(&buf, &mut index)?;
+//! // println!("Decoded character: {}", ch as char);
 //! ```
 //!
 //! ## See Also

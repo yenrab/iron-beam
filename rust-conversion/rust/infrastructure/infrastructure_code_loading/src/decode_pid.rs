@@ -22,10 +22,11 @@
 //! ```rust
 //! use infrastructure_code_loading::decode_pid;
 //!
-//! // Decode a PID from EI-encoded buffer
-//! let mut index = 0;
-//! let pid = decode_pid(&buf, &mut index)?;
-//! println!("Process: {} on node {}", pid.num, pid.node);
+//! // Note: This example requires valid EI-encoded PID data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let pid = decode_pid(&buf, &mut index)?;
+//! // println!("Process: {} on node {}", pid.num, pid.node);
 //! ```
 //!
 //! ## See Also

@@ -17,12 +17,12 @@
 //! let mut index = 0;
 //!
 //! // Encode a character
-//! encode_char(&mut Some(&mut buf), &mut index, b'A')?;
+//! encode_char(&mut Some(&mut buf), &mut index, b'A').unwrap();
 //! assert_eq!(index, 2);
 //!
 //! // Calculate size without encoding
 //! let mut size_index = 0;
-//! encode_char(&mut None, &mut size_index, b'Z')?;
+//! encode_char(&mut None, &mut size_index, b'Z').unwrap();
 //! assert_eq!(size_index, 2);
 //! ```
 //!

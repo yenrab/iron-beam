@@ -27,10 +27,10 @@
 //! let mut index = 0;
 //!
 //! // Encode a small integer
-//! encode_long(&mut Some(buf.as_mut_slice()), &mut index, 42)?;
+//! encode_long(&mut Some(buf.as_mut_slice()), &mut index, 42).unwrap();
 //!
 //! // Encode a large integer
-//! encode_longlong(&mut Some(buf.as_mut_slice()), &mut index, 1234567890123456789)?;
+//! encode_longlong(&mut Some(buf.as_mut_slice()), &mut index, 1234567890123456789).unwrap();
 //! ```
 //!
 //! ## See Also

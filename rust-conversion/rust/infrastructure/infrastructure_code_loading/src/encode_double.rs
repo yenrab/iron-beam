@@ -24,11 +24,11 @@
 //! let mut index = 0;
 //!
 //! // Encode a floating-point number
-//! encode_double(&mut Some(&mut buf), &mut index, 3.14159)?;
+//! encode_double(&mut Some(&mut buf), &mut index, 3.14159).unwrap();
 //!
 //! // Calculate size without encoding
 //! let mut size_index = 0;
-//! encode_double(&mut None, &mut size_index, 2.71828)?;
+//! encode_double(&mut None, &mut size_index, 2.71828).unwrap();
 //! assert_eq!(size_index, 9); // 1 byte tag + 8 bytes value
 //! ```
 //!

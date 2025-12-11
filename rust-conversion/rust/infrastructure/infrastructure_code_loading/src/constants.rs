@@ -27,6 +27,7 @@
 //! ```rust
 //! use infrastructure_code_loading::constants::*;
 //!
+//! let tag = ERL_SMALL_INTEGER_EXT;
 //! // Check if a tag represents a small integer
 //! if tag == ERL_SMALL_INTEGER_EXT {
 //!     // Handle small integer
@@ -57,11 +58,17 @@ pub const ERL_LARGE_TUPLE_EXT: u8 = 105;
 /// Nil (empty list)
 pub const ERL_NIL_EXT: u8 = 106;
 
+/// String
+pub const ERL_STRING_EXT: u8 = 107;
+
 /// List
 pub const ERL_LIST_EXT: u8 = 108;
 
 /// Binary
 pub const ERL_BINARY_EXT: u8 = 109;
+
+/// Bit binary
+pub const ERL_BIT_BINARY_EXT: u8 = 77;
 
 /// Small atom (old format, length <= 255)
 pub const ERL_SMALL_ATOM_EXT: u8 = 115;

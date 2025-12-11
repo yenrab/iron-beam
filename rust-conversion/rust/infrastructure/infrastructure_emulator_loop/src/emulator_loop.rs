@@ -12,7 +12,7 @@ use std::sync::Mutex;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use super::registers::{RegisterManager, copy_in_registers, copy_out_registers};
+use super::registers::RegisterManager;
 
 /// Emulator loop error types
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +40,8 @@ impl From<ScheduleError> for EmulatorLoopError {
 /// Manages the state of the emulator loop for a scheduler thread.
 /// This struct coordinates process execution, register management, and
 /// instruction dispatch.
+///
+/// Based on the scheduler data structure in the C implementation.
 pub struct EmulatorLoop {
     /// Register manager for this scheduler thread
     register_manager: RegisterManager,
@@ -47,8 +49,15 @@ pub struct EmulatorLoop {
     current_process: Option<Arc<Process>>,
     /// Number of reductions used in current execution
     reds_used: i32,
-    /// Initialization flag
+    /// Initialization flag (stored for future use)
+    #[allow(dead_code)]
     init_done: Arc<AtomicBool>,
+    /// Current instruction pointer
+    instruction_ptr: ErtsCodePtr,
+    /// Reductions remaining (FCALLS in C code)
+    fcalls: i32,
+    /// Reductions at start of execution (REDS_IN in C code)
+    reds_in: i32,
 }
 
 impl EmulatorLoop {
@@ -59,6 +68,9 @@ impl EmulatorLoop {
             current_process: None,
             reds_used: 0,
             init_done: Arc::new(AtomicBool::new(false)),
+            instruction_ptr: std::ptr::null(),
+            fcalls: 0,
+            reds_in: 0,
         }
     }
     
@@ -75,6 +87,78 @@ impl EmulatorLoop {
     /// Get the current process
     pub fn current_process(&self) -> Option<&Arc<Process>> {
         self.current_process.as_ref()
+    }
+    
+    /// Set the current process
+    pub fn set_current_process(&mut self, process: Option<Arc<Process>>) {
+        self.current_process = process;
+    }
+    
+    /// Get current instruction pointer
+    pub fn instruction_ptr(&self) -> ErtsCodePtr {
+        self.instruction_ptr
+    }
+    
+    /// Set instruction pointer
+    pub fn set_instruction_ptr(&mut self, ptr: ErtsCodePtr) {
+        self.instruction_ptr = ptr;
+    }
+    
+    /// Get reductions remaining (FCALLS)
+    pub fn fcalls(&self) -> i32 {
+        self.fcalls
+    }
+    
+    /// Set reductions remaining (FCALLS)
+    pub fn set_fcalls(&mut self, fcalls: i32) {
+        self.fcalls = fcalls;
+    }
+    
+    /// Get reductions at start (REDS_IN)
+    pub fn reds_in(&self) -> i32 {
+        self.reds_in
+    }
+    
+    /// Set reductions at start (REDS_IN)
+    pub fn set_reds_in(&mut self, reds: i32) {
+        self.reds_in = reds;
+    }
+    
+    /// Get reductions used
+    pub fn reds_used(&self) -> i32 {
+        self.reds_used
+    }
+    
+    /// Set reductions used
+    pub fn set_reds_used(&mut self, reds: i32) {
+        self.reds_used = reds;
+    }
+    
+    /// Calculate reductions used based on current state
+    ///
+    /// Based on the reduction calculation in beam_emu.c:
+    /// - If no saved calls buffer: reds_used = REDS_IN - FCALLS
+    /// - If saved calls buffer: reds_used = REDS_IN - (CONTEXT_REDS + FCALLS)
+    pub fn calculate_reds_used(&mut self, has_saved_calls_buf: bool) {
+        if has_saved_calls_buf {
+            // CONTEXT_REDS is typically -10 in the C code
+            const CONTEXT_REDS: i32 = -10;
+            self.reds_used = self.reds_in - (CONTEXT_REDS + self.fcalls);
+        } else {
+            self.reds_used = self.reds_in - self.fcalls;
+        }
+    }
+    
+    /// Check if process is out of reductions
+    ///
+    /// Based on ERTS_IS_PROC_OUT_OF_REDS from bif.h
+    pub fn is_out_of_reds(&self, has_saved_calls_buf: bool) -> bool {
+        if has_saved_calls_buf {
+            const CONTEXT_REDS: i32 = -10;
+            self.fcalls == CONTEXT_REDS
+        } else {
+            self.fcalls <= 0
+        }
     }
 }
 
@@ -146,7 +230,7 @@ fn init_emulator_finish() -> Result<(), EmulatorLoopError> {
 /// executes processes until the emulator is shut down. The return value
 /// is used for error handling and testing.
 pub fn process_main(
-    emulator_loop: &mut EmulatorLoop,
+    _emulator_loop: &mut EmulatorLoop,
     init_done: Arc<AtomicBool>,
 ) -> Result<Option<Arc<Process>>, EmulatorLoopError> {
     // Check if initialization is needed
@@ -193,7 +277,58 @@ mod tests {
     fn test_emulator_loop_creation() {
         let loop_state = EmulatorLoop::new();
         assert!(loop_state.current_process().is_none());
-        assert_eq!(loop_state.reds_used, 0);
+        assert_eq!(loop_state.reds_used(), 0);
+        assert_eq!(loop_state.fcalls(), 0);
+        assert_eq!(loop_state.reds_in(), 0);
+        assert!(loop_state.instruction_ptr().is_null());
+    }
+    
+    #[test]
+    fn test_emulator_loop_reductions() {
+        let mut loop_state = EmulatorLoop::new();
+        
+        // Set initial reductions
+        loop_state.set_reds_in(1000);
+        loop_state.set_fcalls(500);
+        
+        // Calculate reductions used (no saved calls buffer)
+        loop_state.calculate_reds_used(false);
+        assert_eq!(loop_state.reds_used(), 500);
+        
+        // Check if out of reductions
+        assert!(!loop_state.is_out_of_reds(false));
+        
+        // Set fcalls to 0 (out of reductions)
+        loop_state.set_fcalls(0);
+        assert!(loop_state.is_out_of_reds(false));
+        
+        // Test with saved calls buffer
+        loop_state.set_fcalls(-10); // CONTEXT_REDS
+        assert!(loop_state.is_out_of_reds(true));
+    }
+    
+    #[test]
+    fn test_emulator_loop_instruction_ptr() {
+        let mut loop_state = EmulatorLoop::new();
+        assert!(loop_state.instruction_ptr().is_null());
+        
+        // In a real scenario, we'd set a valid instruction pointer
+        // For testing, we just verify the setter/getter works
+        let test_ptr = 0x1000 as ErtsCodePtr;
+        loop_state.set_instruction_ptr(test_ptr);
+        assert_eq!(loop_state.instruction_ptr(), test_ptr);
+    }
+    
+    #[test]
+    fn test_emulator_loop_current_process() {
+        let mut loop_state = EmulatorLoop::new();
+        assert!(loop_state.current_process().is_none());
+        
+        let process = Arc::new(Process::new(1));
+        loop_state.set_current_process(Some(process.clone()));
+        
+        assert!(loop_state.current_process().is_some());
+        assert_eq!(loop_state.current_process().unwrap().id(), process.id());
     }
     
     #[test]

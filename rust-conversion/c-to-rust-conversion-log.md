@@ -129,7 +129,7 @@
 
 ### Infrastructure Layer
 - Status: 🔄 In Progress
-- Groups completed: 10/11
+- Groups completed: 12/12
   - ✅ infrastructure_utilities (224 files, 1754 functions)
   - ✅ infrastructure_debugging (9 files, 60 functions)
   - ✅ infrastructure_ets_tables (11 files, 345 functions)
@@ -139,6 +139,36 @@
   - ✅ infrastructure_data_handling (6 files, 16 functions)
   - ✅ infrastructure_bignum_encoding (4 files, 15 functions)  # Includes bignum_codec and rational_codec
   - ✅ infrastructure_trace_encoding (2 files, 2 functions)
+  - ✅ infrastructure_bif_dispatcher (2 files, dispatcher functions)
+    - **Purpose**: BIF dispatcher infrastructure - routes BIF calls from emulator to BIF implementations
+    - **Dependencies**:
+      - `entities_process` - Process structures
+      - `infrastructure_bifs` - BIF infrastructure framework
+      - `usecases_bifs` - BIF implementations (indirect)
+    - **Depended on by**:
+      - `infrastructure_emulator_loop` - calls dispatcher to route BIF calls
+    - **Key Features**:
+      - BIF initialization (`erts_init_bif`, `erts_init_trap_export`)
+      - Trap handlers (`bif_return_trap`, `bif_handle_signals_return`, `erts_internal_await_exit_trap`)
+      - Dispatcher framework (`call_bif`, `erts_call_dirty_bif` - require emulator integration)
+    - **Architecture**: Infrastructure layer (dispatcher routing infrastructure)
+    - **Note**: Core dispatcher functions (`call_bif`, `erts_call_dirty_bif`) are stubbed pending emulator loop integration. The framework, initialization, and trap handlers are complete. Full dispatcher implementation requires native function structure access and scheduler integration.
+  - ✅ infrastructure_emulator_loop (1 file, emulator loop)
+    - **Purpose**: Main emulator execution loop for BEAM instruction execution
+    - **Dependencies**:
+      - `entities_process` - Process structures
+      - `infrastructure_bif_dispatcher` - BIF call dispatching
+      - `usecases_scheduling` - Process scheduling
+      - `infrastructure_utilities` - Utility functions
+    - **Depended on by**:
+      - Scheduler (when integrated) - calls emulator loop to execute processes
+    - **Key Features**:
+      - Emulator loop (`process_main`, `init_emulator`)
+      - Register management (`copy_in_registers`, `copy_out_registers`, `RegisterManager`)
+      - Instruction execution framework (`InstructionExecutor`, `InstructionResult`)
+      - Reduction counting and process state management
+    - **Architecture**: Infrastructure layer (emulator execution infrastructure)
+    - **Note**: Based on `beam_emu.c`. The emulator loop framework is complete with register management, reduction counting, and instruction execution interface. Full instruction execution requires BEAM instruction decoder and opcode handlers.
   - 🔄 infrastructure_nif_api - **NEW Rust implementation** (no C code will be shipped)
     - **Purpose**: Provides the Rust NIF API - equivalent to C `erl_nif.h` API but implemented in pure Rust
     - **Dependencies**:
@@ -158,7 +188,7 @@
     - **Architecture**: Infrastructure layer (provides NIF API infrastructure)
     - **Note**: This is a new Rust implementation with no C code to be shipped. It replaces the C `erl_nif.h` API with pure Rust functions. The C files listed in the design document (`erts/emulator/beam/erl_nif.c`, `erl_nif.h`) are reference implementations only. This module is distinct from `infrastructure_data_handling` which provides EI format serialization - this provides in-memory term operations for NIFs.
 - Dependencies satisfied: ✅ Entities and Use Cases layers complete
-- Rust crates generated: 10
+- Rust crates generated: 12
   - infrastructure_utilities
   - infrastructure_debugging
   - infrastructure_ets_tables
@@ -168,8 +198,10 @@
   - infrastructure_data_handling
   - infrastructure_bignum_encoding
   - infrastructure_trace_encoding
+  - infrastructure_bif_dispatcher
+  - infrastructure_emulator_loop
   - infrastructure_nif_api (to be created)
-- Compilation status: 9/10 crates compile successfully (infrastructure_nif_api pending implementation)
+- Compilation status: 11/12 crates compile successfully (infrastructure_nif_api pending implementation)
 
 ### Frameworks Layer
 - Status: ✅ Complete

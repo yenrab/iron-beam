@@ -21,15 +21,13 @@
 //! ```rust
 //! use infrastructure_code_loading::decode_headers::*;
 //!
-//! let mut index = 0;
-//!
-//! // Decode a tuple header
-//! let arity = decode_tuple_header(&buf, &mut index)?;
-//! // Then decode 'arity' elements...
-//!
-//! // Decode a list header
-//! let length = decode_list_header(&buf, &mut index)?;
-//! // Then decode 'length' elements...
+//! // Note: These examples require valid EI-encoded header data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let arity = decode_tuple_header(&buf, &mut index)?;
+//! // // Then decode 'arity' elements...
+//! // let length = decode_list_header(&buf, &mut index)?;
+//! // // Then decode 'length' elements...
 //! ```
 //!
 //! ## See Also

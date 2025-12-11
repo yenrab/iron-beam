@@ -10956,6 +10956,9 @@
         "cleanRationale": "CLEAN Architecture entities layer: Dependencies flow inward from entities",
         "rustRationale": "Rust module: entities_io_operations as separate module with clear dependency boundaries"
       },
+      "implementationNotes": {
+        "stubEntries": "IMPORTANT: Stub entries in export.rs are NOT missing code - they are a legitimate feature for functions that exist but have not been loaded yet. Stub entries are placeholders that will trigger an error handler if called. This is intentional runtime behavior, not incomplete implementation. Do not count stub-related code or comments as simplifications when analyzing completeness."
+      },
       "clearLayerOrder": 1,
       "implementationPriority": 1,
       "clearPrinciple": "inner_layers_before_outer_layers"

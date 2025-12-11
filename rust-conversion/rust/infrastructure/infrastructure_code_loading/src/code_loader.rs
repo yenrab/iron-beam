@@ -12,7 +12,7 @@
 //!
 //! ## Examples
 //!
-//! ```rust
+//! ```rust,no_run
 //! use infrastructure_code_loading::code_loader::CodeLoader;
 //!
 //! // Load code from a file

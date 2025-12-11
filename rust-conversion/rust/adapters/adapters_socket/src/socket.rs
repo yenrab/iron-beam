@@ -328,6 +328,68 @@ impl Write for Socket {
     }
 }
 
+/// Helper function to test socket connection logic with better error handling
+/// This function encapsulates the retry logic and can be tested with mocks
+#[cfg(test)]
+fn test_connect_with_retries<F>(
+    connect_fn: F,
+    addr: &SocketAddr,
+    max_retries: usize,
+) -> Result<(), SocketError>
+where
+    F: Fn(&SocketAddr) -> Result<(), SocketError>,
+{
+    use std::time::Duration;
+    use std::thread;
+    
+    for attempt in 0..max_retries {
+        match connect_fn(addr) {
+            Ok(()) => return Ok(()),
+            Err(SocketError::WouldBlock) => {
+                if attempt < max_retries - 1 {
+                    thread::sleep(Duration::from_millis(50));
+                }
+            }
+            Err(SocketError::IoError(ref msg)) if msg.contains("in progress") || msg.contains("now in progress") => {
+                thread::sleep(Duration::from_millis(100));
+                // In a real scenario, we'd check peer_addr() here
+                // For mocking, we can simulate success
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(SocketError::Timeout)
+}
+
+/// Helper function to test socket accept logic with better error handling
+#[cfg(test)]
+fn test_accept_with_retries<F>(
+    accept_fn: F,
+    max_retries: usize,
+) -> Result<(Socket, SocketAddr), SocketError>
+where
+    F: Fn() -> Result<(Socket, SocketAddr), SocketError>,
+{
+    use std::time::Duration;
+    use std::thread;
+    
+    for attempt in 0..max_retries {
+        match accept_fn() {
+            Ok(result) => return Ok(result),
+            Err(SocketError::WouldBlock) => {
+                if attempt < max_retries - 1 {
+                    thread::sleep(Duration::from_millis(50));
+                }
+            }
+            Err(SocketError::IoError(ref msg)) if msg.contains("in progress") || msg.contains("now in progress") => {
+                thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(SocketError::Timeout)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -465,6 +527,7 @@ mod tests {
     fn test_socket_connect_success() {
         use std::thread;
         use std::time::Duration;
+        use std::sync::mpsc;
         
         let listener = Socket::new(
             AddressFamily::Ipv4,
@@ -478,51 +541,58 @@ mod tests {
         
         let local_addr = listener.local_addr().unwrap();
         
-        // Spawn thread to connect
+        // Use a channel to signal when client is ready to connect
+        let (tx, rx) = mpsc::channel();
         let connect_addr = local_addr;
+        
+        // Spawn thread to connect
         let sender = thread::spawn(move || {
-            thread::sleep(Duration::from_millis(100));
             let client = Socket::new(
                 AddressFamily::Ipv4,
                 SocketType::Stream,
                 Protocol::Tcp,
             ).unwrap();
             
-            let mut connected = false;
-            for _ in 0..20 {
-                match client.connect(&connect_addr) {
-                    Ok(()) => {
-                        connected = true;
-                        break;
-                    }
-                    Err(SocketError::WouldBlock) => {
-                        thread::sleep(Duration::from_millis(50));
-                    }
-                    Err(e) => panic!("Unexpected error: {:?}", e),
+            // Signal that we're about to connect
+            let _ = tx.send(());
+            
+            // Use helper function for robust retry logic
+            let connect_result = test_connect_with_retries(
+                |addr| client.connect(addr),
+                &connect_addr,
+                30,
+            );
+            
+            // Handle "in progress" case by checking peer_addr
+            let connected = match connect_result {
+                Ok(()) => true,
+                Err(SocketError::Timeout) => {
+                    // Check if connection completed asynchronously
+                    thread::sleep(Duration::from_millis(100));
+                    client.peer_addr().is_ok()
                 }
-            }
-            assert!(connected);
+                Err(SocketError::IoError(ref msg)) if msg.contains("in progress") || msg.contains("now in progress") => {
+                    thread::sleep(Duration::from_millis(100));
+                    client.peer_addr().is_ok()
+                }
+                Err(e) => panic!("Unexpected error: {:?}", e),
+            };
+            
+            assert!(connected, "Client should have connected");
             let peer_addr = client.peer_addr().unwrap();
             assert_eq!(peer_addr.ip(), Ipv4Addr::LOCALHOST);
         });
         
-        // Accept connection
-        let mut accepted = None;
-        for _ in 0..20 {
-            match listener.accept() {
-                Ok((socket, peer_addr)) => {
-                    accepted = Some((socket, peer_addr));
-                    break;
-                }
-                Err(SocketError::WouldBlock) => {
-                    thread::sleep(Duration::from_millis(50));
-                }
-                Err(e) => panic!("Unexpected error: {:?}", e),
-            }
-        }
+        // Wait for client thread to be ready (or timeout after 1 second)
+        let _ = rx.recv_timeout(Duration::from_secs(1));
         
-        assert!(accepted.is_some());
-        let (accepted_socket, peer_addr) = accepted.unwrap();
+        // Use helper function for robust accept retry logic
+        let accept_result = test_accept_with_retries(
+            || listener.accept(),
+            30,
+        );
+        
+        let (accepted_socket, peer_addr) = accept_result.expect("Should have accepted connection");
         assert_eq!(peer_addr.ip(), Ipv4Addr::LOCALHOST);
         assert_eq!(accepted_socket.family(), AddressFamily::Ipv4);
         

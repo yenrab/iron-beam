@@ -4,7 +4,28 @@
 //! signal handling, and await exit traps. Based on trap handler functions
 //! from bif.c
 
-use entities_process::{Process, ErtsCodePtr, Eterm};
+use entities_process::{Process, Eterm};
+
+/// Atom constants (simplified - would use actual atom table in full implementation)
+/// These match the C implementation's atom constants
+mod atoms {
+    use entities_process::Eterm;
+    
+    // Note: In a full implementation, these would be actual atom values from the atom table
+    // For now, we use placeholder values. The actual values would be:
+    // - am_multi_scheduling: atom value for "multi_scheduling"
+    // - am_blocked: atom value for "blocked"
+    // - am_blocked_normal: atom value for "blocked_normal"
+    
+    /// Placeholder for multi_scheduling atom
+    pub const AM_MULTI_SCHEDULING: Eterm = 0x1000;
+    /// Placeholder for blocked atom
+    #[allow(dead_code)]
+    pub const AM_BLOCKED: Eterm = 0x1001;
+    /// Placeholder for blocked_normal atom
+    #[allow(dead_code)]
+    pub const AM_BLOCKED_NORMAL: Eterm = 0x1002;
+}
 
 /// BIF return trap handler
 ///
@@ -48,8 +69,24 @@ pub fn bif_return_trap(_process: &Process, args: &[Eterm]) -> Eterm {
     //         break;
     // }
 
-    // For now, we return the result as-is
-    // Full implementation would check operation type and handle multi-scheduling
+    // Handle multi-scheduling block state check
+    // Note: In full implementation, would call erts_is_multi_scheduling_blocked()
+    // For now, we check if operation matches the multi_scheduling atom
+    if operation == atoms::AM_MULTI_SCHEDULING {
+        // In full implementation:
+        // let msb = erts_is_multi_scheduling_blocked();
+        // if msb > 0 {
+        //     res = atoms::AM_BLOCKED;
+        // } else if msb < 0 {
+        //     res = atoms::AM_BLOCKED_NORMAL;
+        // } else {
+        //     // ERTS_INTERNAL_ERROR("Unexpected multi scheduling block state");
+        // }
+        
+        // For now, return result as-is (multi-scheduling check not yet implemented)
+        // This maintains compatibility while the scheduler integration is pending
+    }
+
     res
 }
 

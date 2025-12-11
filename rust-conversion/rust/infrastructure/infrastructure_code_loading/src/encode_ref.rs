@@ -33,7 +33,7 @@
 //!
 //! let mut buf = vec![0u8; 100];
 //! let mut index = 0;
-//! encode_ref(&mut Some(&mut buf), &mut index, &r#ref)?;
+//! encode_ref(&mut Some(&mut buf), &mut index, &r#ref).unwrap();
 //! ```
 //!
 //! ## See Also

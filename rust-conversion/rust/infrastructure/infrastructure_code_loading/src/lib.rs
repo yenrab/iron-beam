@@ -64,6 +64,7 @@ pub mod encode_fun;
 pub mod decode_fun;
 pub mod encode_trace;
 pub mod decode_trace;
+pub mod decode_skip;
 
 pub use code_loader::CodeLoader;
 pub use encode_integers::{encode_long, encode_ulong, encode_longlong, encode_ulonglong, EncodeError as IntegerEncodeError};

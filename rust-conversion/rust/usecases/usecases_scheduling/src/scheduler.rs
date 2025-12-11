@@ -272,5 +272,131 @@ mod tests {
         let executed = erts_schedule(&scheduler, 10);
         assert_eq!(executed, 0);
     }
+
+    #[test]
+    fn test_schedule_process_success() {
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        // Create a process (default state is Unknown(0), which is not Exiting or Free)
+        let process = Arc::new(Process::new(1));
+        
+        let scheduler = Scheduler::new(0, 1000);
+        let runq = scheduler.runq();
+        let runq_guard = runq.lock().unwrap();
+        
+        // Process with Unknown state should be schedulable
+        let result = schedule_process(Arc::clone(&process), &runq_guard, Priority::Normal);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_schedule_error_display() {
+        let error1 = ScheduleError::ProcessExiting;
+        let error2 = ScheduleError::QueueFull;
+        let error3 = ScheduleError::InvalidPriority;
+        let error4 = ScheduleError::SchedulerInactive;
+        
+        assert_eq!(format!("{}", error1), "Process is exiting");
+        assert_eq!(format!("{}", error2), "Run queue is full");
+        assert_eq!(format!("{}", error3), "Invalid priority level");
+        assert_eq!(format!("{}", error4), "Scheduler is not active");
+    }
+
+    #[test]
+    fn test_schedule_error_debug() {
+        let error1 = ScheduleError::ProcessExiting;
+        let error2 = ScheduleError::QueueFull;
+        let error3 = ScheduleError::InvalidPriority;
+        let error4 = ScheduleError::SchedulerInactive;
+        
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        let debug_str3 = format!("{:?}", error3);
+        let debug_str4 = format!("{:?}", error4);
+        
+        assert!(debug_str1.contains("ProcessExiting"));
+        assert!(debug_str2.contains("QueueFull"));
+        assert!(debug_str3.contains("InvalidPriority"));
+        assert!(debug_str4.contains("SchedulerInactive"));
+    }
+
+    #[test]
+    fn test_schedule_error_clone() {
+        let error1 = ScheduleError::ProcessExiting;
+        let error2 = ScheduleError::QueueFull;
+        let error3 = ScheduleError::InvalidPriority;
+        let error4 = ScheduleError::SchedulerInactive;
+        
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        let cloned3 = error3.clone();
+        let cloned4 = error4.clone();
+        
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+        assert_eq!(error3, cloned3);
+        assert_eq!(error4, cloned4);
+    }
+
+    #[test]
+    fn test_schedule_error_partial_eq() {
+        let error1 = ScheduleError::ProcessExiting;
+        let error2 = ScheduleError::ProcessExiting;
+        let error3 = ScheduleError::QueueFull;
+        
+        assert_eq!(error1, error2);
+        assert_ne!(error1, error3);
+    }
+
+    #[test]
+    fn test_schedule_error_error_trait() {
+        let error = ScheduleError::ProcessExiting;
+        // Test that Error trait is implemented
+        let error_ref: &dyn std::error::Error = &error;
+        assert!(error_ref.source().is_none());
+    }
+
+    #[test]
+    fn test_erts_schedule_with_processes() {
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let scheduler = Scheduler::new(0, 1000);
+        let runq = scheduler.runq();
+        
+        // Add a process to the queue
+        {
+            let runq_guard = runq.lock().unwrap();
+            let process = Arc::new(Process::new(1));
+            schedule_process(Arc::clone(&process), &runq_guard, Priority::Normal).unwrap();
+        }
+        
+        // Schedule should execute the process
+        let executed = erts_schedule(&scheduler, 10);
+        assert_eq!(executed, 1);
+    }
+
+    #[test]
+    fn test_erts_schedule_max_iterations() {
+        use entities_process::Process;
+        use std::sync::Arc;
+        
+        let scheduler = Scheduler::new(0, 1000);
+        let runq = scheduler.runq();
+        
+        // Add multiple processes to the queue
+        {
+            let runq_guard = runq.lock().unwrap();
+            for i in 0..5 {
+                let process = Arc::new(Process::new(i as u64));
+                schedule_process(Arc::clone(&process), &runq_guard, Priority::Normal).unwrap();
+            }
+        }
+        
+        // Schedule with max_iterations = 3 should only execute 3 processes
+        let executed = erts_schedule(&scheduler, 3);
+        assert_eq!(executed, 3);
+    }
 }
 

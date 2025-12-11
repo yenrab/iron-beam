@@ -40,7 +40,10 @@
 
 pub mod emulator_loop;
 pub mod registers;
+pub mod instruction_execution;
 
 pub use emulator_loop::{process_main, init_emulator, EmulatorLoop, EmulatorLoopError};
 pub use registers::{copy_in_registers, copy_out_registers, RegisterManager};
+pub use instruction_execution::{InstructionResult, InstructionExecutor, DefaultInstructionExecutor, is_valid_instruction, next_instruction};
+
 

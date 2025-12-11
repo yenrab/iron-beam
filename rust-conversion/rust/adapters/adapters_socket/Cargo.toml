@@ -11,3 +11,6 @@ adapters_nif_io = { path = "../adapters_nif_io" }
 adapters_nifs = { path = "../adapters_nifs" }
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 socket2 = { version = "0.5", features = ["all"] }
+
+[dev-dependencies]
+mockall = "0.13"

@@ -25,11 +25,11 @@
 //! let mut index = 0;
 //!
 //! // Encode a tuple header
-//! encode_tuple_header(&mut Some(&mut buf), &mut index, 3)?;
+//! encode_tuple_header(&mut Some(&mut buf), &mut index, 3).unwrap();
 //! // Then encode 3 elements...
 //!
 //! // Encode a list header
-//! encode_list_header(&mut Some(&mut buf), &mut index, 5)?;
+//! encode_list_header(&mut Some(&mut buf), &mut index, 5).unwrap();
 //! // Then encode 5 elements...
 //! ```
 //!

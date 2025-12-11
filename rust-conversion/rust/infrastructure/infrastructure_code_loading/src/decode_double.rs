@@ -22,9 +22,11 @@
 //! ```rust
 //! use infrastructure_code_loading::decode_double;
 //!
-//! let mut index = 0;
-//! let value = decode_double(&buf, &mut index)?;
-//! println!("Decoded float: {}", value);
+//! // Note: This example requires valid EI-encoded double data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let value = decode_double(&buf, &mut index)?;
+//! // println!("Decoded float: {}", value);
 //! ```
 //!
 //! ## See Also

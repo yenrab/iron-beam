@@ -31,7 +31,7 @@
 //!
 //! let mut buf = vec![0u8; 100];
 //! let mut index = 0;
-//! encode_pid(&mut Some(&mut buf), &mut index, &pid)?;
+//! encode_pid(&mut Some(&mut buf), &mut index, &pid).unwrap();
 //! ```
 //!
 //! ## See Also

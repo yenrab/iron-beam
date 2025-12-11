@@ -14,32 +14,31 @@
 //! ## Supported Formats
 //!
 //! - **ERL_EXPORT_EXT**: Export references (fully supported)
-//! - **ERL_FUN_EXT**: Old format closures (not yet fully implemented)
-//! - **ERL_NEW_FUN_EXT**: New format closures with MD5 hash (not yet fully implemented)
+//! - **ERL_FUN_EXT**: Old format closures (fully supported)
+//! - **ERL_NEW_FUN_EXT**: New format closures with MD5 hash (fully supported)
 //!
 //! ## Implementation Status
 //!
-//! Export decoding is fully implemented. Closure decoding requires term skipping
-//! for free variables, which is complex and not yet fully implemented. Attempts
-//! to decode closures will return `DecodeError::NotImplemented`.
+//! All function formats are fully implemented. Closure decoding uses term skipping
+//! to handle free variables, which are stored as raw bytes for later decoding.
 //!
 //! ## Examples
 //!
 //! ```rust
-//! use infrastructure_code_loading::decode_fun;
+//! use infrastructure_code_loading::{decode_fun, ErlangFunType};
 //!
-//! // Decode an export function
-//! let mut index = 0;
-//! let fun_type = decode_fun(&buf, &mut index)?;
-//!
-//! match fun_type {
-//!     ErlangFunType::Export { module, function, arity } => {
-//!         println!("Export: {}:{}/{}", module, function, arity);
-//!     }
-//!     ErlangFunType::Closure { .. } => {
-//!         // Closures not yet fully supported
-//!     }
-//! }
+//! // Note: This example requires valid EI-encoded function data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let fun_type = decode_fun(&buf, &mut index)?;
+//! // match fun_type {
+//! //     ErlangFunType::Export { module, function, arity } => {
+//! //         println!("Export: {}:{}/{}", module, function, arity);
+//! //     }
+//! //     ErlangFunType::Closure { .. } => {
+//! //         // Closures not yet fully supported
+//! //     }
+//! // }
 //! ```
 //!
 //! ## See Also
@@ -51,8 +50,9 @@
 //! Based on `lib/erl_interface/src/decode/decode_fun.c`
 
 use crate::constants::{ERL_FUN_EXT, ERL_NEW_FUN_EXT, ERL_EXPORT_EXT};
-// use super::decode_pid::decode_pid; // TODO: Will be used when implementing decode_fun
+use super::decode_pid::decode_pid;
 use super::decode_integers::decode_longlong;
+use super::decode_skip::skip_term;
 use infrastructure_data_handling::decode_atom::decode_atom;
 use super::encode_fun::ErlangFunType;
 
@@ -67,8 +67,8 @@ use super::encode_fun::ErlangFunType;
 /// * `Err(DecodeError)` - Decoding error
 ///
 /// # Note
-/// This is a simplified implementation. For full closure decoding with
-/// free variables, a term skipping mechanism would be needed.
+/// Closure decoding fully supports both old (ERL_FUN_EXT) and new (ERL_NEW_FUN_EXT)
+/// formats. Free variables are decoded using term skipping and stored as raw bytes.
 pub fn decode_fun(buf: &[u8], index: &mut usize) -> Result<ErlangFunType, DecodeError> {
     if *index >= buf.len() {
         return Err(DecodeError::BufferTooShort);
@@ -97,10 +97,171 @@ pub fn decode_fun(buf: &[u8], index: &mut usize) -> Result<ErlangFunType, Decode
                 arity: arity as i32,
             })
         }
-        ERL_FUN_EXT | ERL_NEW_FUN_EXT => {
-            // Closure decoding is complex and requires term skipping
-            // For now, return an error indicating this needs full implementation
-            Err(DecodeError::NotImplemented("Closure decoding requires term skipping".to_string()))
+        ERL_FUN_EXT => {
+            // Old format closure (R7 and older)
+            // Format: n_free_vars (32-bit) + pid + module (atom) + index (long) + uniq (long) + free_vars (n terms)
+            
+            // Read number of free variables (32-bit big-endian)
+            if *index + 4 > buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let n_free_vars = u32::from_be_bytes([
+                buf[*index],
+                buf[*index + 1],
+                buf[*index + 2],
+                buf[*index + 3],
+            ]);
+            *index += 4;
+            
+            // Decode PID
+            let pid = decode_pid(buf, index)
+                .map_err(|e| DecodeError::PidDecodeError(format!("{:?}", e)))?;
+            
+            // Decode module (atom)
+            let (module, new_pos) = decode_atom(buf, *index)
+                .map_err(|e| DecodeError::AtomDecodeError(format!("{:?}", e)))?;
+            *index = new_pos;
+            
+            // Decode index (long)
+            let index_val = decode_longlong(buf, index)
+                .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
+            
+            // Decode uniq (long)
+            let uniq = decode_longlong(buf, index)
+                .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
+            
+            // Skip free variables and capture the bytes
+            let free_vars_start = *index;
+            for _ in 0..n_free_vars {
+                skip_term(buf, index)
+                    .map_err(|e| DecodeError::SkipError(format!("{:?}", e)))?;
+            }
+            let free_vars_end = *index;
+            let free_vars = if free_vars_start < free_vars_end {
+                buf[free_vars_start..free_vars_end].to_vec()
+            } else {
+                Vec::new()
+            };
+            
+            Ok(ErlangFunType::Closure {
+                arity: -1, // Old format uses -1
+                module,
+                index: index_val,
+                uniq,
+                old_index: None,
+                md5: None,
+                n_free_vars,
+                free_vars,
+                pid,
+            })
+        }
+        ERL_NEW_FUN_EXT => {
+            // New format closure with MD5 hash
+            // Format: total_size (32-bit) + arity (8-bit) + md5 (16 bytes) + index (32-bit) + 
+            //         n_free_vars (32-bit) + module (atom) + old_index (long) + uniq (long) + 
+            //         pid + free_vars (remaining bytes)
+            
+            // s0 in C code points to tag byte, total_size is relative to s0
+            let s0 = *index - 1; // Position of tag byte
+            
+            // Read total size (32-bit big-endian) - this is the total size including tag
+            if *index + 4 > buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let total_size = u32::from_be_bytes([
+                buf[*index],
+                buf[*index + 1],
+                buf[*index + 2],
+                buf[*index + 3],
+            ]) as usize;
+            *index += 4;
+            
+            // Read arity (8-bit)
+            if *index >= buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let arity = buf[*index] as i32;
+            *index += 1;
+            
+            // Read MD5 hash (16 bytes)
+            if *index + 16 > buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let mut md5 = [0u8; 16];
+            md5.copy_from_slice(&buf[*index..*index + 16]);
+            *index += 16;
+            
+            // Read index (32-bit big-endian)
+            if *index + 4 > buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let index_val = i32::from_be_bytes([
+                buf[*index],
+                buf[*index + 1],
+                buf[*index + 2],
+                buf[*index + 3],
+            ]) as i64;
+            *index += 4;
+            
+            // Read number of free variables (32-bit big-endian)
+            if *index + 4 > buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let n_free_vars = u32::from_be_bytes([
+                buf[*index],
+                buf[*index + 1],
+                buf[*index + 2],
+                buf[*index + 3],
+            ]);
+            *index += 4;
+            
+            // Decode module (atom)
+            let (module, new_pos) = decode_atom(buf, *index)
+                .map_err(|e| DecodeError::AtomDecodeError(format!("{:?}", e)))?;
+            *index = new_pos;
+            
+            // Decode old_index (long)
+            let old_index_val = decode_longlong(buf, index)
+                .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
+            
+            // Decode uniq (long)
+            let uniq = decode_longlong(buf, index)
+                .map_err(|e| DecodeError::IntegerDecodeError(format!("{:?}", e)))?;
+            
+            // Decode PID
+            let pid = decode_pid(buf, index)
+                .map_err(|e| DecodeError::PidDecodeError(format!("{:?}", e)))?;
+            
+            // Calculate remaining bytes for free variables
+            // C code: n = n - (s - s0) + 1;
+            // where n = total_size, s = current position, s0 = tag position
+            // This gives: remaining = total_size - (bytes_consumed_after_tag) + 1
+            // The +1 accounts for the fact that total_size includes the tag
+            let bytes_consumed_after_tag = *index - s0 - 1; // Subtract 1 for tag
+            let remaining_bytes = if total_size + 1 >= bytes_consumed_after_tag {
+                total_size + 1 - bytes_consumed_after_tag
+            } else {
+                return Err(DecodeError::InvalidFormat("Invalid total_size in closure".to_string()));
+            };
+            
+            // Read free variables as raw bytes
+            if *index + remaining_bytes > buf.len() {
+                return Err(DecodeError::BufferTooShort);
+            }
+            let free_vars = buf[*index..*index + remaining_bytes].to_vec();
+            *index += remaining_bytes;
+            
+            Ok(ErlangFunType::Closure {
+                arity,
+                module,
+                index: index_val,
+                uniq,
+                old_index: Some(old_index_val),
+                md5: Some(md5),
+                n_free_vars,
+                free_vars,
+                pid,
+            })
         }
         _ => Err(DecodeError::InvalidFormat(format!("Unexpected tag: {}", tag))),
     }
@@ -117,6 +278,10 @@ pub enum DecodeError {
     AtomDecodeError(String),
     /// Integer decoding error
     IntegerDecodeError(String),
+    /// PID decoding error
+    PidDecodeError(String),
+    /// Term skipping error
+    SkipError(String),
     /// Not implemented
     NotImplemented(String),
 }
@@ -246,31 +411,93 @@ mod tests {
 
     #[test]
     fn test_decode_fun_ext() {
-        // Test ERL_FUN_EXT tag (should return NotImplemented)
-        let buf = vec![ERL_FUN_EXT];
-        let mut index = 0;
-        let result = decode_fun(&buf, &mut index);
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            DecodeError::NotImplemented(msg) => {
-                assert!(msg.contains("Closure decoding"));
+        // Test ERL_FUN_EXT tag - should decode closure
+        // Use encode_fun to create valid test data
+        use super::super::encode_fun::encode_fun;
+        use super::super::encode_pid::ErlangPid;
+        
+        let closure = ErlangFunType::Closure {
+            arity: -1,
+            module: "test".to_string(),
+            index: 42,
+            uniq: 123,
+            old_index: None,
+            md5: None,
+            n_free_vars: 0,
+            free_vars: Vec::new(),
+            pid: ErlangPid {
+                node: "test".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        
+        let mut buf = vec![0u8; 200];
+        let mut encode_index = 0;
+        let mut buf_opt = Some(&mut buf[..]);
+        encode_fun(&mut buf_opt, &mut encode_index, &closure).unwrap();
+        
+        let mut decode_index = 0;
+        let result = decode_fun(&buf, &mut decode_index);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            ErlangFunType::Closure { arity, index: idx, uniq, n_free_vars, .. } => {
+                assert_eq!(arity, -1);
+                assert_eq!(idx, 42);
+                assert_eq!(uniq, 123);
+                assert_eq!(n_free_vars, 0);
             }
-            _ => panic!("Expected NotImplemented error"),
+            _ => panic!("Expected Closure type"),
         }
     }
 
     #[test]
     fn test_decode_new_fun_ext() {
-        // Test ERL_NEW_FUN_EXT tag (should return NotImplemented)
-        let buf = vec![ERL_NEW_FUN_EXT];
-        let mut index = 0;
-        let result = decode_fun(&buf, &mut index);
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            DecodeError::NotImplemented(msg) => {
-                assert!(msg.contains("Closure decoding"));
+        // Test ERL_NEW_FUN_EXT tag - should decode closure
+        // Use encode_fun to create valid test data
+        use super::super::encode_fun::encode_fun;
+        use super::super::encode_pid::ErlangPid;
+        
+        let mut md5 = [0u8; 16];
+        md5[0] = 1; // Non-zero MD5 for testing
+        
+        let closure = ErlangFunType::Closure {
+            arity: 2,
+            module: "test".to_string(),
+            index: 5,
+            uniq: 20,
+            old_index: Some(10),
+            md5: Some(md5),
+            n_free_vars: 0,
+            free_vars: Vec::new(),
+            pid: ErlangPid {
+                node: "test".to_string(),
+                num: 1,
+                serial: 2,
+                creation: 3,
+            },
+        };
+        
+        let mut buf = vec![0u8; 200];
+        let mut encode_index = 0;
+        let mut buf_opt = Some(&mut buf[..]);
+        encode_fun(&mut buf_opt, &mut encode_index, &closure).unwrap();
+        
+        let mut decode_index = 0;
+        let result = decode_fun(&buf, &mut decode_index);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            ErlangFunType::Closure { arity, index: idx, uniq, old_index, md5: decoded_md5, n_free_vars, .. } => {
+                assert_eq!(arity, 2);
+                assert_eq!(idx, 5);
+                assert_eq!(uniq, 20);
+                assert_eq!(old_index, Some(10));
+                assert!(decoded_md5.is_some());
+                assert_eq!(decoded_md5.unwrap()[0], 1);
+                assert_eq!(n_free_vars, 0);
             }
-            _ => panic!("Expected NotImplemented error"),
+            _ => panic!("Expected Closure type"),
         }
     }
 

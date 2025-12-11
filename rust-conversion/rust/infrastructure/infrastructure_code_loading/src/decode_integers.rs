@@ -26,7 +26,7 @@
 //! let buf = vec![97, 42]; // ERL_SMALL_INTEGER_EXT, value 42
 //! let mut index = 0;
 //!
-//! let value = decode_long(&buf, &mut index)?;
+//! let value = decode_long(&buf, &mut index).unwrap();
 //! assert_eq!(value, 42);
 //! ```
 //!

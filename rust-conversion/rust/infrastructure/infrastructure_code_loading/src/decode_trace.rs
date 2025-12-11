@@ -26,9 +26,11 @@
 //! ```rust
 //! use infrastructure_code_loading::decode_trace;
 //!
-//! let mut index = 0;
-//! let trace = decode_trace(&buf, &mut index).unwrap();
-//! println!("Trace: flags={}, label={}, serial={}", trace.flags, trace.label, trace.serial);
+//! // Note: This example requires valid EI-encoded trace data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let trace = decode_trace(&buf, &mut index)?;
+//! // println!("Trace: flags={}, label={}, serial={}", trace.flags, trace.label, trace.serial);
 //! ```
 //!
 //! ## See Also

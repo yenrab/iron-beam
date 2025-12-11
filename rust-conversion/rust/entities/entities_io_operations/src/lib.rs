@@ -21,15 +21,17 @@
 //! use entities_io_operations::{ExportTable, Mfa, Export};
 //!
 //! // Create an export table
-//! let table = ExportTable::new(ExportTable::INITIAL_SIZE);
+//! let table = ExportTable::new();
 //!
-//! // Add an export entry
-//! let export = Export::new(module_atom, function_atom, arity);
-//! table.put(export.clone())?;
+//! // Add an export entry (module=1, function=2, arity=3)
+//! let export = table.put(1, 2, 3);
 //!
 //! // Look up an export
-//! let mfa = Mfa::new(module_atom, function_atom, arity);
-//! let found = table.get(&mfa);
+//! let found = table.get(1, 2, 3);
+//!
+//! // Or use MFA for convenience
+//! let mfa = Mfa::new(1, 2, 3);
+//! let found = table.get(mfa.module, mfa.function, mfa.arity);
 //! ```
 //!
 //! ## See Also
@@ -63,6 +65,5 @@
 
 pub mod export;
 
-pub use export::{Export, ExportTable, Mfa};
 pub use export::export_ops;
-
+pub use export::{Export, ExportTable, Mfa};

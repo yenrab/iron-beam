@@ -22,10 +22,11 @@
 //! ```rust
 //! use infrastructure_code_loading::decode_port;
 //!
-//! // Decode a port from EI-encoded buffer
-//! let mut index = 0;
-//! let port = decode_port(&buf, &mut index)?;
-//! println!("Port: {} on node {}", port.id, port.node);
+//! // Note: This example requires valid EI-encoded port data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let port = decode_port(&buf, &mut index)?;
+//! // println!("Port: {} on node {}", port.id, port.node);
 //! ```
 //!
 //! ## See Also

@@ -535,5 +535,495 @@ mod tests {
         }
         assert_eq!(builder.size(), 2); // Cons cell needs 2 words
     }
+    
+    #[test]
+    fn test_erts_bld_cons_build_mode() {
+        let mut builder = HeapBuilder::new_build(100);
+        let car = Term::Small(1);
+        let cdr = Term::Small(2);
+        let term = erts_bld_cons(&mut builder, car, cdr).unwrap();
+        
+        match term {
+            Term::List { head, tail } => {
+                match *head {
+                    Term::Small(1) => {},
+                    _ => panic!("Expected Small(1)"),
+                }
+                match *tail {
+                    Term::Small(2) => {},
+                    _ => panic!("Expected Small(2)"),
+                }
+            }
+            _ => panic!("Expected List"),
+        }
+        assert_eq!(builder.size(), 2);
+    }
+    
+    #[test]
+    fn test_erts_bld_atom_new_atom() {
+        let mut atom_table = AtomTable::new(100);
+        let mut builder = HeapBuilder::new_size_calc();
+        
+        // Build atom that doesn't exist yet (should create it)
+        let term = erts_bld_atom(&mut builder, &atom_table, "new_atom").unwrap();
+        match term {
+            Term::Atom(_) => {},
+            _ => panic!("Expected Atom"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_atom_build_mode() {
+        let mut atom_table = AtomTable::new(100);
+        let mut builder = HeapBuilder::new_build(100);
+        let term = erts_bld_atom(&mut builder, &atom_table, "test").unwrap();
+        match term {
+            Term::Atom(_) => {},
+            _ => panic!("Expected Atom"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_uint_large() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let large_value = u64::MAX;
+        let term = erts_bld_uint(&mut builder, large_value).unwrap();
+        
+        // For size calculation, we get a placeholder
+        assert!(builder.size() > 0); // Big integers use heap
+        
+        // Test actual building
+        let mut builder2 = HeapBuilder::new_build(100);
+        let term2 = erts_bld_uint(&mut builder2, large_value).unwrap();
+        match term2 {
+            Term::Big(_) => {},
+            _ => panic!("Expected Big for large value"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_uint_zero() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let term = erts_bld_uint(&mut builder, 0).unwrap();
+        match term {
+            Term::Small(0) => {},
+            _ => panic!("Expected Small(0)"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_uint_boundary() {
+        // Test boundary between small and big integers
+        let mut builder = HeapBuilder::new_size_calc();
+        let boundary = i64::MAX as u64;
+        let term = erts_bld_uint(&mut builder, boundary).unwrap();
+        match term {
+            Term::Small(_) => {},
+            _ => panic!("Expected Small for boundary value"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_uword() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let term = erts_bld_uword(&mut builder, 42).unwrap();
+        match term {
+            Term::Small(42) => {},
+            _ => panic!("Expected Small(42)"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_uint64() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let term = erts_bld_uint64(&mut builder, 123).unwrap();
+        match term {
+            Term::Small(123) => {},
+            _ => panic!("Expected Small(123)"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_sint64_small() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let term = erts_bld_sint64(&mut builder, 42).unwrap();
+        match term {
+            Term::Small(42) => {},
+            _ => panic!("Expected Small(42)"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_sint64_negative() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let term = erts_bld_sint64(&mut builder, -42).unwrap();
+        match term {
+            Term::Small(-42) => {},
+            _ => panic!("Expected Small(-42)"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_sint64_large() {
+        // Test with a value that requires big integer
+        let mut builder = HeapBuilder::new_size_calc();
+        // Use a value outside small integer range
+        let large_value = 1i64 << 60; // Larger than 2^59
+        let term = erts_bld_sint64(&mut builder, large_value).unwrap();
+        assert!(builder.size() > 0); // Should use heap
+        
+        // Test actual building
+        let mut builder2 = HeapBuilder::new_build(100);
+        let term2 = erts_bld_sint64(&mut builder2, large_value).unwrap();
+        match term2 {
+            Term::Big(_) => {},
+            _ => panic!("Expected Big for large value"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_sint64_negative_large() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let large_negative = -(1i64 << 60);
+        let term = erts_bld_sint64(&mut builder, large_negative).unwrap();
+        assert!(builder.size() > 0);
+        
+        let mut builder2 = HeapBuilder::new_build(100);
+        let term2 = erts_bld_sint64(&mut builder2, large_negative).unwrap();
+        match term2 {
+            Term::Big(_) => {},
+            _ => panic!("Expected Big for large negative value"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_tuple_empty() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let term = erts_bld_tuple(&mut builder, vec![]).unwrap();
+        match term {
+            Term::Tuple(elements) => assert_eq!(elements.len(), 0),
+            _ => panic!("Expected empty Tuple"),
+        }
+        assert_eq!(builder.size(), 0); // Empty tuple doesn't use heap
+    }
+    
+    #[test]
+    fn test_erts_bld_tuple_single_element() {
+        let mut builder = HeapBuilder::new_build(100);
+        let term = erts_bld_tuple(&mut builder, vec![Term::Small(1)]).unwrap();
+        match term {
+            Term::Tuple(elements) => {
+                assert_eq!(elements.len(), 1);
+                match elements[0] {
+                    Term::Small(1) => {},
+                    _ => panic!("Expected Small(1)"),
+                }
+            }
+            _ => panic!("Expected Tuple"),
+        }
+        assert_eq!(builder.size(), 2); // 1 header + 1 element
+    }
+    
+    #[test]
+    fn test_erts_bld_tuplev() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let elements = vec![Term::Small(1), Term::Small(2)];
+        let term = erts_bld_tuplev(&mut builder, elements).unwrap();
+        // Should be same as erts_bld_tuple
+        assert_eq!(builder.size(), 3); // 1 header + 2 elements
+    }
+    
+    #[test]
+    fn test_erts_bld_string_n() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let str_bytes = b"hello";
+        let term = erts_bld_string_n(&mut builder, str_bytes, str_bytes.len()).unwrap();
+        // String needs 2 words per character
+        assert_eq!(builder.size(), str_bytes.len() * 2);
+        
+        // Test actual building
+        let mut builder2 = HeapBuilder::new_build(100);
+        let term2 = erts_bld_string_n(&mut builder2, str_bytes, str_bytes.len()).unwrap();
+        match term2 {
+            Term::List { .. } => {},
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_string_n_empty() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let term = erts_bld_string_n(&mut builder, b"", 0).unwrap();
+        match term {
+            Term::Nil => {},
+            _ => panic!("Expected Nil for empty string"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_list() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let terms = vec![Term::Small(1), Term::Small(2), Term::Small(3)];
+        let term = erts_bld_list(&mut builder, terms.len(), &terms).unwrap();
+        assert_eq!(builder.size(), terms.len() * 2); // 2 words per cons cell
+        
+        // Test actual building
+        let mut builder2 = HeapBuilder::new_build(100);
+        let term2 = erts_bld_list(&mut builder2, terms.len(), &terms).unwrap();
+        match term2 {
+            Term::List { .. } => {},
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_list_empty() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let terms = vec![];
+        let term = erts_bld_list(&mut builder, 0, &terms).unwrap();
+        match term {
+            Term::Nil => {},
+            _ => panic!("Expected Nil for empty list"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_2tup_list() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let terms1 = vec![Term::Small(1), Term::Small(2)];
+        let terms2 = vec![10u64, 20u64];
+        let term = erts_bld_2tup_list(&mut builder, 2, &terms1, &terms2).unwrap();
+        // Each element: 3 words (tuple) + 2 words (cons) = 5 words
+        assert_eq!(builder.size(), 2 * 5);
+        
+        // Test actual building
+        let mut builder2 = HeapBuilder::new_build(100);
+        let term2 = erts_bld_2tup_list(&mut builder2, 2, &terms1, &terms2).unwrap();
+        match term2 {
+            Term::List { .. } => {},
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_2tup_list_empty() {
+        let mut builder = HeapBuilder::new_size_calc();
+        let terms1 = vec![];
+        let terms2 = vec![];
+        let term = erts_bld_2tup_list(&mut builder, 0, &terms1, &terms2).unwrap();
+        match term {
+            Term::Nil => {},
+            _ => panic!("Expected Nil for empty list"),
+        }
+        assert_eq!(builder.size(), 0);
+    }
+    
+    #[test]
+    fn test_erts_bld_atom_uword_2tup_list() {
+        let mut atom_table = AtomTable::new(100);
+        let mut builder = HeapBuilder::new_build(100);
+        let atoms = vec!["atom1", "atom2"];
+        let uwords = vec![10usize, 20usize];
+        let term = erts_bld_atom_uword_2tup_list(&mut builder, &atom_table, 2, &atoms, &uwords).unwrap();
+        match term {
+            Term::List { .. } => {},
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_atom_uword_2tup_list_empty() {
+        let mut atom_table = AtomTable::new(100);
+        let mut builder = HeapBuilder::new_size_calc();
+        let atoms = vec![];
+        let uwords = vec![];
+        let term = erts_bld_atom_uword_2tup_list(&mut builder, &atom_table, 0, &atoms, &uwords).unwrap();
+        match term {
+            Term::Nil => {},
+            _ => panic!("Expected Nil for empty list"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_atom_2uint_3tup_list() {
+        let mut atom_table = AtomTable::new(100);
+        let mut builder = HeapBuilder::new_build(100);
+        let atoms = vec!["atom1", "atom2"];
+        let uints1 = vec![10u64, 20u64];
+        let uints2 = vec![30u64, 40u64];
+        let term = erts_bld_atom_2uint_3tup_list(&mut builder, &atom_table, 2, &atoms, &uints1, &uints2).unwrap();
+        match term {
+            Term::List { .. } => {},
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_atom_2uint_3tup_list_empty() {
+        let mut atom_table = AtomTable::new(100);
+        let mut builder = HeapBuilder::new_size_calc();
+        let atoms = vec![];
+        let uints1 = vec![];
+        let uints2 = vec![];
+        let term = erts_bld_atom_2uint_3tup_list(&mut builder, &atom_table, 0, &atoms, &uints1, &uints2).unwrap();
+        match term {
+            Term::Nil => {},
+            _ => panic!("Expected Nil for empty list"),
+        }
+    }
+    
+    #[test]
+    fn test_heap_builder_new_size_calc() {
+        let builder = HeapBuilder::new_size_calc();
+        assert_eq!(builder.size(), 0);
+        assert!(builder.heap_data.is_none());
+    }
+    
+    #[test]
+    fn test_heap_builder_new_build() {
+        let builder = HeapBuilder::new_build(100);
+        assert_eq!(builder.size(), 0);
+        assert!(builder.heap_data.is_some());
+    }
+    
+    #[test]
+    fn test_heap_builder_into_heap_data() {
+        let builder = HeapBuilder::new_build(100);
+        let heap_data = builder.into_heap_data();
+        assert!(heap_data.is_some());
+        
+        let builder2 = HeapBuilder::new_size_calc();
+        let heap_data2 = builder2.into_heap_data();
+        assert!(heap_data2.is_none());
+    }
+    
+    #[test]
+    fn test_term_building_error_debug() {
+        let error1 = TermBuildingError::HeapTooSmall;
+        let error2 = TermBuildingError::InvalidArgument("test".to_string());
+        let error3 = TermBuildingError::AtomNotFound;
+        let error4 = TermBuildingError::BuildingFailed("test".to_string());
+        
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        let debug_str3 = format!("{:?}", error3);
+        let debug_str4 = format!("{:?}", error4);
+        
+        assert!(debug_str1.contains("HeapTooSmall"));
+        assert!(debug_str2.contains("InvalidArgument"));
+        assert!(debug_str3.contains("AtomNotFound"));
+        assert!(debug_str4.contains("BuildingFailed"));
+    }
+    
+    #[test]
+    fn test_term_building_error_clone() {
+        let error1 = TermBuildingError::HeapTooSmall;
+        let error2 = TermBuildingError::InvalidArgument("test".to_string());
+        let error3 = TermBuildingError::AtomNotFound;
+        let error4 = TermBuildingError::BuildingFailed("test".to_string());
+        
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        let cloned3 = error3.clone();
+        let cloned4 = error4.clone();
+        
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+        assert_eq!(error3, cloned3);
+        assert_eq!(error4, cloned4);
+    }
+    
+    #[test]
+    fn test_term_building_error_partial_eq() {
+        let error1 = TermBuildingError::HeapTooSmall;
+        let error2 = TermBuildingError::HeapTooSmall;
+        let error3 = TermBuildingError::InvalidArgument("test".to_string());
+        let error4 = TermBuildingError::InvalidArgument("test".to_string());
+        let error5 = TermBuildingError::InvalidArgument("different".to_string());
+        
+        assert_eq!(error1, error2);
+        assert_eq!(error3, error4);
+        assert_ne!(error3, error5);
+        assert_ne!(error1, error3);
+    }
+    
+    #[test]
+    fn test_term_building_error_eq() {
+        let error1 = TermBuildingError::HeapTooSmall;
+        let error2 = TermBuildingError::HeapTooSmall;
+        let error3 = TermBuildingError::AtomNotFound;
+        
+        assert!(error1 == error2);
+        assert!(error1 != error3);
+    }
+    
+    #[test]
+    fn test_erts_bld_cons_with_nil_tail() {
+        let mut builder = HeapBuilder::new_build(100);
+        let car = Term::Small(1);
+        let cdr = Term::Nil;
+        let term = erts_bld_cons(&mut builder, car, cdr).unwrap();
+        match term {
+            Term::List { head, tail } => {
+                match *head {
+                    Term::Small(1) => {},
+                    _ => panic!("Expected Small(1)"),
+                }
+                match *tail {
+                    Term::Nil => {},
+                    _ => panic!("Expected Nil"),
+                }
+            }
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_string_n_partial_length() {
+        let mut builder = HeapBuilder::new_build(100);
+        let str_bytes = b"hello";
+        // Use length less than actual bytes
+        let term = erts_bld_string_n(&mut builder, str_bytes, 3).unwrap();
+        match term {
+            Term::List { .. } => {},
+            _ => panic!("Expected List"),
+        }
+        // Should only use 3 * 2 = 6 words
+        assert_eq!(builder.size(), 6);
+    }
+    
+    #[test]
+    fn test_erts_bld_list_with_atoms() {
+        let mut atom_table = AtomTable::new(100);
+        let mut builder = HeapBuilder::new_build(100);
+        let atom1 = erts_bld_atom(&mut builder, &atom_table, "atom1").unwrap();
+        let atom2 = erts_bld_atom(&mut builder, &atom_table, "atom2").unwrap();
+        let terms = vec![atom1, atom2];
+        let term = erts_bld_list(&mut builder, terms.len(), &terms).unwrap();
+        match term {
+            Term::List { .. } => {},
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_erts_bld_tuple_with_nested_terms() {
+        let mut builder = HeapBuilder::new_build(100);
+        let inner_tuple = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
+        let outer_tuple = erts_bld_tuple(&mut builder, vec![inner_tuple, Term::Small(3)]).unwrap();
+        match outer_tuple {
+            Term::Tuple(elements) => {
+                assert_eq!(elements.len(), 2);
+            }
+            _ => panic!("Expected Tuple"),
+        }
+    }
 }
 

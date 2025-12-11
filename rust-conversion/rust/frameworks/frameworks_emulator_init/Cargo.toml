@@ -1,0 +1,28 @@
+[package]
+name = "frameworks_emulator_init"
+version = "0.1.0"
+edition = "2021"
+description = "Frameworks layer: Emulator initialization from erl_init.c"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+# Entities layer
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+entities_process = { path = "../../entities/entities_process" }
+entities_utilities = { path = "../../entities/entities_utilities" }
+
+# Infrastructure layer
+infrastructure_runtime_utils = { path = "../../infrastructure/infrastructure_runtime_utils" }
+infrastructure_utilities = { path = "../../infrastructure/infrastructure_utilities" }
+infrastructure_time_management = { path = "../../infrastructure/infrastructure_time_management" }
+infrastructure_bif_dispatcher = { path = "../../infrastructure/infrastructure_bif_dispatcher" }
+infrastructure_emulator_loop = { path = "../../infrastructure/infrastructure_emulator_loop" }
+
+# Use cases layer
+usecases_scheduling = { path = "../../usecases/usecases_scheduling" }
+usecases_process_management = { path = "../../usecases/usecases_process_management" }
+
+[dev-dependencies]
+
+

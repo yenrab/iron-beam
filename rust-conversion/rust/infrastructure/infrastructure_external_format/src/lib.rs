@@ -54,3 +54,4 @@ pub use size_calculation::{erts_encode_ext_size, encode_size_struct_int, SizeCal
 /// This is the first byte in ETF-encoded data (value 131)
 pub const VERSION_MAGIC: u8 = 131;
 
+

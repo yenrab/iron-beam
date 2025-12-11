@@ -30,7 +30,7 @@
 //!
 //! let mut buf = vec![0u8; 100];
 //! let mut index = 0;
-//! encode_port(&mut Some(&mut buf), &mut index, &port)?;
+//! encode_port(&mut Some(&mut buf), &mut index, &port).unwrap();
 //! ```
 //!
 //! ## See Also

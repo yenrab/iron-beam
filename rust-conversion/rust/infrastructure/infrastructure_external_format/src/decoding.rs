@@ -210,5 +210,395 @@ mod tests {
         assert_eq!(new_pos, 6); // 1 (tag) + 1 (length) + 4 (bytes)
         assert!(atom_index > 0);
     }
+    
+    #[test]
+    fn test_dec_atom_no_table() {
+        // SMALL_ATOM_EXT = 115, length = 4, "test"
+        let data = vec![115, 4, b't', b'e', b's', b't'];
+        let (atom_index, new_pos) = dec_atom(&data, None).unwrap();
+        assert_eq!(new_pos, 6);
+        assert!(atom_index > 0);
+    }
+    
+    #[test]
+    fn test_dec_atom_empty_buffer() {
+        let data = vec![];
+        let result = dec_atom(&data, None);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), DecodeError::BufferTooShort));
+    }
+    
+    #[test]
+    fn test_dec_pid_old_format() {
+        // PID_EXT = 103
+        // Minimum size: tag (1) + node atom (at least 3 bytes) + id (4) + serial (4) + creation (1) = 13
+        let data = vec![103, 115, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // Minimal valid format
+        let result = dec_pid(&data);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::DecodingFailed(msg) => {
+                assert!(msg.contains("PID decoding"));
+            }
+            _ => panic!("Expected DecodingFailed error"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_pid_new_format() {
+        // NEW_PID_EXT = 88
+        // Minimum size: tag (1) + node atom (at least 3 bytes) + id (4) + serial (4) + creation (4) = 17
+        let data = vec![88, 115, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // Minimal valid format
+        let result = dec_pid(&data);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::DecodingFailed(msg) => {
+                assert!(msg.contains("PID decoding"));
+            }
+            _ => panic!("Expected DecodingFailed error"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_pid_invalid_tag() {
+        let data = vec![99, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let result = dec_pid(&data);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DecodeError::InvalidFormat(msg) => {
+                assert!(msg.contains("Invalid PID tag"));
+            }
+            _ => panic!("Expected InvalidFormat error"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_pid_empty_buffer() {
+        let data = vec![];
+        let result = dec_pid(&data);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), DecodeError::BufferTooShort));
+    }
+    
+    #[test]
+    fn test_dec_pid_old_format_buffer_too_short() {
+        // PID_EXT = 103, but buffer too short
+        let data = vec![103, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 12 bytes, need 13
+        let result = dec_pid(&data);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), DecodeError::BufferTooShort));
+    }
+    
+    #[test]
+    fn test_dec_pid_new_format_buffer_too_short() {
+        // NEW_PID_EXT = 88, but buffer too short
+        let data = vec![88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 16 bytes, need 17
+        let result = dec_pid(&data);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), DecodeError::BufferTooShort));
+    }
+    
+    #[test]
+    fn test_erts_decode_ext() {
+        let data = vec![131, 106]; // VERSION_MAGIC, NIL_EXT
+        let term = erts_decode_ext(&data).unwrap();
+        assert!(matches!(term, Term::Nil));
+        
+        // Should be same as dec_term
+        let term2 = dec_term(&data).unwrap();
+        match (&term, &term2) {
+            (Term::Nil, Term::Nil) => {},
+            _ => panic!("Results should match"),
+        }
+    }
+    
+    #[test]
+    fn test_decode_error_from_ei_decode_error() {
+        use infrastructure_data_handling::DecodeError as EiDecodeError;
+        
+        // Test BufferTooShort
+        let ei_err = EiDecodeError::BufferTooShort;
+        let decode_err: DecodeError = ei_err.into();
+        assert!(matches!(decode_err, DecodeError::BufferTooShort));
+        
+        // Test InvalidFormat
+        let ei_err = EiDecodeError::InvalidFormat("test".to_string());
+        let decode_err: DecodeError = ei_err.into();
+        match decode_err {
+            DecodeError::InvalidFormat(msg) => assert_eq!(msg, "test"),
+            _ => panic!("Expected InvalidFormat"),
+        }
+        
+        // Test AtomDecodeError
+        let ei_err = EiDecodeError::AtomDecodeError("atom_err".to_string());
+        let decode_err: DecodeError = ei_err.into();
+        match decode_err {
+            DecodeError::AtomDecodeError(msg) => assert!(msg.contains("atom_err")),
+            _ => panic!("Expected AtomDecodeError"),
+        }
+        
+        // Test BinaryDecodeError
+        let ei_err = EiDecodeError::BinaryDecodeError("binary_err".to_string());
+        let decode_err: DecodeError = ei_err.into();
+        match decode_err {
+            DecodeError::DecodingFailed(msg) => assert!(msg.contains("Binary decode error")),
+            _ => panic!("Expected DecodingFailed"),
+        }
+    }
+    
+    #[test]
+    fn test_decode_error_debug() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let error3 = DecodeError::DecodingFailed("test".to_string());
+        let error4 = DecodeError::AtomDecodeError("test".to_string());
+        let error5 = DecodeError::InvalidVersion;
+        
+        let debug_str1 = format!("{:?}", error1);
+        let debug_str2 = format!("{:?}", error2);
+        let debug_str3 = format!("{:?}", error3);
+        let debug_str4 = format!("{:?}", error4);
+        let debug_str5 = format!("{:?}", error5);
+        
+        assert!(debug_str1.contains("BufferTooShort"));
+        assert!(debug_str2.contains("InvalidFormat"));
+        assert!(debug_str3.contains("DecodingFailed"));
+        assert!(debug_str4.contains("AtomDecodeError"));
+        assert!(debug_str5.contains("InvalidVersion"));
+    }
+    
+    #[test]
+    fn test_decode_error_clone() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::InvalidFormat("test".to_string());
+        let error3 = DecodeError::DecodingFailed("test".to_string());
+        let error4 = DecodeError::AtomDecodeError("test".to_string());
+        let error5 = DecodeError::InvalidVersion;
+        
+        let cloned1 = error1.clone();
+        let cloned2 = error2.clone();
+        let cloned3 = error3.clone();
+        let cloned4 = error4.clone();
+        let cloned5 = error5.clone();
+        
+        assert_eq!(error1, cloned1);
+        assert_eq!(error2, cloned2);
+        assert_eq!(error3, cloned3);
+        assert_eq!(error4, cloned4);
+        assert_eq!(error5, cloned5);
+    }
+    
+    #[test]
+    fn test_decode_error_partial_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidFormat("test".to_string());
+        let error4 = DecodeError::InvalidFormat("test".to_string());
+        let error5 = DecodeError::InvalidFormat("different".to_string());
+        let error6 = DecodeError::InvalidVersion;
+        
+        assert_eq!(error1, error2);
+        assert_eq!(error3, error4);
+        assert_ne!(error3, error5);
+        assert_ne!(error1, error3);
+        assert_ne!(error1, error6);
+    }
+    
+    #[test]
+    fn test_decode_error_eq() {
+        let error1 = DecodeError::BufferTooShort;
+        let error2 = DecodeError::BufferTooShort;
+        let error3 = DecodeError::InvalidVersion;
+        
+        assert!(error1 == error2);
+        assert!(error1 != error3);
+    }
+    
+    #[test]
+    fn test_dec_term_tuple() {
+        // Encode a tuple first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::Tuple(vec![
+            Term::Small(1),
+            Term::Small(2),
+            Term::Small(3),
+        ]);
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Tuple(elements) => {
+                assert_eq!(elements.len(), 3);
+            }
+            _ => panic!("Expected Tuple"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_list() {
+        // Encode a list first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::List {
+            head: Box::new(Term::Small(1)),
+            tail: Box::new(Term::Nil),
+        };
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::List { head, tail } => {
+                match *head {
+                    Term::Small(1) => {},
+                    _ => panic!("Expected Small(1)"),
+                }
+                match *tail {
+                    Term::Nil => {},
+                    _ => panic!("Expected Nil"),
+                }
+            }
+            _ => panic!("Expected List"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_binary() {
+        // Encode a binary first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::Binary {
+            data: vec![1, 2, 3, 4],
+            bit_offset: 0,
+            bit_size: 32,
+        };
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Binary { data, .. } => {
+                assert_eq!(data, vec![1, 2, 3, 4]);
+            }
+            _ => panic!("Expected Binary"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_map() {
+        // Encode a map first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::Map(vec![
+            (Term::Small(1), Term::Small(2)),
+            (Term::Small(3), Term::Small(4)),
+        ]);
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Map(entries) => {
+                assert_eq!(entries.len(), 2);
+            }
+            _ => panic!("Expected Map"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_float() {
+        // Encode a float first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::Float(3.14159);
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Float(value) => {
+                assert!((value - 3.14159).abs() < 0.0001);
+            }
+            _ => panic!("Expected Float"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_big_integer() {
+        // Encode a big integer first, then decode it
+        use super::super::encoding::enc_term;
+        use entities_utilities::BigNumber;
+        let big_num = BigNumber::from_i64(i64::MAX);
+        let term = Term::Big(big_num);
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Big(_) => {
+                // Big integer decoded successfully
+            }
+            _ => panic!("Expected Big"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_atom() {
+        // Encode an atom first, then decode it
+        use super::super::encoding::enc_term;
+        use entities_data_handling::atom::{AtomTable, AtomEncoding};
+        let mut atom_table = AtomTable::new(100);
+        let atom_index = atom_table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
+        let term = Term::Atom(atom_index as u32);
+        let encoded = enc_term(&term, Some(&atom_table)).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Atom(_) => {
+                // Atom decoded successfully
+            }
+            _ => panic!("Expected Atom"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_negative_integer() {
+        // Encode a negative integer first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::Small(-42);
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Small(value) => assert_eq!(value, -42),
+            _ => panic!("Expected Small(-42)"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_zero() {
+        // Encode zero first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::Small(0);
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Small(value) => assert_eq!(value, 0),
+            _ => panic!("Expected Small(0)"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_term_large_integer() {
+        // Encode a large integer first, then decode it
+        use super::super::encoding::enc_term;
+        let term = Term::Small(256);
+        let encoded = enc_term(&term, None).unwrap();
+        let decoded = dec_term(&encoded).unwrap();
+        match decoded {
+            Term::Small(value) => assert_eq!(value, 256),
+            _ => panic!("Expected Small(256)"),
+        }
+    }
+    
+    #[test]
+    fn test_dec_atom_atom_ext() {
+        // ATOM_EXT = 100, length (2 bytes) = 4, "test"
+        let data = vec![100, 0, 4, b't', b'e', b's', b't'];
+        let (atom_index, new_pos) = dec_atom(&data, None).unwrap();
+        assert_eq!(new_pos, 7); // 1 (tag) + 2 (length) + 4 (bytes) = 7
+        assert!(atom_index > 0);
+    }
+    
+    #[test]
+    fn test_dec_term_only_version_magic() {
+        // Only version magic byte, no term data
+        let data = vec![131];
+        let result = dec_term(&data);
+        // This should fail because there's no term data after the version magic
+        assert!(result.is_err());
+    }
 }
 

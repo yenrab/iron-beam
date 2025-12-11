@@ -4,9 +4,7 @@
 //! from the emulator to BIF implementations. Based on call_bif() and
 //! erts_call_dirty_bif() from bif.c
 
-use std::sync::Arc;
 use entities_process::{Process, ErtsCodePtr, Eterm};
-use crate::initialization::BifFunction;
 
 /// BIF dispatcher
 ///
@@ -71,9 +69,9 @@ impl Default for BifDispatcher {
 /// 5. Handles result (value, trap, or error)
 /// 6. Restores native function if needed
 pub fn call_bif(
-    process: &Process,
-    reg: &[Eterm],
-    instruction_ptr: ErtsCodePtr,
+    _process: &Process,
+    _reg: &[Eterm],
+    _instruction_ptr: ErtsCodePtr,
 ) -> Result<Eterm, BifDispatcherError> {
     // In the C implementation:
     // ErtsNativeFunc *nep = ERTS_I_BEAM_OP_TO_NFUNC(I);
@@ -129,9 +127,9 @@ pub fn call_bif(
 /// 4. Handles result and process state
 /// 5. Returns result or error indicator
 pub fn erts_call_dirty_bif(
-    process: &Process,
-    instruction_ptr: ErtsCodePtr,
-    reg: &[Eterm],
+    _process: &Process,
+    _instruction_ptr: ErtsCodePtr,
+    _reg: &[Eterm],
 ) -> Result<Eterm, BifDispatcherError> {
     // In the C implementation:
     // BIF_RETTYPE result;

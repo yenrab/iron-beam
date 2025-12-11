@@ -18,9 +18,11 @@
 //! ```rust
 //! use infrastructure_code_loading::decode_ref;
 //!
-//! let mut index = 0;
-//! let r#ref = decode_ref(&buf, &mut index)?;
-//! println!("Reference: {} IDs on node {}", r#ref.len, r#ref.node);
+//! // Note: This example requires valid EI-encoded reference data
+//! // In practice, you would decode from a real buffer:
+//! // let mut index = 0;
+//! // let r#ref = decode_ref(&buf, &mut index)?;
+//! // println!("Reference: {} IDs on node {}", r#ref.len, r#ref.node);
 //! ```
 //!
 //! ## See Also

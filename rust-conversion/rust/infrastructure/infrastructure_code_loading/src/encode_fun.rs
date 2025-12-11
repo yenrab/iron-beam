@@ -20,7 +20,7 @@
 //! ## Examples
 //!
 //! ```rust
-//! use infrastructure_code_loading::encode_fun::{encode_fun, ErlangFunType, ErlangPid};
+//! use infrastructure_code_loading::{encode_fun, ErlangFunType};
 //!
 //! // Encode an export
 //! let export = ErlangFunType::Export {
@@ -31,7 +31,7 @@
 //!
 //! let mut buf = vec![0u8; 100];
 //! let mut index = 0;
-//! encode_fun(&mut Some(&mut buf), &mut index, &export)?;
+//! encode_fun(&mut Some(&mut buf), &mut index, &export).unwrap();
 //! ```
 //!
 //! ## See Also
