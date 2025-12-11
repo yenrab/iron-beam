@@ -817,7 +817,6 @@
           "./rust-conversion/rust/adapters",
           "./rust-conversion/rust/infrastructure",
           "./rust-conversion/rust/frameworks",
-          "./rust-conversion/rust/api_facades",
           "./rust-conversion/rust/code_management",
           "./rust-conversion/docs"
         ],

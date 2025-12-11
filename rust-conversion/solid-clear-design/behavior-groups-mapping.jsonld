@@ -119016,35 +119016,5 @@
       "implementationPriority": 5,
       "clearPrinciple": "inner_layers_before_outer_layers"
     },
-    {
-      "@id": "ex:BehaviorGroup_38",
-      "@type": "BehaviorGroup",
-      "name": "api_facades",
-      "cleanLayer": "frameworks",
-      "solidResponsibility": "api_facades",
-      "files": [],
-      "functions": [],
-      "dependencies": [
-        "ex:BehaviorGroup_1",
-        "ex:BehaviorGroup_10",
-        "ex:BehaviorGroup_14",
-        "ex:BehaviorGroup_24",
-        "ex:BehaviorGroup_4",
-        "ex:BehaviorGroup_5",
-        "ex:BehaviorGroup_6",
-        "ex:BehaviorGroup_7",
-        "ex:BehaviorGroup_8",
-        "ex:BehaviorGroup_9"
-      ],
-      "rationale": {
-        "codeRationale": "API Facades layer: Erlang compatibility layer with exact C function signatures",
-        "solidRationale": "Single Responsibility: Provides API facades for external callers",
-        "cleanRationale": "CLEAN Architecture frameworks layer: Outermost layer maintaining C compatibility",
-        "rustRationale": "Rust module: api_facades as separate module with clear dependency boundaries. Provides facades for external callers while delegating to inner Rust implementations."
-      },
-      "clearLayerOrder": 6,
-      "implementationPriority": 6,
-      "clearPrinciple": "inner_layers_before_outer_layers"
-    }
   ]
 }

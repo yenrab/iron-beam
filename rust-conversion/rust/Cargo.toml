@@ -55,8 +55,6 @@ members = [
     # Code Management layer
     "code_management/code_management_code_loading",
     
-    # API Facades layer
-    "api_facades",
     "entities/entities_process", "adapters/adapters_socket",
 ]
 

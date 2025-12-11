@@ -89,7 +89,6 @@
         "Analyzes behaviors semantically, not syntactically",
         "Follows CLEAR principles: inner layers before outer layers",
         "All layers have only inward dependencies",
-        "Never suggests API Facades Layer until all other layers are complete",
         "Complete means no simplified versions of behaviors (no unimplemented!, todo!, placeholders)",
         "Suggests one prioritized group at a time with reasoning",
         "Design files location: rust-conversion/solid-clear-design/",
@@ -109,12 +108,6 @@
           "action": "Check dependency completeness before suggesting",
           "details": "MANDATORY: Before suggesting a group, verify that all groups it depends on (from behavior-groups-mapping.jsonld) are complete. Do not suggest a group until all its dependencies are satisfied.",
           "appliesTo": ["suggestion prioritization", "dependency checking"]
-        },
-        {
-          "severity": "critical",
-          "action": "Never suggest API Facades until all other layers complete",
-          "details": "MANDATORY: Do not suggest any group in the API Facades Layer until all groups in all other layers (Entities, Use Cases, Adapters, Infrastructure, Frameworks, Code Management) are complete.",
-          "appliesTo": ["suggestion prioritization", "layer ordering"]
         },
         {
           "severity": "critical",
@@ -241,7 +234,7 @@
         "  2. Review C file names in files array to understand domain (e.g., atom.c → atom management, binary.c → binary operations)",
         "  3. Examine function signatures in functions array to understand operations (function names, parameters, return types indicate behavior)",
         "  4. Synthesize semantic purpose: 'This group provides [primary purpose] functionality including [key operations]'",
-        "Extract layer ordering from cleanLayer property: Entities (innermost) → Use Cases → Adapters → Infrastructure → Frameworks → Code Management → API Facades (outermost)",
+        "Extract layer ordering from cleanLayer property: Entities (innermost) → Use Cases → Adapters → Infrastructure → Frameworks → Code Management",
         "Read c_analysis_results.json if needed for additional C function details. Error handling: If file is missing, continue with available information from behavior-groups-mapping.jsonld.",
         "Understand C function behaviors semantically using explicit method:",
         "  1. Analyze function signature: name, parameters, return type indicate operation type",
@@ -384,12 +377,7 @@
         "Mark groups as dependency-ready only if:",
         "  - All direct dependencies are complete",
         "  - All transitive dependencies are complete",
-        "  - For API Facades Layer: ALL groups in all other layers (Entities, Use Cases, Adapters, Infrastructure, Frameworks, Code Management) are complete",
         "Verify CLEAR layer ordering: dependencies flow inward (outer → inner). Error handling: If dependency violates layer ordering (inner depends on outer), report error but continue analysis.",
-        "Special handling for API Facades Layer:",
-        "  - Never mark API Facades groups as dependency-ready until ALL other layers are complete",
-        "  - Explicitly check that all groups in Entities, Use Cases, Adapters, Infrastructure, Frameworks, and Code Management are complete",
-        "  - Count total groups in each layer and verify all are complete before allowing API Facades",
         "Store dependency readiness status for each group in AnalysisModeState including: dependency-ready status, list of incomplete dependencies (if any), transitive dependency chain",
         "When asking user questions, wait for response before proceeding",
         "Set waitingForUserResponse = true in isolated context when asking user, false after receiving response"
@@ -422,7 +410,6 @@
         "  1. Start with innermost layer (Entities)",
         "  2. Work outward layer by layer",
         "  3. Within a layer, prioritize groups with all dependencies satisfied",
-        "  4. Never suggest API Facades until all other layers complete",
         "Handle edge case - all groups complete: If all groups are marked complete (from BehaviorComparatorPersona), output: 'All groups are complete. No further work needed.'",
         "Handle edge case - no dependency-ready groups: If no incomplete groups have satisfied dependencies, identify which dependencies are blocking and suggest working on those first (even if in outer layers, if they're blocking inner layer progress).",
         "Select single highest-priority incomplete group using explicit tie-breaking logic:",
@@ -513,7 +500,6 @@
           "Tool checks for completeness: all behaviors implemented with no simplifications (no unimplemented!, todo!, placeholders)",
           "Tool verifies dependencies are satisfied before suggesting a group",
           "Tool follows CLEAR principles: suggests inner layers before outer layers",
-          "Tool never suggests API Facades Layer until all other layers are complete",
           "Tool never generates code or tests - only makes suggestions",
           "Usage: Tool automatically analyzes and suggests next group when executed",
           "Output format: 'Next: [Layer] [Group Name]' with reasoning",

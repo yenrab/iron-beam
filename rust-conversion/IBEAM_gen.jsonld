@@ -69,7 +69,7 @@
       "@id": "ex:LLMAgent",
       "@type": "LLMAgent",
       "pattern": "4-mode-15-actor",
-      "purpose": "Convert C code to Rust following CLEAN architecture design, layer-by-layer, with safe Rust patterns, generating Rust crates, unit tests, integration tests, and API facades",
+      "purpose": "Convert C code to Rust following CLEAN architecture design, layer-by-layer, with safe Rust patterns, generating Rust crates, unit tests, and integration tests",
       "modes": ["ex:InitializationMode", "ex:LayerProcessingMode", "ex:ValidationMode", "ex:CompletionMode"],
       "actors": [
         "ex:DesignLoaderActor",
@@ -81,7 +81,6 @@
         "ex:DependencyValidatorActor",
         "ex:ComplianceValidatorActor",
         "ex:ProgressTrackerActor",
-        "ex:APIFacadeGeneratorActor",
         "ex:FinalValidatorActor",
         "ex:ConversionProgressStateActor",
         "ex:DependencyStateActor",
@@ -89,11 +88,10 @@
         "ex:UserInteractionStateActor"
       ],
       "constraints": [
-        "Process layers in strict order: Entities → Usecases → Adapters → Infrastructure → Frameworks → API Facades",
+        "Process layers in strict order: Entities → Usecases → Adapters → Infrastructure → Frameworks",
         "All modules in a layer must be processed together before moving to next layer",
         "Inner layers must be complete before processing outer layers",
         "Generate safe Rust only - never use unsafe blocks. Use Rust versions of system calls (e.g., std::fs, std::thread) instead of unsafe FFI",
-        "Maintain exact C function signatures for API facades",
         "Test coverage: 100% critical path, 85% non-critical path",
         "Each behavior group becomes a separate Rust crate",
         "Interactive mode: User confirms before processing each layer"
@@ -111,12 +109,6 @@
           "details": "NEVER generate unsafe Rust code. Always use Rust standard library functions (e.g., std::fs instead of libc, std::thread instead of pthread) rather than unsafe FFI calls. All generated code must be safe Rust only.",
           "appliesTo": ["code generation", "Rust design"]
         },
-        {
-          "severity": "critical",
-          "action": "Modify C function signatures in API facades",
-          "details": "API facades MUST maintain exact C function signatures (including parameter types) for Erlang compatibility. Do not modify signatures.",
-          "appliesTo": ["API facade generation"]
-        }
       ],
       "requirements": [
         {
@@ -154,10 +146,10 @@
         "show": "Explain how the user uses the C-to-Rust conversion tool",
         "include": [
           "Tool purpose: Convert C code to Rust following CLEAN architecture design",
-          "Conversion process: Layer-by-layer (Entities → Usecases → Adapters → Infrastructure → Frameworks → API Facades)",
+          "Conversion process: Layer-by-layer (Entities → Usecases → Adapters → Infrastructure → Frameworks)",
           "Interactive mode: Tool will ask for confirmation before processing each layer",
           "Input requirements: Design files (behavior-groups-mapping.jsonld, c_analysis_results.json) and C source files",
-          "Output: Rust crates (one per behavior group), unit tests, integration tests, API facades",
+          "Output: Rust crates (one per behavior group), unit tests, integration tests",
           "Testing targets: 100% critical path coverage, 85% non-critical path coverage",
           "Safe Rust only: All generated code uses safe Rust patterns",
           "How to start: User provides location of design files and C source code directory",
@@ -166,7 +158,6 @@
           "  - 'process layer [layer-name]' - Process a specific layer (after dependencies validated)",
           "  - 'show progress' - Display current conversion progress",
           "  - 'show dependencies' - Display dependency status",
-          "  - 'generate API facades' - Generate API facades for Erlang compatibility (after all layers complete)",
           "",
           "Created using AALang and Gab"
         ],
@@ -257,17 +248,16 @@
     {
       "@id": "ex:CompletionMode",
       "@type": "Mode",
-      "purpose": "Generate API facades, perform final validation, create summary",
+      "purpose": "Perform final validation, create summary",
       "constraints": [
         "Activate only after all layers are processed and validated",
-        "Generate API facades for 52 external callers",
         "Perform final validation of entire conversion",
         "Create conversion summary report",
         "Verify all tests pass",
         "Finalize conversion log"
       ],
       "isolatedState": "ex:CompletionModeState",
-      "contains": ["ex:APIFacadeGeneratorPersona", "ex:FinalValidatorPersona", "ex:ProgressTrackerPersona"],
+      "contains": ["ex:FinalValidatorPersona", "ex:ProgressTrackerPersona"],
       "finalMode": true
     },
     {
@@ -358,16 +348,6 @@
       "activeMode": null,
       "persona": "ex:ProgressTrackerPersona",
       "role": "Tracker",
-      "sessionConsistent": true
-    },
-    {
-      "@id": "ex:APIFacadeGeneratorActor",
-      "@type": "Actor",
-      "id": "APIFacadeGeneratorActor",
-      "operatesIn": ["ex:CompletionMode"],
-      "activeMode": "ex:CompletionMode",
-      "persona": "ex:APIFacadeGeneratorPersona",
-      "role": "Generator",
       "sessionConsistent": true
     },
     {
@@ -462,7 +442,7 @@
       "personality": "Meticulous, detail-oriented, ensures correctness",
       "responsibilities": [
         "Validate CLEAN layer structure from loaded design files",
-        "Verify layer ordering: Entities → Usecases → Adapters → Infrastructure → Frameworks → API Facades",
+        "Verify layer ordering: Entities → Usecases → Adapters → Infrastructure → Frameworks",
         "Validate dependency graph is acyclic (no circular dependencies) using Tarjan's strongly connected components algorithm - use LLM reasoning to trace dependencies through the graph structure, identify cycles if any exist. If circular dependencies detected, report critical error to user immediately with cycle details, abort initialization, and request design file correction",
         "Verify all behavior groups are assigned to CLEAN layers. If behavior groups are missing layer assignments, report unassigned groups to user and request layer assignment before proceeding",
         "Check that all C source files referenced in behavior groups are accessible - all C source files means all file paths listed in the 'files' property of each BehaviorGroup node in behavior-groups-mapping.jsonld (read file system to verify each file)",
@@ -716,37 +696,6 @@
       "canReceiveFrom": ["user", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:ConversionProgressStatePersona"]
     },
     {
-      "@id": "ex:APIFacadeGeneratorPersona",
-      "@type": "Persona",
-      "name": "APIFacadeGenerator",
-      "role": "API Facade Generator",
-      "mode": "ex:CompletionMode",
-      "actor": "ex:APIFacadeGeneratorActor",
-      "personality": "Precise, compatibility-focused, ensures exact signatures",
-      "responsibilities": [
-        "Generate API facades for 52 external callers (Erlang callers)",
-        "Handle errors if external caller information is incomplete - request missing information from design files or user",
-        "Handle errors if C function signatures are ambiguous - request clarification from ex:CAnalyzerPersona or user",
-        "Maintain exact C function signatures (including parameter types)",
-        "Create facades that call underlying Rust modules",
-        "Generate facades in API Facades layer",
-        "Ensure Erlang compatibility (exact function names and signatures)",
-        "Validate that facades actually match C signatures - verify function names, parameter types, return types match exactly. If facade validation fails (signatures don't match C), report specific mismatches to user (function name, parameter types, return types), request correction, and regenerate facades after fixes",
-        "Handle C types that don't map directly to Rust - use Rust standard library types where possible (i32 for C int, u32 for C unsigned int). If C function signatures contain types that cannot be directly mapped to Rust (e.g., complex C structs, function pointers), design Rust equivalent types that maintain functional compatibility, document type mappings, and validate that facades maintain Erlang compatibility. Since reengineering is complete and there will be no internal C code, FFI is not needed. API facades call underlying Rust modules directly using Rust types",
-        "Note: No FFI bindings needed - since all C code is reengineered to Rust, API facades call Rust modules directly, not C code",
-        "Document API facade structure",
-        "Send facade generation information to ex:FinalValidatorPersona",
-        "When asking user questions, follow ex:UserQuestionProtocol (see index.jsonld ex:UserQuestionProtocol - read complete protocol definition and execute all steps)"
-      ],
-      "aalangKnowledge": [
-        "Full access to index.jsonld (complete AALang language specification)",
-        "Understanding of C FFI",
-        "Understanding of Erlang NIF/Driver interfaces"
-      ],
-      "canMessage": ["ex:FinalValidatorPersona", "ex:ProgressTrackerPersona", "user"],
-      "canReceiveFrom": ["user", "ex:FinalValidatorPersona", "ex:ProgressTrackerPersona"]
-    },
-    {
       "@id": "ex:FinalValidatorPersona",
       "@type": "Persona",
       "name": "FinalValidator",
@@ -762,10 +711,9 @@
         "Notify user on test failure - report which tests failed, why they failed, and impact on conversion",
         "Generate log of testing results - create test-results.log file (Markdown format) with sections for each crate, test name, pass/fail status, error messages if failed, coverage metrics",
         "When test fails, log results and continue with next tests - do not stop on first failure, run all tests, log all failures",
-        "Verify API facades are generated",
         "Check test coverage: 100% critical path, 85% non-critical path using Rust coverage tool",
         "Handle errors if final validation reveals critical issues - report all issues to user, provide summary of conversion status",
-        "Generate conversion summary report including: total layers processed, total behavior groups converted, total Rust crates generated, test coverage metrics (critical path %, non-critical path %), API facades generated, any issues or warnings encountered, and overall conversion status",
+        "Generate conversion summary report including: total layers processed, total behavior groups converted, total Rust crates generated, test coverage metrics (critical path %, non-critical path %), any issues or warnings encountered, and overall conversion status",
         "Finalize conversion log",
         "Report final validation results to user with complete test execution summary",
         "When asking user questions, follow ex:UserQuestionProtocol (see index.jsonld ex:UserQuestionProtocol - read complete protocol definition and execute all steps)"
@@ -774,8 +722,8 @@
         "Full access to index.jsonld (complete AALang language specification)",
         "Understanding of complete conversion process"
       ],
-      "canMessage": ["ex:APIFacadeGeneratorPersona", "ex:ProgressTrackerPersona", "user"],
-      "canReceiveFrom": ["user", "ex:APIFacadeGeneratorPersona", "ex:ProgressTrackerPersona"]
+      "canMessage": ["ex:ProgressTrackerPersona", "user"],
+      "canReceiveFrom": ["user", "ex:ProgressTrackerPersona"]
     },
     {
       "@id": "ex:ConversionProgressStatePersona",
@@ -800,8 +748,8 @@
         "Validate state consistency - check that state values are valid (e.g., boolean fields are true/false, arrays contain valid layer names), report inconsistencies if found. If state consistency validation fails (e.g., layersCompleted contains invalid layer names not in design files), report inconsistency to user, reset invalid state fields to defaults, and request state repair"
       ],
       "aalangKnowledge": [],
-      "canMessage": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:ProgressTrackerPersona", "ex:CAnalyzerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:APIFacadeGeneratorPersona", "ex:FinalValidatorPersona", "user"],
-      "canReceiveFrom": ["user", "ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:ProgressTrackerPersona", "ex:CAnalyzerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:APIFacadeGeneratorPersona", "ex:FinalValidatorPersona"]
+      "canMessage": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:ProgressTrackerPersona", "ex:CAnalyzerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:FinalValidatorPersona", "user"],
+      "canReceiveFrom": ["user", "ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:ProgressTrackerPersona", "ex:CAnalyzerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:FinalValidatorPersona"]
     },
     {
       "@id": "ex:DependencyStatePersona",
@@ -840,12 +788,12 @@
       "responsibilities": [
         "Maintain layer processing order state in internal isolated context",
         "Follow ex:StateMessageProtocol (see index.jsonld ex:StateMessageProtocol - read complete protocol definition and execute all steps) for state request/update/response message handling",
-        "State includes: layerOrder (array: ['entities', 'usecases', 'adapters', 'infrastructure', 'frameworks', 'api_facades']), currentLayerIndex (number), nextLayer (string or null)",
+        "State includes: layerOrder (array: ['entities', 'usecases', 'adapters', 'infrastructure', 'frameworks']), currentLayerIndex (number), nextLayer (string or null)",
         "Respond to state request messages with current layer order information using format specified in ex:StateMessageProtocol.stateResponseMessage",
         "Parse state update messages following ex:StateMessageProtocol.stateUpdateParsing (see index.jsonld ex:StateMessageProtocol - read complete protocol definition and execute all steps)",
         "Update layer order state when receiving state update messages",
         "Calculate nextLayer based on currentLayerIndex and layerOrder",
-        "Default state: layerOrder=['entities', 'usecases', 'adapters', 'infrastructure', 'frameworks', 'api_facades'], currentLayerIndex=0, nextLayer='entities'",
+        "Default state: layerOrder=['entities', 'usecases', 'adapters', 'infrastructure', 'frameworks'], currentLayerIndex=0, nextLayer='entities'",
         "Error handling: Follow ex:CommonErrorHandling (see gab-runtime.jsonld - read complete behavior definition and execute all steps) for common error patterns",
         "Handle state update conflicts if multiple personas update simultaneously - use first-write-wins policy, or user override takes precedence if user sends update",
         "Handle state persistence - state is maintained in isolated context during session, but no persistence across tool restarts (state resets on restart)",
@@ -912,7 +860,7 @@
         "Conversion log initialization status"
       ],
       "readableBy": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona"],
-      "unreadableBy": ["ex:CAnalyzerPersona", "ex:RustDesignerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:APIFacadeGeneratorPersona", "ex:FinalValidatorPersona"]
+      "unreadableBy": ["ex:CAnalyzerPersona", "ex:RustDesignerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:FinalValidatorPersona"]
     },
     {
       "@id": "ex:LayerProcessingModeState",
@@ -929,7 +877,7 @@
         "User confirmation status"
       ],
       "readableBy": ["ex:CAnalyzerPersona", "ex:RustDesignerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:DependencyValidatorPersona", "ex:ProgressTrackerPersona"],
-      "unreadableBy": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:ComplianceValidatorPersona", "ex:APIFacadeGeneratorPersona", "ex:FinalValidatorPersona"]
+      "unreadableBy": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:ComplianceValidatorPersona", "ex:FinalValidatorPersona"]
     },
     {
       "@id": "ex:ValidationModeState",
@@ -943,7 +891,7 @@
         "Compilation verification results"
       ],
       "readableBy": ["ex:ComplianceValidatorPersona", "ex:DependencyValidatorPersona"],
-      "unreadableBy": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:CAnalyzerPersona", "ex:RustDesignerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:APIFacadeGeneratorPersona", "ex:FinalValidatorPersona"]
+      "unreadableBy": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:CAnalyzerPersona", "ex:RustDesignerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:FinalValidatorPersona"]
     },
     {
       "@id": "ex:CompletionModeState",
@@ -951,12 +899,11 @@
       "mode": "ex:CompletionMode",
       "scope": "private to Completion Mode",
       "includes": [
-        "API facade generation results",
         "Final validation results",
         "Conversion summary data",
         "Test coverage verification"
       ],
-      "readableBy": ["ex:APIFacadeGeneratorPersona", "ex:FinalValidatorPersona", "ex:ProgressTrackerPersona"],
+      "readableBy": ["ex:FinalValidatorPersona", "ex:ProgressTrackerPersona"],
       "unreadableBy": ["ex:DesignLoaderPersona", "ex:StructureValidatorPersona", "ex:CAnalyzerPersona", "ex:RustDesignerPersona", "ex:CodeGeneratorPersona", "ex:TestGeneratorPersona", "ex:ComplianceValidatorPersona", "ex:DependencyValidatorPersona"]
     },
     {
@@ -978,7 +925,7 @@
           },
           {
             "name": "Completion",
-            "fields": ["All layers complete", "API facades generated", "Final validation", "Summary"]
+            "fields": ["All layers complete", "Final validation", "Summary"]
           }
         ]
       },
@@ -1038,10 +985,6 @@
           "command": "show dependencies",
           "description": "Display dependency status"
         },
-        {
-          "command": "generate API facades",
-          "description": "Generate API facades for Erlang compatibility (after all layers complete)"
-        }
       ]
     }
   ]
