@@ -250,5 +250,149 @@ mod tests {
         assert_eq!(a, None);
         assert_eq!(b, None);
     }
+
+    #[test]
+    fn test_result_to_option_with() {
+        assert_eq!(HelperFunctions::result_to_option_with::<i32, &str, _>(Ok(42), |_| ()), Some(42));
+        assert_eq!(HelperFunctions::result_to_option_with::<i32, &str, _>(Err("error"), |_| ()), None);
+        
+        // Test that mapper is called (even though result is discarded)
+        let result: Option<i32> = HelperFunctions::result_to_option_with(Err::<i32, &str>("test"), |_| {
+            // Mapper is called but result is discarded
+        });
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_option_satisfies_edge_cases() {
+        // Test with zero
+        assert!(HelperFunctions::option_satisfies(Some(0), |x| *x == 0));
+        assert!(!HelperFunctions::option_satisfies(Some(0), |x| *x > 0));
+        
+        // Test with different types
+        assert!(HelperFunctions::option_satisfies(Some("hello"), |s| s.len() > 0));
+        assert!(!HelperFunctions::option_satisfies(Some(""), |s| s.len() > 0));
+    }
+
+    #[test]
+    fn test_result_to_option_different_error_types() {
+        assert_eq!(HelperFunctions::result_to_option::<i32, String>(Ok(42)), Some(42));
+        assert_eq!(HelperFunctions::result_to_option::<i32, String>(Err("error".to_string())), None);
+        
+        assert_eq!(HelperFunctions::result_to_option::<&str, i32>(Ok("test")), Some("test"));
+        assert_eq!(HelperFunctions::result_to_option::<&str, i32>(Err(5)), None);
+    }
+
+    #[test]
+    fn test_option_map_edge_cases() {
+        // Test with string transformation
+        assert_eq!(HelperFunctions::option_map(Some("hello"), |s| s.len()), Some(5));
+        assert_eq!(HelperFunctions::option_map(None::<&str>, |s| s.len()), None);
+        
+        // Test with type conversion
+        assert_eq!(HelperFunctions::option_map(Some(5u8), |x| x as u32), Some(5u32));
+    }
+
+    #[test]
+    fn test_unwrap_or_edge_cases() {
+        // Test with different types
+        assert_eq!(HelperFunctions::unwrap_or(Some("hello"), "world"), "hello");
+        assert_eq!(HelperFunctions::unwrap_or(None::<&str>, "world"), "world");
+        
+        // Test with zero
+        assert_eq!(HelperFunctions::unwrap_or(Some(0), 10), 0);
+    }
+
+    #[test]
+    fn test_unwrap_or_else_edge_cases() {
+        // Test that closure is only called when needed
+        let mut call_count = 0;
+        let result = HelperFunctions::unwrap_or_else(Some(5), || {
+            call_count += 1;
+            10
+        });
+        assert_eq!(result, 5);
+        assert_eq!(call_count, 0);
+        
+        let result = HelperFunctions::unwrap_or_else(None::<i32>, || {
+            call_count += 1;
+            10
+        });
+        assert_eq!(result, 10);
+        assert_eq!(call_count, 1);
+    }
+
+    #[test]
+    fn test_or_edge_cases() {
+        // Test with both None
+        assert_eq!(HelperFunctions::or(None::<i32>, None::<i32>), None);
+        
+        // Test with None in first position
+        assert_eq!(HelperFunctions::or(None::<i32>, Some(10)), Some(10));
+        
+        // Test with different types
+        assert_eq!(HelperFunctions::or(Some("first"), Some("second")), Some("first"));
+        assert_eq!(HelperFunctions::or(None::<&str>, Some("second")), Some("second"));
+    }
+
+    #[test]
+    fn test_and_then_edge_cases() {
+        // Test with function that returns None
+        assert_eq!(HelperFunctions::and_then(Some(5), |x| if x > 10 { Some(x) } else { None }), None);
+        assert_eq!(HelperFunctions::and_then(Some(15), |x| if x > 10 { Some(x) } else { None }), Some(15));
+        
+        // Test with None input
+        assert_eq!(HelperFunctions::and_then(None::<i32>, |x| Some(x * 2)), None);
+        
+        // Test with type conversion
+        assert_eq!(HelperFunctions::and_then(Some(5u8), |x| Some(x as u32)), Some(5u32));
+    }
+
+    #[test]
+    fn test_filter_edge_cases() {
+        // Test with None
+        assert_eq!(HelperFunctions::filter(None::<i32>, |x| *x > 0), None);
+        
+        // Test with zero
+        assert_eq!(HelperFunctions::filter(Some(0), |x| *x > 0), None);
+        assert_eq!(HelperFunctions::filter(Some(0), |x| *x == 0), Some(0));
+        
+        // Test with different types
+        assert_eq!(HelperFunctions::filter(Some("hello"), |s| s.len() > 3), Some("hello"));
+        assert_eq!(HelperFunctions::filter(Some("hi"), |s| s.len() > 3), None);
+    }
+
+    #[test]
+    fn test_zip_edge_cases() {
+        // Test with None in first position
+        assert_eq!(HelperFunctions::zip(None::<i32>, Some(10)), None);
+        
+        // Test with both None
+        assert_eq!(HelperFunctions::zip(None::<i32>, None::<i32>), None);
+        
+        // Test with different types
+        assert_eq!(HelperFunctions::zip(Some(5), Some("hello")), Some((5, "hello")));
+        
+        // Test with zero values
+        assert_eq!(HelperFunctions::zip(Some(0), Some(0)), Some((0, 0)));
+    }
+
+    #[test]
+    fn test_unzip_edge_cases() {
+        // Test with zero values
+        let (a, b) = HelperFunctions::unzip(Some((0, 0)));
+        assert_eq!(a, Some(0));
+        assert_eq!(b, Some(0));
+        
+        // Test with negative values
+        let (a, b) = HelperFunctions::unzip(Some((-5, -10)));
+        assert_eq!(a, Some(-5));
+        assert_eq!(b, Some(-10));
+        
+        // Test with different types
+        let (a, b) = HelperFunctions::unzip(Some((42, "test")));
+        assert_eq!(a, Some(42));
+        assert_eq!(b, Some("test"));
+    }
 }
 

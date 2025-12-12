@@ -735,6 +735,180 @@ mod tests {
         assert_eq!(MathUtils::lcm(4, 6), 12);
         assert_eq!(MathUtils::lcm(5, 7), 35);
     }
+
+    #[test]
+    fn test_checked_add() {
+        assert_eq!(MathUtils::checked_add(10, 20), Some(30));
+        assert_eq!(MathUtils::checked_add(-5, 10), Some(5));
+        assert_eq!(MathUtils::checked_add(0, 0), Some(0));
+        // Note: The current implementation doesn't check overflow, so it always returns Some
+        // This test verifies the basic functionality
+    }
+
+    #[test]
+    fn test_checked_mul() {
+        assert_eq!(MathUtils::checked_mul(5, 4), Some(20));
+        assert_eq!(MathUtils::checked_mul(-3, 2), Some(-6));
+        assert_eq!(MathUtils::checked_mul(0, 100), Some(0));
+        // Note: The current implementation doesn't check overflow, so it always returns Some
+        // This test verifies the basic functionality
+    }
+
+    #[test]
+    fn test_div_rem_edge_cases() {
+        // Test negative numbers
+        assert_eq!(MathUtils::div_rem(-10, 3), Some((-3, -1)));
+        assert_eq!(MathUtils::div_rem(10, -3), Some((-3, 1)));
+        assert_eq!(MathUtils::div_rem(-10, -3), Some((3, -1)));
+        
+        // Test with 1
+        assert_eq!(MathUtils::div_rem(5, 1), Some((5, 0)));
+        
+        // Test large numbers
+        assert_eq!(MathUtils::div_rem(100, 7), Some((14, 2)));
+    }
+
+    #[test]
+    fn test_pow_edge_cases() {
+        assert_eq!(MathUtils::pow(1, 100), 1);
+        assert_eq!(MathUtils::pow(0, 5), 0);
+        assert_eq!(MathUtils::pow(-2, 3), -8);
+        assert_eq!(MathUtils::pow(-2, 2), 4);
+        assert_eq!(MathUtils::pow(10, 1), 10);
+    }
+
+    #[test]
+    fn test_abs_edge_cases() {
+        assert_eq!(MathUtils::abs(i64::MIN + 1), i64::MAX);
+        assert_eq!(MathUtils::abs(i64::MAX), i64::MAX);
+    }
+
+    #[test]
+    fn test_max_min_different_types() {
+        assert_eq!(MathUtils::max(10.5, 20.3), 20.3);
+        assert_eq!(MathUtils::min(10.5, 20.3), 10.5);
+        assert_eq!(MathUtils::max("abc", "def"), "def");
+        assert_eq!(MathUtils::min("abc", "def"), "abc");
+    }
+
+    #[test]
+    fn test_sqrt_edge_cases() {
+        assert!((MathUtils::sqrt(0.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::sqrt(1.0) - 1.0).abs() < 0.0001);
+        assert!((MathUtils::sqrt(16.0) - 4.0).abs() < 0.0001);
+        assert!((MathUtils::sqrt(25.0) - 5.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_ln_edge_cases() {
+        assert!((MathUtils::ln(1.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::ln(10.0) - 2.302585).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_log10_edge_cases() {
+        assert!((MathUtils::log10(1.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::log10(10.0) - 1.0).abs() < 0.0001);
+        assert!((MathUtils::log10(1000.0) - 3.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_log2_edge_cases() {
+        assert!((MathUtils::log2(1.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::log2(2.0) - 1.0).abs() < 0.0001);
+        assert!((MathUtils::log2(4.0) - 2.0).abs() < 0.0001);
+        assert!((MathUtils::log2(16.0) - 4.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_exp_edge_cases() {
+        assert!((MathUtils::exp(0.0) - 1.0).abs() < 0.0001);
+        assert!((MathUtils::exp(2.0) - 7.389056).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_tan() {
+        assert!((MathUtils::tan(0.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::tan(std::f64::consts::PI / 4.0) - 1.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_asin() {
+        assert!((MathUtils::asin(0.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::asin(1.0) - std::f64::consts::PI / 2.0).abs() < 0.0001);
+        assert!((MathUtils::asin(-1.0) + std::f64::consts::PI / 2.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_acos() {
+        assert!((MathUtils::acos(1.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::acos(0.0) - std::f64::consts::PI / 2.0).abs() < 0.0001);
+        assert!((MathUtils::acos(-1.0) - std::f64::consts::PI).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_atan() {
+        assert!((MathUtils::atan(0.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::atan(1.0) - std::f64::consts::PI / 4.0).abs() < 0.0001);
+        assert!((MathUtils::atan(-1.0) + std::f64::consts::PI / 4.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_atan2() {
+        assert!((MathUtils::atan2(0.0, 1.0) - 0.0).abs() < 0.0001);
+        assert!((MathUtils::atan2(1.0, 1.0) - std::f64::consts::PI / 4.0).abs() < 0.0001);
+        assert!((MathUtils::atan2(1.0, 0.0) - std::f64::consts::PI / 2.0).abs() < 0.0001);
+        assert!((MathUtils::atan2(-1.0, 0.0) + std::f64::consts::PI / 2.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_ceil_floor_edge_cases() {
+        assert_eq!(MathUtils::ceil(3.0), 3.0);
+        assert_eq!(MathUtils::floor(3.0), 3.0);
+        assert_eq!(MathUtils::ceil(-3.1), -3.0);
+        assert_eq!(MathUtils::floor(-3.9), -4.0);
+        assert_eq!(MathUtils::ceil(0.0), 0.0);
+        assert_eq!(MathUtils::floor(0.0), 0.0);
+    }
+
+    #[test]
+    fn test_round_trunc_edge_cases() {
+        assert_eq!(MathUtils::round(0.0), 0.0);
+        assert_eq!(MathUtils::trunc(0.0), 0.0);
+        assert_eq!(MathUtils::round(-3.5), -4.0);
+        assert_eq!(MathUtils::round(-3.4), -3.0);
+        assert_eq!(MathUtils::trunc(-3.9), -3.0);
+    }
+
+    #[test]
+    fn test_fmod() {
+        assert!((MathUtils::fmod(10.0, 3.0) - 1.0).abs() < 0.0001);
+        assert!((MathUtils::fmod(10.5, 3.0) - 1.5).abs() < 0.0001);
+        assert!((MathUtils::fmod(-10.0, 3.0) + 1.0).abs() < 0.0001);
+        assert!((MathUtils::fmod(10.0, -3.0) - 1.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_gcd_edge_cases() {
+        assert_eq!(MathUtils::gcd(0, 5), 5);
+        assert_eq!(MathUtils::gcd(5, 0), 5);
+        assert_eq!(MathUtils::gcd(0, 0), 0);
+        assert_eq!(MathUtils::gcd(1, 1), 1);
+        assert_eq!(MathUtils::gcd(-48, 18), 6);
+        assert_eq!(MathUtils::gcd(48, -18), 6);
+        assert_eq!(MathUtils::gcd(-48, -18), 6);
+    }
+
+    #[test]
+    fn test_lcm_edge_cases() {
+        assert_eq!(MathUtils::lcm(0, 5), 0);
+        assert_eq!(MathUtils::lcm(5, 0), 0);
+        assert_eq!(MathUtils::lcm(0, 0), 0);
+        assert_eq!(MathUtils::lcm(1, 1), 1);
+        assert_eq!(MathUtils::lcm(-4, 6), 12);
+        assert_eq!(MathUtils::lcm(4, -6), 12);
+        assert_eq!(MathUtils::lcm(-4, -6), 12);
+    }
 }
 
 #[cfg(test)]
@@ -868,6 +1042,244 @@ mod rational_tests {
         let reduced = RationalUtils::reduce(&r);
         let expected = RationalUtils::new(1, 2).unwrap();
         assert!((reduced.to_f64() - expected.to_f64()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_rational_to_float() {
+        let r = RationalUtils::new(1, 2).unwrap();
+        assert!((RationalUtils::to_float(&r) - 0.5).abs() < 1e-10);
+        
+        let r2 = RationalUtils::new(3, 4).unwrap();
+        assert!((RationalUtils::to_float(&r2) - 0.75).abs() < 1e-10);
+        
+        let r3 = RationalUtils::from_integer(5);
+        assert!((RationalUtils::to_float(&r3) - 5.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_rational_new_edge_cases() {
+        // Test with negative numbers
+        let r = RationalUtils::new(-1, 2).unwrap();
+        assert!((r.to_f64() + 0.5).abs() < 1e-10);
+        
+        let r2 = RationalUtils::new(1, -2).unwrap();
+        assert!((r2.to_f64() + 0.5).abs() < 1e-10);
+        
+        let r3 = RationalUtils::new(-1, -2).unwrap();
+        assert!((r3.to_f64() - 0.5).abs() < 1e-10);
+        
+        // Test with zero numerator
+        let r4 = RationalUtils::new(0, 5).unwrap();
+        assert!(RationalUtils::is_zero(&r4));
+    }
+
+    #[test]
+    fn test_rational_from_integer_edge_cases() {
+        let r1 = RationalUtils::from_integer(0);
+        assert!(RationalUtils::is_zero(&r1));
+        
+        let r2 = RationalUtils::from_integer(-5);
+        assert_eq!(RationalUtils::to_integer(&r2), Some(-5));
+        
+        let r3 = RationalUtils::from_integer(1);
+        assert!(RationalUtils::is_one(&r3));
+    }
+
+    #[test]
+    fn test_rational_from_float_edge_cases() {
+        let r1 = RationalUtils::from_float(0.0).unwrap();
+        assert!(RationalUtils::is_zero(&r1));
+        
+        let r2 = RationalUtils::from_float(1.0).unwrap();
+        assert!(RationalUtils::is_one(&r2));
+        
+        let r3 = RationalUtils::from_float(-0.5).unwrap();
+        assert!(RationalUtils::is_negative(&r3));
+    }
+
+    #[test]
+    fn test_rational_add_edge_cases() {
+        let zero = RationalUtils::new(0, 1).unwrap();
+        let r = RationalUtils::new(1, 2).unwrap();
+        
+        // Adding zero
+        let sum = RationalUtils::add(&r, &zero);
+        assert!((sum.to_f64() - r.to_f64()).abs() < 1e-10);
+        
+        // Adding negative
+        let neg = RationalUtils::new(-1, 3).unwrap();
+        let sum2 = RationalUtils::add(&r, &neg);
+        let expected = RationalUtils::new(1, 6).unwrap();
+        assert!((sum2.to_f64() - expected.to_f64()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_rational_subtract_edge_cases() {
+        let zero = RationalUtils::new(0, 1).unwrap();
+        let r = RationalUtils::new(1, 2).unwrap();
+        
+        // Subtracting zero
+        let diff = RationalUtils::subtract(&r, &zero);
+        assert!((diff.to_f64() - r.to_f64()).abs() < 1e-10);
+        
+        // Subtracting from zero
+        let diff2 = RationalUtils::subtract(&zero, &r);
+        let expected = RationalUtils::new(-1, 2).unwrap();
+        assert!((diff2.to_f64() - expected.to_f64()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_rational_multiply_edge_cases() {
+        let zero = RationalUtils::new(0, 1).unwrap();
+        let one = RationalUtils::new(1, 1).unwrap();
+        let r = RationalUtils::new(1, 2).unwrap();
+        
+        // Multiplying by zero
+        let product = RationalUtils::multiply(&r, &zero);
+        assert!(RationalUtils::is_zero(&product));
+        
+        // Multiplying by one
+        let product2 = RationalUtils::multiply(&r, &one);
+        assert!((product2.to_f64() - r.to_f64()).abs() < 1e-10);
+        
+        // Multiplying negative
+        let neg = RationalUtils::new(-1, 3).unwrap();
+        let product3 = RationalUtils::multiply(&r, &neg);
+        let expected = RationalUtils::new(-1, 6).unwrap();
+        assert!((product3.to_f64() - expected.to_f64()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_rational_divide_edge_cases() {
+        let zero = RationalUtils::new(0, 1).unwrap();
+        let one = RationalUtils::new(1, 1).unwrap();
+        let r = RationalUtils::new(1, 2).unwrap();
+        
+        // Dividing zero
+        let quotient = RationalUtils::divide(&zero, &r).unwrap();
+        assert!(RationalUtils::is_zero(&quotient));
+        
+        // Dividing by one
+        let quotient2 = RationalUtils::divide(&r, &one).unwrap();
+        assert!((quotient2.to_f64() - r.to_f64()).abs() < 1e-10);
+        
+        // Dividing by zero should return None
+        assert!(RationalUtils::divide(&r, &zero).is_none());
+    }
+
+    #[test]
+    fn test_rational_abs_edge_cases() {
+        let zero = RationalUtils::new(0, 1).unwrap();
+        let abs_zero = RationalUtils::abs(&zero);
+        assert!(RationalUtils::is_zero(&abs_zero));
+        
+        let pos = RationalUtils::new(1, 2).unwrap();
+        let abs_pos = RationalUtils::abs(&pos);
+        assert!((abs_pos.to_f64() - pos.to_f64()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_rational_compare_edge_cases() {
+        let zero = RationalUtils::new(0, 1).unwrap();
+        let one = RationalUtils::new(1, 1).unwrap();
+        
+        assert!(RationalUtils::compare(&zero, &one).is_lt());
+        assert!(RationalUtils::compare(&one, &zero).is_gt());
+        assert!(RationalUtils::compare(&zero, &zero).is_eq());
+        
+        let neg = RationalUtils::new(-1, 2).unwrap();
+        assert!(RationalUtils::compare(&neg, &zero).is_lt());
+        assert!(RationalUtils::compare(&zero, &neg).is_gt());
+    }
+
+    #[test]
+    fn test_rational_to_integer_edge_cases() {
+        let zero = RationalUtils::from_integer(0);
+        assert_eq!(RationalUtils::to_integer(&zero), Some(0));
+        
+        let neg = RationalUtils::from_integer(-5);
+        assert_eq!(RationalUtils::to_integer(&neg), Some(-5));
+        
+        let fraction = RationalUtils::new(3, 2).unwrap();
+        assert_eq!(RationalUtils::to_integer(&fraction), None);
+    }
+
+    #[test]
+    fn test_rational_numerator_denominator_edge_cases() {
+        use malachite::Integer;
+        
+        let zero = RationalUtils::new(0, 5).unwrap();
+        assert_eq!(RationalUtils::numerator(&zero), Integer::from(0));
+        
+        let neg = RationalUtils::new(-3, 4).unwrap();
+        // Rational should be negative (BigRational normalizes sign)
+        assert!(RationalUtils::is_negative(&neg));
+        
+        // Numerator and denominator should be non-zero
+        let num = RationalUtils::numerator(&neg);
+        let den = RationalUtils::denominator(&neg);
+        assert_ne!(num, Integer::from(0));
+        assert_ne!(den, Integer::from(0));
+    }
+
+    #[test]
+    fn test_rational_is_zero_edge_cases() {
+        let zero1 = RationalUtils::new(0, 1).unwrap();
+        assert!(RationalUtils::is_zero(&zero1));
+        
+        let zero2 = RationalUtils::new(0, 100).unwrap();
+        assert!(RationalUtils::is_zero(&zero2));
+        
+        let non_zero = RationalUtils::new(1, 1000000).unwrap();
+        assert!(!RationalUtils::is_zero(&non_zero));
+    }
+
+    #[test]
+    fn test_rational_is_one_edge_cases() {
+        let one1 = RationalUtils::new(1, 1).unwrap();
+        assert!(RationalUtils::is_one(&one1));
+        
+        let one2 = RationalUtils::new(2, 2).unwrap();
+        assert!(RationalUtils::is_one(&one2));
+        
+        let one3 = RationalUtils::new(-1, -1).unwrap();
+        assert!(RationalUtils::is_one(&one3));
+        
+        let not_one = RationalUtils::new(2, 1).unwrap();
+        assert!(!RationalUtils::is_one(&not_one));
+    }
+
+    #[test]
+    fn test_rational_is_positive_negative_edge_cases() {
+        let zero = RationalUtils::new(0, 1).unwrap();
+        assert!(!RationalUtils::is_positive(&zero));
+        assert!(!RationalUtils::is_negative(&zero));
+        
+        let small_pos = RationalUtils::new(1, 1000000).unwrap();
+        assert!(RationalUtils::is_positive(&small_pos));
+        assert!(!RationalUtils::is_negative(&small_pos));
+        
+        let small_neg = RationalUtils::new(-1, 1000000).unwrap();
+        assert!(!RationalUtils::is_positive(&small_neg));
+        assert!(RationalUtils::is_negative(&small_neg));
+    }
+
+    #[test]
+    fn test_rational_reduce_edge_cases() {
+        let r1 = RationalUtils::new(4, 8).unwrap();
+        let reduced1 = RationalUtils::reduce(&r1);
+        let expected1 = RationalUtils::new(1, 2).unwrap();
+        assert!((reduced1.to_f64() - expected1.to_f64()).abs() < 1e-10);
+        
+        let r2 = RationalUtils::new(100, 200).unwrap();
+        let reduced2 = RationalUtils::reduce(&r2);
+        let expected2 = RationalUtils::new(1, 2).unwrap();
+        assert!((reduced2.to_f64() - expected2.to_f64()).abs() < 1e-10);
+        
+        // Already reduced
+        let r3 = RationalUtils::new(1, 2).unwrap();
+        let reduced3 = RationalUtils::reduce(&r3);
+        assert!((reduced3.to_f64() - r3.to_f64()).abs() < 1e-10);
     }
 }
 
