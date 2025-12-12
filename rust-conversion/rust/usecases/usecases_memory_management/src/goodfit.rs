@@ -225,8 +225,11 @@ impl Allocator for GoodFitAllocator {
             if merged_addr + merged_size == next_addr {
                 // Merge with next block
                 drop(by_addr);
-                let next_size = self.remove_free_block(next_addr).unwrap();
-                merged_size += next_size;
+                if let Some(next_size) = self.remove_free_block(next_addr) {
+                    merged_size += next_size;
+                }
+                // If remove_free_block returns None, the block was already removed
+                // (possibly by another thread or operation), so we skip the merge
             } else {
                 drop(by_addr);
             }
