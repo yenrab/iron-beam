@@ -45,3 +45,4 @@ fn test_unix_only_placeholder() {
     adapters_system_integration_unix::unix_only();
     // Should not panic
 }
+

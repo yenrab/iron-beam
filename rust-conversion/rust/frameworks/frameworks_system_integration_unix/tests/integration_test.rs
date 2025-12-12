@@ -37,3 +37,4 @@ fn test_unix_only_placeholder() {
     frameworks_system_integration_unix::unix_only();
     // Should not panic
 }
+

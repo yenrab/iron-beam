@@ -146,3 +146,4 @@ fn test_bif_error_error_trait() {
     let description = error_ref.to_string();
     assert!(description.contains("BIF initialization failed"));
 }
+

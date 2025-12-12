@@ -341,3 +341,4 @@ fn test_process_concurrent_access() {
     // Both threads should get the same heap top index
     assert_eq!(result1, result2);
 }
+

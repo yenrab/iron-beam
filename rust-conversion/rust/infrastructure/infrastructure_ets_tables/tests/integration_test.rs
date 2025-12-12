@@ -113,3 +113,4 @@ fn test_ets_table_sequential_operations() {
     assert_eq!(table.lookup(1), Some(11));
     assert_eq!(table.lookup(2), Some(20)); // Other key unchanged
 }
+

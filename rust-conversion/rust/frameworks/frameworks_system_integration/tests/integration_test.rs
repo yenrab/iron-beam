@@ -73,3 +73,4 @@ fn test_sys_error_clone_eq() {
     let cloned = error1.clone();
     assert_eq!(error1, cloned);
 }
+

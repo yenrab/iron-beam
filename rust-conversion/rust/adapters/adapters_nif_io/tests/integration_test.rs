@@ -72,3 +72,4 @@ fn test_check_io_error_variants() {
     let error1 = CheckIoError::InvalidFd;
     let _ = format!("{:?}", error1);
 }
+

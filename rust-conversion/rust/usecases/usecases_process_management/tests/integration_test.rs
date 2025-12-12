@@ -414,3 +414,4 @@ fn test_module_code_area_edge_cases() {
     let ptr_just_after = unsafe { mod_start.add(100) };
     assert!(!pointer_in_module_area(ptr_just_after, mod_start, 100));
 }
+

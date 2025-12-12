@@ -29,3 +29,4 @@ fn test_windows_only_placeholder() {
     frameworks_system_integration_win32::windows_only();
     // Should not panic
 }
+

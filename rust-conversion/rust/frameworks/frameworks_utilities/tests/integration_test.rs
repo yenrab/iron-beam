@@ -90,3 +90,4 @@ fn test_framework_utils_utility() {
     let result = FrameworkUtils::utility();
     assert!(result.is_ok());
 }
+

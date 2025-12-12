@@ -413,3 +413,4 @@ fn test_allocator_different_sizes() {
         allocator.dealloc(ptr, size);
     }
 }
+

@@ -282,3 +282,4 @@ fn test_decode_missing_version_magic() {
     // Should fail or handle gracefully
     let _ = result;
 }
+

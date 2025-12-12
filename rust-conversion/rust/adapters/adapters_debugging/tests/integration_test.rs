@@ -17,3 +17,4 @@ fn test_trace_nif_operations() {
     let _trace_nif = TraceNif;
     // Should not panic
 }
+

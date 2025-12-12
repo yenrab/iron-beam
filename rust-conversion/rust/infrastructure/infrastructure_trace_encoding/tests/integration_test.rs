@@ -193,3 +193,4 @@ fn test_trace_codec_various_pid_values() {
         assert_eq!(decoded.from.creation, trace.from.creation);
     }
 }
+

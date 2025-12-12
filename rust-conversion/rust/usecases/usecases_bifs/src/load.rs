@@ -181,6 +181,8 @@ impl PreparedCodeRef {
 struct PreparedCodeRegistry {
     /// Map of magic references to prepared code
     prepared: Arc<RwLock<HashMap<Reference, PreparedCode>>>,
+    /// Reverse lookup map from u64 reference value to Reference key
+    ref_value_to_key: Arc<RwLock<HashMap<u64, Reference>>>,
     /// Counter for generating unique references
     ref_counter: AtomicU64,
 }
@@ -189,6 +191,7 @@ impl PreparedCodeRegistry {
     fn new() -> Self {
         Self {
             prepared: Arc::new(RwLock::new(HashMap::new())),
+            ref_value_to_key: Arc::new(RwLock::new(HashMap::new())),
             ref_counter: AtomicU64::new(1),
         }
     }
@@ -201,8 +204,13 @@ impl PreparedCodeRegistry {
 
     fn register(&self, code: PreparedCode) -> Reference {
         let ref_val = code.magic_ref.clone();
+        let ref_value = code.reference_value();
+        // Acquire both locks in consistent order to avoid deadlock
+        // Always acquire ref_value_to_key first, then prepared
+        let mut ref_value_map = self.ref_value_to_key.write().unwrap();
         let mut prepared = self.prepared.write().unwrap();
         prepared.insert(ref_val.clone(), code);
+        ref_value_map.insert(ref_value, ref_val.clone());
         ref_val
     }
 
@@ -212,24 +220,46 @@ impl PreparedCodeRegistry {
     }
 
     fn remove(&self, reference: &Reference) -> Option<PreparedCode> {
+        // Acquire both locks in consistent order to avoid deadlock
+        // Always acquire ref_value_to_key first, then prepared
+        let mut ref_value_map = self.ref_value_to_key.write().unwrap();
         let mut prepared = self.prepared.write().unwrap();
-        prepared.remove(reference)
+        
+        if let Some(code) = prepared.remove(reference) {
+            // Also remove from reverse lookup map
+            let ref_value = code.reference_value();
+            ref_value_map.remove(&ref_value);
+            Some(code)
+        } else {
+            None
+        }
     }
 
     /// Find prepared code by u64 reference value and return the Reference key
     fn find_by_reference_value(&self, ref_value: u64) -> Option<(Reference, PreparedCode)> {
-        let prepared = self.prepared.read().unwrap();
-        for (ref_key, code) in prepared.iter() {
-            if code.reference_value() == ref_value {
-                return Some((ref_key.clone(), code.clone()));
+        // Use reverse lookup map for O(1) lookup
+        // Acquire locks in consistent order: ref_value_to_key first, then prepared
+        let ref_value_map = self.ref_value_to_key.read().unwrap();
+        if let Some(ref_key) = ref_value_map.get(&ref_value) {
+            let prepared = self.prepared.read().unwrap();
+            if let Some(code) = prepared.get(ref_key) {
+                // Verify the reference value matches to ensure maps are in sync
+                if code.reference_value() == ref_value {
+                    return Some((ref_key.clone(), code.clone()));
+                }
+                // Maps are out of sync - this shouldn't happen, but handle gracefully
             }
         }
         None
     }
 
     fn clear(&self) {
+        // Acquire both locks in consistent order to avoid deadlock
+        // Always acquire ref_value_to_key first, then prepared
+        let mut ref_value_map = self.ref_value_to_key.write().unwrap();
         let mut prepared = self.prepared.write().unwrap();
         prepared.clear();
+        ref_value_map.clear();
     }
 }
 
@@ -882,8 +912,8 @@ impl LoadBif {
         prepared.compute_md5();
 
         let registry = PreparedCodeRegistry::get_instance();
-        let prepared_code = prepared.clone();
-        let ref_value = prepared_code.reference_value();
+        // Compute reference value before registering to ensure consistency
+        let ref_value = prepared.reference_value();
         registry.register(prepared);
 
         Ok(ErlangTerm::Reference(ref_value))

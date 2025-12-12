@@ -284,3 +284,4 @@ fn test_print_term_various_types() {
         assert!(!printed.is_empty());
     }
 }
+

@@ -380,3 +380,4 @@ fn test_buffer_nif_error_eq() {
     assert_eq!(BufferNifError::BadArg, BufferNifError::BadArg);
     assert_ne!(BufferNifError::BadArg, BufferNifError::NotImplemented);
 }
+

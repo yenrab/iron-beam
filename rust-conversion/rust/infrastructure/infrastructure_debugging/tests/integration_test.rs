@@ -271,3 +271,4 @@ fn test_display_term_various_types() {
         assert!(result.is_ok());
     }
 }
+

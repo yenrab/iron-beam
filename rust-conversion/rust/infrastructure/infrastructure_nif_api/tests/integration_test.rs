@@ -634,3 +634,4 @@ fn test_multiple_terms_creation() {
     assert_ne!(int, binary);
     assert_ne!(binary, string);
 }
+

@@ -524,3 +524,4 @@ fn test_multiple_encodings_in_sequence() {
     assert_eq!(tuple_arity, 3);
     assert_eq!(index, decode_index);
 }
+
