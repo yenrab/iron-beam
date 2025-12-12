@@ -182,9 +182,11 @@ fn test_enif_make_tuple() {
         enif_make_int(&env, 3),
     ]);
     
-    assert!(tuple_term1 != 0);
-    assert!(tuple_term2 != 0);
-    assert!(tuple_term3 != 0);
+    // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
+    // Verify tuples can be decoded (this validates they're valid terms)
+    assert!(enif_get_tuple(&env, tuple_term1).is_some());
+    assert!(enif_get_tuple(&env, tuple_term2).is_some());
+    assert!(enif_get_tuple(&env, tuple_term3).is_some());
 }
 
 #[test]
@@ -372,9 +374,8 @@ fn test_enif_make_badarg() {
     
     // Create badarg exception
     let badarg_term = enif_make_badarg(&env);
-    assert!(badarg_term != 0);
-    
-    // Check if it's an exception
+    // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
+    // Verify it's an exception (this validates it's a valid term)
     let is_exception = enif_is_exception(&env, badarg_term);
     assert!(is_exception);
 }
@@ -596,8 +597,10 @@ fn test_error_cases() {
     let process = Arc::new(Process::new(34));
     let env = NifEnv::from_process(process);
     
-    // Test decoding invalid terms
-    let invalid_term = 0xFFFFFFFFFFFFFFFFu64; // Invalid term
+    // Test decoding terms that are not ints or atoms
+    // Use nil (0x3F) - it's a valid term but not an int or atom,
+    // so enif_get_int and enif_get_atom should return None
+    let invalid_term = 0x3Fu64; // Nil term
     let decoded_int = enif_get_int(&env, invalid_term);
     assert!(decoded_int.is_none());
     

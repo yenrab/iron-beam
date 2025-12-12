@@ -274,9 +274,10 @@ fn test_atom_table_encoding_variants() {
 fn test_process_table_replace() {
     let table = ProcessTable::new();
     
-    // Insert initial process
+    // Insert initial process (should return None for new entry)
     let process1 = Arc::new(Process::new(1));
-    table.insert(1, Arc::clone(&process1)).unwrap();
+    let first_insert = table.insert(1, Arc::clone(&process1));
+    assert!(first_insert.is_none()); // First insert returns None
     
     // Replace with new process
     let process2 = Arc::new(Process::new(1));

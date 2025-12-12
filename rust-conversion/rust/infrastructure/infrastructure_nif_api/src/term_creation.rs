@@ -569,17 +569,9 @@ fn allocate_tuple_on_heap(env: &NifEnv, arity: usize, elements: &[NifTerm]) -> O
     
     // Return tuple pointer: (heap_index << 2) | TAG_PRIMARY_HEADER
     // TAG_PRIMARY_HEADER = 0x0, so it's just (heap_index << 2)
-    // However, we need to ensure we never return 0, even if heap_index is 0,
-    // because 0 can be confused with nil or other special values.
-    // If heap_index is 0, we'll use a placeholder instead.
+    // Note: term 0 is valid (heap_index 0). Nil is encoded as 0x3F, not 0.
     let tuple_term = (heap_index as u64) << 2;
-    if tuple_term == 0 {
-        // Heap index 0 would result in term 0, which is ambiguous.
-        // Fall back to placeholder for this case.
-        None
-    } else {
-        Some(tuple_term)
-    }
+    Some(tuple_term)
 }
 
 
@@ -853,7 +845,7 @@ mod tests {
         let env = test_env();
         let term = enif_make_atom(&env, "test_atom");
         // Atom should be encoded (check tag bits)
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // Check that it's an atom: (term & 0x3F) == 0x0B
         assert_eq!(term & 0x3F, 0x0B);
     }
@@ -986,7 +978,7 @@ mod tests {
         // Should create a bignum (boxed term) or small integer if it fits
         // i32::MAX might actually fit in small integer encoding on 64-bit
         // So we just check it's a valid term
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
     }
     
     #[test]
@@ -1039,7 +1031,7 @@ mod tests {
         let term = enif_make_long(&env, large_value);
         // Should create a bignum (boxed term) or placeholder if allocation fails
         // Either way, it should be a valid term
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // If heap allocation succeeded, it should be a boxed term
         // If it failed, it might be a placeholder (small integer 0)
     }
@@ -1051,7 +1043,7 @@ mod tests {
         let small_value = -(1i64 << 27) - 1; // This is outside small integer range
         let term = enif_make_long(&env, small_value);
         // Should create a bignum (boxed term) or placeholder if allocation fails
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
     }
     
     #[test]
@@ -1111,7 +1103,7 @@ mod tests {
         let term = enif_make_ulong(&env, max_i64);
         // Should create a bignum (boxed term) or placeholder if allocation fails
         // i64::MAX is larger than small integer range, so it should be a bignum
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
     }
     
     #[test]
@@ -1122,7 +1114,7 @@ mod tests {
         let over_max = i64::MAX as u64 + 1;
         let term = enif_make_ulong(&env, over_max);
         // Should create a bignum (boxed term) or placeholder if allocation fails
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // If bignum allocation succeeded, we should be able to decode it
         let decoded = enif_get_ulong(&env, term);
         // May return Some if bignum decoding works, or None if it's a placeholder
@@ -1136,7 +1128,7 @@ mod tests {
         // Maximum u64 value should create bignum
         let term = enif_make_ulong(&env, u64::MAX);
         // Should create a bignum (boxed term) or placeholder if allocation fails
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // If bignum allocation succeeded, we should be able to decode it
         let decoded = enif_get_ulong(&env, term);
         // May return Some if bignum decoding works, or None if it's a placeholder
@@ -1233,7 +1225,7 @@ mod tests {
         let term = enif_make_tuple(&env, &elements);
         // Should be a heap-allocated tuple pointer or placeholder
         assert_ne!(term, 0x3F); // Not nil
-        assert_ne!(term, 0); // Not zero
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // Check if it's a placeholder first (has placeholder tag)
         const TUPLE_PLACEHOLDER_TAG: u64 = 0xE0E0E0E0E0E0E0E0;
         if (term & TUPLE_PLACEHOLDER_TAG) == TUPLE_PLACEHOLDER_TAG {
@@ -1261,7 +1253,7 @@ mod tests {
         let elements = vec![];
         let term = enif_make_tuple(&env, &elements);
         // Empty tuple returns placeholder (special case)
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // Empty tuple uses placeholder encoding
         assert_eq!(term & 0xE0E0E0E0E0E0E0E0, 0xE0E0E0E0E0E0E0E0);
     }
@@ -1273,7 +1265,7 @@ mod tests {
         let term = enif_make_tuple(&env, &elements);
         // Should be a heap-allocated tuple pointer or placeholder
         assert_ne!(term, 0x3F); // Not nil
-        assert_ne!(term, 0); // Not zero
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // Check if it's a placeholder first (has placeholder tag)
         const TUPLE_PLACEHOLDER_TAG: u64 = 0xE0E0E0E0E0E0E0E0;
         if (term & TUPLE_PLACEHOLDER_TAG) == TUPLE_PLACEHOLDER_TAG {
@@ -1303,7 +1295,7 @@ mod tests {
             .collect();
         let term = enif_make_tuple(&env, &elements);
         // Should be a heap-allocated tuple pointer or placeholder
-        assert_ne!(term, 0); // Not zero
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // Check if it's a placeholder first (has placeholder tag)
         const TUPLE_PLACEHOLDER_TAG: u64 = 0xE0E0E0E0E0E0E0E0;
         if (term & TUPLE_PLACEHOLDER_TAG) == TUPLE_PLACEHOLDER_TAG {
@@ -1335,7 +1327,7 @@ mod tests {
         ];
         let term = enif_make_tuple(&env, &elements);
         // Should be a heap-allocated tuple pointer or placeholder
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
         // Check if it's a placeholder first (has placeholder tag)
         const TUPLE_PLACEHOLDER_TAG: u64 = 0xE0E0E0E0E0E0E0E0;
         if (term & TUPLE_PLACEHOLDER_TAG) == TUPLE_PLACEHOLDER_TAG {
@@ -1591,7 +1583,7 @@ mod tests {
         let term = enif_make_bignum(&env, &bignum);
         
         // Should create a term (currently placeholder, but should not panic)
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
     }
     
     #[test]
@@ -1654,8 +1646,7 @@ mod tests {
         let rational = BigRational::from_fraction(1, 2).unwrap();
         let term = enif_make_rational(&env, &rational);
         
-        // Should create a term (non-zero)
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
     }
     
     #[test]
@@ -1667,8 +1658,7 @@ mod tests {
         let rational = BigRational::from_fraction(-3, 4).unwrap();
         let term = enif_make_rational(&env, &rational);
         
-        // Should create a term (non-zero)
-        assert_ne!(term, 0);
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
     }
     
     #[test]

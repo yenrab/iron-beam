@@ -218,9 +218,8 @@ mod tests {
         use entities_process::Process;
         let env = crate::nif_env::NifEnv::from_process(Arc::new(Process::new(1)));
         let exception = enif_make_badarg(&env);
-        // Should be a placeholder exception tuple
-        assert_ne!(exception, 0);
-        // Check that it's detected as an exception
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
+        // Check that it's detected as an exception (this validates it's a valid term)
         assert!(enif_is_exception(&env, exception));
     }
 
@@ -453,10 +452,8 @@ mod tests {
         // Create badarg exception
         let exception = enif_make_badarg(&env);
         
-        // Should be non-zero
-        assert_ne!(exception, 0);
-        
-        // Should be detected as exception
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
+        // Should be detected as exception (this validates it's a valid term)
         assert!(enif_is_exception(&env, exception));
     }
 

@@ -190,22 +190,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
-name = "api_facades"
-version = "0.1.0"
-dependencies = [
- "adapters_drivers",
- "adapters_nifs",
- "entities_data_handling",
- "entities_io_operations",
- "entities_utilities",
- "infrastructure_utilities",
- "usecases_bifs",
- "usecases_io_operations",
- "usecases_memory_management",
- "usecases_process_management",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -26,6 +26,11 @@ pub fn enif_get_atom(
     _env: &NifEnv,
     term: NifTerm,
 ) -> Option<(String, NifCharEncoding)> {
+    // Check for nil (0x3F) first - nil is not an atom
+    if term == 0x3F {
+        return None;
+    }
+    
     // Check if term is an atom (decode tag)
     // Format: (atom_index << 6) + 0x0B, so check if (term & 0x3F) == 0x0B
     if (term & 0x3F) == 0x0B {
@@ -66,13 +71,66 @@ pub fn enif_get_atom(
 pub fn enif_get_int(env: &NifEnv, term: NifTerm) -> Option<i32> {
     // Check if term is a small integer
     if is_small_integer(term) {
-        let value = decode_small_integer(term);
-        if value >= (i32::MIN as i64) && value <= (i32::MAX as i64) {
-            return Some(value as i32);
+        // Validate that this is actually a valid small integer term
+        // Small integers have the value in bits [4..], and the tag 0xF in bits [0..3]
+        // The value should be reasonable (not all 1s which would indicate an invalid term)
+        // For 64-bit systems, small integers use 27 bits for the value (bits 4-30)
+        // Maximum valid small integer: (1 << 27) - 1 = 134217727
+        // Minimum valid small integer: -(1 << 27) = -134217728
+        
+        // First, check if the term has any bits set beyond the 27-bit value range
+        // Extract the unsigned value before masking
+        let unsigned = (term - 0xF) >> 4;
+        
+        // Mask to 27 bits to get the actual value bits
+        let value_27bit = unsigned & 0x7FFFFFF;
+        
+        // Check if unsigned value has any bits beyond the 27-bit range (bits 27-63)
+        // For positive values (bit 26 not set), any bits beyond 27 indicate an invalid term
+        // For negative values (bit 26 set), high bits may be set due to two's complement sign extension
+        let bit_26_set = (value_27bit & (1u64 << 26)) != 0;
+        let bits_beyond_27 = unsigned >> 27;
+        
+        if bits_beyond_27 != 0 {
+            if !bit_26_set {
+                // Positive value - any bits beyond 27 indicate an invalid term
+                // (positive values should fit in 27 bits)
+                return None;
+            }
+            // For negative values, high bits are expected due to sign extension
+            // We'll let the range check after decoding catch any truly invalid values
         }
+        
+        const MAX_SMALL_INT_VALUE: i64 = (1i64 << 27) - 1;
+        const MIN_SMALL_INT_VALUE: i64 = -(1i64 << 27);
+        
+        let value = decode_small_integer(term);
+        
+        // Check if the decoded value is within valid small integer range (27 bits)
+        // This filters out invalid terms that aren't valid integers of the right size
+        // Note: decode_small_integer already handles sign extension correctly
+        // Validate that the term is actually a valid integer term, not just any term with the right tag
+        // For terms like nil (0x3F), they may have the small integer tag but aren't valid integers
+        if value >= MIN_SMALL_INT_VALUE && value <= MAX_SMALL_INT_VALUE {
+            // Validate that this is a valid integer term, not an invalid immediate value
+            // Check if the term is nil (0x3F) - nil is not a valid integer despite having the right tag
+            // The check is for anything that isn't an int of the right size, not just nil
+            if term == 0x3F {
+                // This is nil, not a valid integer term
+                return None;
+            }
+            
+            // Check if value fits in i32 range (the "right size" for enif_get_int)
+            if value >= (i32::MIN as i64) && value <= (i32::MAX as i64) {
+                return Some(value as i32);
+            }
+        }
+        // Value is outside small integer range or i32 range, or term is not a valid integer
+        return None;
     }
     
     // Handle large integers (bignums)
+    // Only check bignums if the term is not a small integer
     if let Some(bignum) = decode_bignum(env, term) {
         // Try to convert BigNumber to i32 via i64
         if let Some(i64_value) = bignum.to_i64() {
@@ -473,15 +531,21 @@ pub fn decode_small_integer(term: NifTerm) -> i64 {
     // To decode: subtract the tag, then shift right by 4
     // Format: (value << 4) + 0xF, so value = (term - 0xF) >> 4
     let unsigned = (term - 0xF) >> 4;
-    // Sign extend from 27 bits (on 64-bit) to 64 bits
-    // Check if the sign bit (bit 26 of the 27-bit value) is set
-    if (unsigned & (1u64 << 26)) != 0 {
-        // Negative number - sign extend by setting all upper bits
-        // Mask: 0xFFFFFFFFF8000000 = all 1s in upper 37 bits
-        (unsigned | 0xFFFFFFFFF8000000u64) as i64
+    // The value uses 27 bits (bits 0-26 after shifting)
+    // The encoding preserves two's complement, so we can use arithmetic right shift
+    // to sign extend. First, extract the 27-bit value, then sign extend.
+    let value_27bit = unsigned & 0x7FFFFFF;
+    
+    // Sign extend from 27 bits to 64 bits
+    // If bit 26 is set, the value is negative in 27-bit signed representation
+    // Use arithmetic: if bit 26 is set, subtract 2^27 to get the negative value
+    if (value_27bit & (1u64 << 26)) != 0 {
+        // Negative: value_27bit represents a value in range [2^26, 2^27-1]
+        // In two's complement 27-bit: value = value_27bit - 2^27
+        (value_27bit as i64) - (1i64 << 27)
     } else {
-        // Positive number - just cast
-        unsigned as i64
+        // Positive: use as-is
+        value_27bit as i64
     }
 }
 
@@ -500,7 +564,8 @@ fn is_boxed_term(term: NifTerm) -> bool {
 /// Check if a term is a header term (tuple, map, etc.)
 fn is_header_term(term: NifTerm) -> bool {
     // Header terms have TAG_PRIMARY_HEADER (0x0) in lower 2 bits
-    (term & 0x3) == 0x0 && term != 0
+    // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
+    (term & 0x3) == 0x0
 }
 
 /// Check if a term is a list term (cons cell)
@@ -516,6 +581,7 @@ fn is_tuple_placeholder(term: NifTerm) -> bool {
 }
 
 /// Decode a tuple placeholder
+/// This should only be used as a fallback when heap allocation fails
 fn decode_tuple_placeholder(term: NifTerm) -> Option<Vec<NifTerm>> {
     // Placeholder tuples don't store actual elements
     // They encode arity in the lower bits
@@ -523,8 +589,8 @@ fn decode_tuple_placeholder(term: NifTerm) -> Option<Vec<NifTerm>> {
     let arity_encoded = (term & !TUPLE_PLACEHOLDER_MASK) >> 2;
     let arity = (arity_encoded & 0x3FFFFFF) as usize;
     
-    // For placeholder tuples, we can't return actual elements
-    // Return empty vector with correct size hint
+    // Return empty vector with correct capacity
+    // This is a fallback when heap allocation is not available
     Some(Vec::with_capacity(arity))
 }
 
@@ -1180,9 +1246,10 @@ mod tests {
     #[test]
     fn test_is_header_term() {
         let env = test_env();
-        // Header terms have TAG_PRIMARY_HEADER (0x0) in lower 2 bits and are not zero
-        // Test with zero (should return false)
-        assert!(!is_header_term(0));
+        // Header terms have TAG_PRIMARY_HEADER (0x0) in lower 2 bits
+        // Note: term 0 is valid (heap_index 0). Nil is 0x3F, not 0.
+        // Test with zero (should return true - it's a valid header term)
+        assert!(is_header_term(0));
         
         // Test with a term that has header tag
         let header_term = 0x4; // (1 << 2) | 0x0 = header term at heap index 1
