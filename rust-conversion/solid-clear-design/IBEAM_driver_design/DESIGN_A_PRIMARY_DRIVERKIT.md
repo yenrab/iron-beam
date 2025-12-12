@@ -85,8 +85,8 @@ NIFs cannot directly access kernel memory. Instead:
 ### 3. Sandboxing
 
 Isolated NIF processes are sandboxed:
-- **No Direct System Access**: Cannot access file system, network, etc. without kernel permission
-- **Limited System Calls**: Only IPC-related system calls allowed
+- **No BEAM Callbacks**: NIF is not allowed to make any calls back into the BEAM kernel or Erlang processes
+- **OS Calls Allowed**: NIF can make operating system calls (file system, network, etc.) directly
 - **Resource Limits**: CPU, memory limits enforced by kernel
 
 ## Kernel Loading Mechanism

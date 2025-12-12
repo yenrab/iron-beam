@@ -66,8 +66,32 @@
       "responsibilities": [
         "Create isolated process for each NIF library",
         "Enforce memory isolation boundaries",
+        "Enforce sandboxing constraints: prevent BEAM callbacks, allow OS calls",
         "Monitor isolated processes for crashes"
       ]
+    },
+    {
+      "@id": "ex:SandboxingConstraints",
+      "@type": "Specification",
+      "purpose": "Define sandboxing constraints for isolated NIF processes",
+      "constraints": [
+        {
+          "type": "prohibition",
+          "description": "NIF is not allowed to make any calls back into the BEAM kernel or Erlang processes",
+          "severity": "critical"
+        },
+        {
+          "type": "permission",
+          "description": "NIF can make operating system calls (file system, network, etc.) directly",
+          "scope": "all OS system calls"
+        },
+        {
+          "type": "enforcement",
+          "description": "Resource limits (CPU, memory) enforced by kernel",
+          "mechanism": "kernel-level resource monitoring"
+        }
+      ],
+      "enforcedBy": "ex:IsolationManagerActor"
     },
     {
       "@id": "ex:IPCProtocolActor",
