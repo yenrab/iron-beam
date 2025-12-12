@@ -66,4 +66,4 @@
 pub mod export;
 
 pub use export::export_ops;
-pub use export::{Export, ExportTable, Mfa};
+pub use export::{Export, ExportTable, Mfa, get_global_export_table};

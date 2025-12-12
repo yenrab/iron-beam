@@ -46,6 +46,8 @@
 //! - [`usecases_process_management`](../../usecases/usecases_process_management/index.html): Process management use cases
 
 pub mod process;
+pub mod process_executor;
 
 // Re-export main types for convenience
 pub use process::{Process, ProcessId, ProcessState, Eterm, ErtsCodePtr};
+pub use process_executor::{ProcessExecutor, ProcessExecutionResult, set_process_executor, execute_process};

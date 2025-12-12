@@ -1,0 +1,8 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/debug/deps/infrastructure_bignum_encoding-af84a5d9a040d9ca.d: infrastructure/infrastructure_bignum_encoding/src/lib.rs infrastructure/infrastructure_bignum_encoding/src/common.rs infrastructure/infrastructure_bignum_encoding/src/bignum_codec.rs infrastructure/infrastructure_bignum_encoding/src/rational_codec.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/debug/deps/libinfrastructure_bignum_encoding-af84a5d9a040d9ca.rmeta: infrastructure/infrastructure_bignum_encoding/src/lib.rs infrastructure/infrastructure_bignum_encoding/src/common.rs infrastructure/infrastructure_bignum_encoding/src/bignum_codec.rs infrastructure/infrastructure_bignum_encoding/src/rational_codec.rs
+
+infrastructure/infrastructure_bignum_encoding/src/lib.rs:
+infrastructure/infrastructure_bignum_encoding/src/common.rs:
+infrastructure/infrastructure_bignum_encoding/src/bignum_codec.rs:
+infrastructure/infrastructure_bignum_encoding/src/rational_codec.rs:

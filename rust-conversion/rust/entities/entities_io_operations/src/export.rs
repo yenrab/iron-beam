@@ -79,6 +79,7 @@
 
 use std::collections::HashMap;
 use std::sync::RwLock;
+use entities_process::ErtsCodePtr;
 
 /// MFA (Module, Function, Arity) - uniquely identifies a function
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -119,6 +120,10 @@ pub struct Export {
     pub is_bif_traced: bool,
     /// Whether this is a stub entry (represents code not yet loaded)
     pub is_stub: bool,
+    /// Code pointer for the function (None if not loaded or is BIF)
+    pub code_ptr: Option<ErtsCodePtr>,
+    /// Label offset in BEAM code (used to resolve code pointer)
+    pub label: Option<i32>,
 }
 
 impl Export {
@@ -129,9 +134,56 @@ impl Export {
             bif_number: -1,
             is_bif_traced: false,
             is_stub: false,
+            code_ptr: None,
+            label: None,
         }
     }
+    
+    /// Create a new export entry with code pointer
+    pub fn new_with_code(module: u32, function: u32, arity: u32, code_ptr: ErtsCodePtr) -> Self {
+        Self {
+            mfa: Mfa::new(module, function, arity),
+            bif_number: -1,
+            is_bif_traced: false,
+            is_stub: false,
+            code_ptr: Some(code_ptr),
+            label: None,
+        }
+    }
+    
+    /// Create a new export entry with label (for later resolution)
+    pub fn new_with_label(module: u32, function: u32, arity: u32, label: i32) -> Self {
+        Self {
+            mfa: Mfa::new(module, function, arity),
+            bif_number: -1,
+            is_bif_traced: false,
+            is_stub: false,
+            code_ptr: None,
+            label: Some(label),
+        }
+    }
+    
+    /// Set the code pointer for this export
+    pub fn set_code_ptr(&mut self, code_ptr: ErtsCodePtr) {
+        self.code_ptr = Some(code_ptr);
+    }
+    
+    /// Get the code pointer for this export
+    pub fn get_code_ptr(&self) -> Option<ErtsCodePtr> {
+        self.code_ptr
+    }
+}
 
+// Safety: Export contains ErtsCodePtr which is a raw pointer, but code pointers
+// are just memory addresses to code that's already loaded. They don't need to be
+// moved between threads - they're just references. This is safe because:
+// 1. Code is loaded once and remains at a fixed address
+// 2. Multiple threads can safely read the same code pointer
+// 3. Code pointers are never dereferenced in a way that would cause data races
+unsafe impl Send for Export {}
+unsafe impl Sync for Export {}
+
+impl Export {
     /// Create a new BIF export entry
     pub fn new_bif(module: u32, function: u32, arity: u32, bif_number: i32) -> Self {
         Self {
@@ -139,6 +191,8 @@ impl Export {
             bif_number,
             is_bif_traced: false,
             is_stub: false,
+            code_ptr: None,
+            label: None,
         }
     }
 
@@ -152,6 +206,8 @@ impl Export {
             bif_number: -1,
             is_bif_traced: false,
             is_stub: true,
+            code_ptr: None,
+            label: None,
         }
     }
 
@@ -286,6 +342,64 @@ impl ExportTable {
         export_list.push(export.clone());
 
         export
+    }
+
+    /// Update an existing export entry with a label
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `function` - Function atom index
+    /// * `arity` - Function arity
+    /// * `label` - Label to set
+    ///
+    /// # Returns
+    /// true if export was found and updated, false otherwise
+    pub fn update_export_label(&self, module: u32, function: u32, arity: u32, label: i32) -> bool {
+        let mfa = Mfa::new(module, function, arity);
+        let hash = mfa.hash();
+        
+        let mut exports = self.exports.write().unwrap();
+        if let Some(existing) = exports.get_mut(&hash) {
+            existing.label = Some(label);
+            
+            // Also update in the list
+            let mut export_list = self.export_list.write().unwrap();
+            if let Some(list_entry) = export_list.iter_mut().find(|e| e.mfa == mfa) {
+                list_entry.label = Some(label);
+            }
+            true
+        } else {
+            false
+        }
+    }
+    
+    /// Update an existing export entry with a code pointer
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `function` - Function atom index
+    /// * `arity` - Function arity
+    /// * `code_ptr` - Code pointer to set
+    ///
+    /// # Returns
+    /// true if export was found and updated, false otherwise
+    pub fn update_export_code_ptr(&self, module: u32, function: u32, arity: u32, code_ptr: ErtsCodePtr) -> bool {
+        let mfa = Mfa::new(module, function, arity);
+        let hash = mfa.hash();
+        
+        let mut exports = self.exports.write().unwrap();
+        if let Some(existing) = exports.get_mut(&hash) {
+            existing.code_ptr = Some(code_ptr);
+            
+            // Also update in the list
+            let mut export_list = self.export_list.write().unwrap();
+            if let Some(list_entry) = export_list.iter_mut().find(|e| e.mfa == mfa) {
+                list_entry.code_ptr = Some(code_ptr);
+            }
+            true
+        } else {
+            false
+        }
     }
 
     /// Get existing export entry or create a stub entry
@@ -561,6 +675,29 @@ impl Default for ExportTable {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Global export table instance
+///
+/// This provides a singleton export table that can be accessed from
+/// anywhere in the system. In a full implementation, this would be
+/// initialized during system startup.
+static GLOBAL_EXPORT_TABLE: std::sync::OnceLock<ExportTable> = std::sync::OnceLock::new();
+
+/// Get the global export table instance
+///
+/// # Returns
+/// Reference to the global export table
+///
+/// # Examples
+/// ```
+/// use entities_io_operations::export::{get_global_export_table, Export};
+///
+/// let table = get_global_export_table();
+/// let export = table.put(1, 2, 2); // Module=1, Function=2, Arity=2
+/// ```
+pub fn get_global_export_table() -> &'static ExportTable {
+    GLOBAL_EXPORT_TABLE.get_or_init(ExportTable::new)
 }
 
 /// Export operations - convenience functions

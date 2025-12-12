@@ -46,10 +46,20 @@ pub mod helpers;
 pub mod compression;
 pub mod process_table;
 pub mod atom_table;
+pub mod global_literals;
+pub mod erlang_term_decoder;
+pub mod erl_scan;
+pub mod erl_parse;
+pub mod erl_eval;
 
 pub use common::{CommonUtils, FormatUtils, MathUtils, RationalUtils, MiscUtils, HashUtils, ArrayUtils, ThreadingUtils, TimeUtils, PathUtils, UtilityError};
 pub use helpers::HelperFunctions;
 pub use compression::{CompressionLevel, CompressionError, CompressionResult, ChunkResult, DeflateStream, InflateStream, compress2, uncompress, zstd_compress, zstd_decompress};
 pub use process_table::{ProcessTable, get_global_process_table, ProcessTableError};
 pub use atom_table::get_global_atom_table;
+pub use global_literals::init_global_literals;
+pub use erlang_term_decoder::{decode_term, ErlangTerm, DecoderError};
+pub use erl_scan::{scan_string, Token, TokenKind, ScanError};
+pub use erl_parse::{parse_exprs, parse_expr, Expr, BinOp, UnOp, ParseError};
+pub use erl_eval::{exprs, expr, new_bindings, Bindings, EvalError};
 

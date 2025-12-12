@@ -1,0 +1,10 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/infrastructure_runtime_utils-dffa14f0500f5305.d: infrastructure/infrastructure_runtime_utils/src/lib.rs infrastructure/infrastructure_runtime_utils/src/term_building.rs infrastructure/infrastructure_runtime_utils/src/comparison.rs infrastructure/infrastructure_runtime_utils/src/initialization.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_runtime_utils-dffa14f0500f5305.rlib: infrastructure/infrastructure_runtime_utils/src/lib.rs infrastructure/infrastructure_runtime_utils/src/term_building.rs infrastructure/infrastructure_runtime_utils/src/comparison.rs infrastructure/infrastructure_runtime_utils/src/initialization.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_runtime_utils-dffa14f0500f5305.rmeta: infrastructure/infrastructure_runtime_utils/src/lib.rs infrastructure/infrastructure_runtime_utils/src/term_building.rs infrastructure/infrastructure_runtime_utils/src/comparison.rs infrastructure/infrastructure_runtime_utils/src/initialization.rs
+
+infrastructure/infrastructure_runtime_utils/src/lib.rs:
+infrastructure/infrastructure_runtime_utils/src/term_building.rs:
+infrastructure/infrastructure_runtime_utils/src/comparison.rs:
+infrastructure/infrastructure_runtime_utils/src/initialization.rs:

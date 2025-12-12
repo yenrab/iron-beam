@@ -22,6 +22,18 @@ infrastructure_emulator_loop = { path = "../../infrastructure/infrastructure_emu
 # Use cases layer
 usecases_scheduling = { path = "../../usecases/usecases_scheduling" }
 usecases_process_management = { path = "../../usecases/usecases_process_management" }
+usecases_bifs = { path = "../../usecases/usecases_bifs" }
+
+# Code management layer
+code_management_code_loading = { path = "../../code_management/code_management_code_loading" }
+
+# External dependencies for binary
+clap = { version = "4.0", features = ["derive"] }
+libc = "0.2"
+
+[[bin]]
+name = "beam"
+path = "src/main.rs"
 
 [dev-dependencies]
 

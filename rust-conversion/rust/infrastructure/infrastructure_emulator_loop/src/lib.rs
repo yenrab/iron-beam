@@ -41,9 +41,16 @@
 pub mod emulator_loop;
 pub mod registers;
 pub mod instruction_execution;
+pub mod instruction_decoder;
+pub mod process_executor_impl;
+
+#[cfg(test)]
+mod test_code;
 
 pub use emulator_loop::{process_main, init_emulator, EmulatorLoop, EmulatorLoopError};
 pub use registers::{copy_in_registers, copy_out_registers, RegisterManager};
 pub use instruction_execution::{InstructionResult, InstructionExecutor, DefaultInstructionExecutor, is_valid_instruction, next_instruction};
+pub use instruction_decoder::{decode_instruction, get_instruction_size, opcodes};
+pub use process_executor_impl::EmulatorLoopExecutor;
 
 

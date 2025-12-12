@@ -1,0 +1,8 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/debug/deps/infrastructure_external_format-d5bf94e809098536.d: infrastructure/infrastructure_external_format/src/lib.rs infrastructure/infrastructure_external_format/src/encoding.rs infrastructure/infrastructure_external_format/src/decoding.rs infrastructure/infrastructure_external_format/src/size_calculation.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/debug/deps/libinfrastructure_external_format-d5bf94e809098536.rmeta: infrastructure/infrastructure_external_format/src/lib.rs infrastructure/infrastructure_external_format/src/encoding.rs infrastructure/infrastructure_external_format/src/decoding.rs infrastructure/infrastructure_external_format/src/size_calculation.rs
+
+infrastructure/infrastructure_external_format/src/lib.rs:
+infrastructure/infrastructure_external_format/src/encoding.rs:
+infrastructure/infrastructure_external_format/src/decoding.rs:
+infrastructure/infrastructure_external_format/src/size_calculation.rs:

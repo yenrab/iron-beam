@@ -1,0 +1,10 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/debug/deps/infrastructure_bif_dispatcher-6885ae89de6cc757.d: infrastructure/infrastructure_bif_dispatcher/src/lib.rs infrastructure/infrastructure_bif_dispatcher/src/dispatcher.rs infrastructure/infrastructure_bif_dispatcher/src/trap_handlers.rs infrastructure/infrastructure_bif_dispatcher/src/initialization.rs infrastructure/infrastructure_bif_dispatcher/src/registry.rs infrastructure/infrastructure_bif_dispatcher/src/scheduling.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/debug/deps/libinfrastructure_bif_dispatcher-6885ae89de6cc757.rmeta: infrastructure/infrastructure_bif_dispatcher/src/lib.rs infrastructure/infrastructure_bif_dispatcher/src/dispatcher.rs infrastructure/infrastructure_bif_dispatcher/src/trap_handlers.rs infrastructure/infrastructure_bif_dispatcher/src/initialization.rs infrastructure/infrastructure_bif_dispatcher/src/registry.rs infrastructure/infrastructure_bif_dispatcher/src/scheduling.rs
+
+infrastructure/infrastructure_bif_dispatcher/src/lib.rs:
+infrastructure/infrastructure_bif_dispatcher/src/dispatcher.rs:
+infrastructure/infrastructure_bif_dispatcher/src/trap_handlers.rs:
+infrastructure/infrastructure_bif_dispatcher/src/initialization.rs:
+infrastructure/infrastructure_bif_dispatcher/src/registry.rs:
+infrastructure/infrastructure_bif_dispatcher/src/scheduling.rs:

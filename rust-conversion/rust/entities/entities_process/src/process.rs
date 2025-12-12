@@ -352,6 +352,14 @@ impl Process {
         self.i
     }
 
+    /// Set program counter (instruction pointer)
+    ///
+    /// # Arguments
+    /// * `instruction_ptr` - New instruction pointer
+    pub fn set_i(&mut self, instruction_ptr: ErtsCodePtr) {
+        self.i = instruction_ptr;
+    }
+
     /// Get unique integer
     pub fn uniq(&self) -> i64 {
         self.uniq

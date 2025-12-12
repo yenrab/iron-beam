@@ -209,64 +209,146 @@ fn init_emulator_finish() -> Result<(), EmulatorLoopError> {
     Ok(())
 }
 
-/// Main emulator loop function
+/// Execute a process until it yields or exits
 ///
-/// This is the core function that executes BEAM instructions for processes.
+/// This is the core function that executes BEAM instructions for a process.
 /// It is called by the scheduler to execute a process until it yields or exits.
 ///
 /// Based on `process_main()` from `beam_emu.c`.
 ///
 /// # Arguments
-/// * `emulator_loop` - The emulator loop state
+/// * `emulator_loop` - The emulator loop state (must have current_process set)
 /// * `init_done` - Shared atomic flag for initialization state
 ///
 /// # Returns
-/// * `Ok(Arc<Process>)` - The next process to execute (or None if scheduler should sleep)
+/// * `Ok(Some(Arc<Process>))` - Process yielded, should be rescheduled
+/// * `Ok(None)` - Process exited normally
 /// * `Err(EmulatorLoopError)` - Error during execution
-///
-/// # Note
-///
-/// This function never returns during normal operation. It continuously
-/// executes processes until the emulator is shut down. The return value
-/// is used for error handling and testing.
 pub fn process_main(
-    _emulator_loop: &mut EmulatorLoop,
+    emulator_loop: &mut EmulatorLoop,
     init_done: Arc<AtomicBool>,
 ) -> Result<Option<Arc<Process>>, EmulatorLoopError> {
     // Check if initialization is needed
     if !init_done.load(Ordering::Acquire) {
         init_emulator(init_done.clone())?;
         init_emulator_finish()?;
-        // After initialization, continue to main loop
     }
     
-    // Main execution loop
-    // This loop continues until the emulator is shut down
-    // Note: In the actual implementation, this would be called by the scheduler
-    // and would have access to the scheduler's run queue
+    // Get the current process
+    let process = emulator_loop.current_process()
+        .ok_or(EmulatorLoopError::ProcessNotFound)?
+        .clone();
     
-    // The actual erts_schedule() in the C code has signature:
-    // Process* erts_schedule(ErtsSchedulerData *esdp, Process *p, int calls)
-    // It returns the next process to execute
+    // Get instruction pointer from process
+    // Process has field `i` which is the program counter (instruction pointer)
+    // For now, we'll initialize it if null, or use the process's instruction pointer
+    let instruction_ptr = if emulator_loop.instruction_ptr().is_null() {
+        // Try to get from process (process.i field)
+        // For now, we'll set a placeholder - in full implementation, process would have code
+        std::ptr::null()
+    } else {
+        emulator_loop.instruction_ptr()
+    };
     
-    // Since our Rust erts_schedule() has a different signature (it's a scheduler loop),
-    // we need to use the run queue directly. For now, we'll provide a simplified
-    // interface that requires the scheduler to be passed in
+    if instruction_ptr.is_null() {
+        // Process has no code, exit normally
+        return Ok(None);
+    }
     
-    // This is a placeholder - the actual implementation would integrate with the scheduler
-    // and use the run queue to get the next process
+    // Copy registers from process to emulator loop
+    use super::registers::copy_in_registers;
+    let mut x_regs = vec![0u64; 1024]; // X register array
+    copy_in_registers(&process, &mut x_regs);
     
-    // For now, return None to indicate no process available
-    // The caller (scheduler) should handle getting the next process from the run queue
-    // 
-    // Note: The full implementation would:
-    // 1. Get next process from scheduler's run queue
-    // 2. Copy registers from process to scheduler registers
-    // 3. Set up instruction pointer and reductions
-    // 4. Execute instructions in a loop until process yields
-    // 5. Copy registers back to process
-    // 6. Return to scheduler for next process
-    Ok(None)
+    // Set up instruction pointer and reductions
+    emulator_loop.set_instruction_ptr(instruction_ptr);
+    emulator_loop.set_reds_in(1000); // Initial reductions
+    emulator_loop.set_fcalls(1000);  // Remaining reductions
+    
+    // Execute instructions in a loop until process yields or exits
+    use super::instruction_execution::{InstructionExecutor, DefaultInstructionExecutor, InstructionResult, next_instruction};
+    let executor = DefaultInstructionExecutor;
+    
+    let mut max_iterations = 1000; // Limit iterations to prevent infinite loops
+    while max_iterations > 0 {
+        max_iterations -= 1;
+        
+        // Check if out of reductions
+        if emulator_loop.is_out_of_reds(false) {
+            // Process yielded due to out of reductions
+            // Copy registers back to process
+            use super::registers::copy_out_registers;
+            copy_out_registers(&process, &x_regs);
+            return Ok(Some(process));
+        }
+        
+        // Get current instruction pointer
+        let current_ip = emulator_loop.instruction_ptr();
+        if current_ip.is_null() {
+            // Process finished
+            return Ok(None);
+        }
+        
+        // Execute the instruction
+        let result = executor.execute_instruction(
+            &process,
+            current_ip,
+            &mut x_regs,
+            &mut vec![], // Heap - would need proper heap management
+        ).map_err(|e| EmulatorLoopError::InvalidInstructionPointer)?;
+        
+        // Handle instruction result
+        match result {
+            InstructionResult::Continue => {
+                // Move to next instruction
+                if let Some(next_ip) = next_instruction(current_ip) {
+                    emulator_loop.set_instruction_ptr(next_ip);
+                    // Decrement reductions
+                    emulator_loop.set_fcalls(emulator_loop.fcalls() - 1);
+                } else {
+                    // Invalid instruction, exit
+                    return Ok(None);
+                }
+            }
+            InstructionResult::Jump(target_ip) => {
+                // Jump to new instruction pointer (call/return)
+                emulator_loop.set_instruction_ptr(target_ip);
+                // Decrement reductions
+                emulator_loop.set_fcalls(emulator_loop.fcalls() - 1);
+            }
+            InstructionResult::Yield => {
+                // Process yielded, copy registers back
+                use super::registers::copy_out_registers;
+                copy_out_registers(&process, &x_regs);
+                return Ok(Some(process));
+            }
+            InstructionResult::NormalExit => {
+                // Process exited normally
+                return Ok(None);
+            }
+            InstructionResult::ErrorExit => {
+                // Process exited with error
+                return Err(EmulatorLoopError::ProcessExited);
+            }
+            InstructionResult::Trap(_trap_ptr) => {
+                // Trap to BIF or export - for now, treat as yield
+                use super::registers::copy_out_registers;
+                copy_out_registers(&process, &x_regs);
+                return Ok(Some(process));
+            }
+            InstructionResult::ContextSwitch => {
+                // Context switch needed
+                use super::registers::copy_out_registers;
+                copy_out_registers(&process, &x_regs);
+                return Ok(Some(process));
+            }
+        }
+    }
+    
+    // Max iterations reached, yield process
+    use super::registers::copy_out_registers;
+    copy_out_registers(&process, &x_regs);
+    Ok(Some(process))
 }
 
 #[cfg(test)]

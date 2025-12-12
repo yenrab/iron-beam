@@ -1,0 +1,10 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/infrastructure_emulator_loop-d26674823496fe6b.d: infrastructure/infrastructure_emulator_loop/src/lib.rs infrastructure/infrastructure_emulator_loop/src/emulator_loop.rs infrastructure/infrastructure_emulator_loop/src/registers.rs infrastructure/infrastructure_emulator_loop/src/instruction_execution.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_emulator_loop-d26674823496fe6b.rlib: infrastructure/infrastructure_emulator_loop/src/lib.rs infrastructure/infrastructure_emulator_loop/src/emulator_loop.rs infrastructure/infrastructure_emulator_loop/src/registers.rs infrastructure/infrastructure_emulator_loop/src/instruction_execution.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_emulator_loop-d26674823496fe6b.rmeta: infrastructure/infrastructure_emulator_loop/src/lib.rs infrastructure/infrastructure_emulator_loop/src/emulator_loop.rs infrastructure/infrastructure_emulator_loop/src/registers.rs infrastructure/infrastructure_emulator_loop/src/instruction_execution.rs
+
+infrastructure/infrastructure_emulator_loop/src/lib.rs:
+infrastructure/infrastructure_emulator_loop/src/emulator_loop.rs:
+infrastructure/infrastructure_emulator_loop/src/registers.rs:
+infrastructure/infrastructure_emulator_loop/src/instruction_execution.rs:

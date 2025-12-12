@@ -40,6 +40,7 @@ pub mod process_lock;
 pub mod process_dump;
 pub mod process_dict;
 pub mod process_code_tracking;
+pub mod initialization;
 
 pub use process_lock::ProcessLock;
 pub use process_dict::ProcessDict;
@@ -53,4 +54,5 @@ pub use process_code_tracking::{
     pointer_in_module_area,
     ModuleCodeArea,
 };
+pub use initialization::erts_init_process;
 

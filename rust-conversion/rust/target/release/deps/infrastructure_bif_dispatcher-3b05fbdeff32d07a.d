@@ -1,0 +1,12 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/infrastructure_bif_dispatcher-3b05fbdeff32d07a.d: infrastructure/infrastructure_bif_dispatcher/src/lib.rs infrastructure/infrastructure_bif_dispatcher/src/dispatcher.rs infrastructure/infrastructure_bif_dispatcher/src/trap_handlers.rs infrastructure/infrastructure_bif_dispatcher/src/initialization.rs infrastructure/infrastructure_bif_dispatcher/src/registry.rs infrastructure/infrastructure_bif_dispatcher/src/scheduling.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_bif_dispatcher-3b05fbdeff32d07a.rlib: infrastructure/infrastructure_bif_dispatcher/src/lib.rs infrastructure/infrastructure_bif_dispatcher/src/dispatcher.rs infrastructure/infrastructure_bif_dispatcher/src/trap_handlers.rs infrastructure/infrastructure_bif_dispatcher/src/initialization.rs infrastructure/infrastructure_bif_dispatcher/src/registry.rs infrastructure/infrastructure_bif_dispatcher/src/scheduling.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_bif_dispatcher-3b05fbdeff32d07a.rmeta: infrastructure/infrastructure_bif_dispatcher/src/lib.rs infrastructure/infrastructure_bif_dispatcher/src/dispatcher.rs infrastructure/infrastructure_bif_dispatcher/src/trap_handlers.rs infrastructure/infrastructure_bif_dispatcher/src/initialization.rs infrastructure/infrastructure_bif_dispatcher/src/registry.rs infrastructure/infrastructure_bif_dispatcher/src/scheduling.rs
+
+infrastructure/infrastructure_bif_dispatcher/src/lib.rs:
+infrastructure/infrastructure_bif_dispatcher/src/dispatcher.rs:
+infrastructure/infrastructure_bif_dispatcher/src/trap_handlers.rs:
+infrastructure/infrastructure_bif_dispatcher/src/initialization.rs:
+infrastructure/infrastructure_bif_dispatcher/src/registry.rs:
+infrastructure/infrastructure_bif_dispatcher/src/scheduling.rs:

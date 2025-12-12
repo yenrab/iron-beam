@@ -1,0 +1,13 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/infrastructure_data_handling-7dda7981ba7eca36.d: infrastructure/infrastructure_data_handling/src/lib.rs infrastructure/infrastructure_data_handling/src/decode_term.rs infrastructure/infrastructure_data_handling/src/decode_atom.rs infrastructure/infrastructure_data_handling/src/decode_binary.rs infrastructure/infrastructure_data_handling/src/encode_atom.rs infrastructure/infrastructure_data_handling/src/encode_binary.rs infrastructure/infrastructure_data_handling/src/print_term.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_data_handling-7dda7981ba7eca36.rlib: infrastructure/infrastructure_data_handling/src/lib.rs infrastructure/infrastructure_data_handling/src/decode_term.rs infrastructure/infrastructure_data_handling/src/decode_atom.rs infrastructure/infrastructure_data_handling/src/decode_binary.rs infrastructure/infrastructure_data_handling/src/encode_atom.rs infrastructure/infrastructure_data_handling/src/encode_binary.rs infrastructure/infrastructure_data_handling/src/print_term.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libinfrastructure_data_handling-7dda7981ba7eca36.rmeta: infrastructure/infrastructure_data_handling/src/lib.rs infrastructure/infrastructure_data_handling/src/decode_term.rs infrastructure/infrastructure_data_handling/src/decode_atom.rs infrastructure/infrastructure_data_handling/src/decode_binary.rs infrastructure/infrastructure_data_handling/src/encode_atom.rs infrastructure/infrastructure_data_handling/src/encode_binary.rs infrastructure/infrastructure_data_handling/src/print_term.rs
+
+infrastructure/infrastructure_data_handling/src/lib.rs:
+infrastructure/infrastructure_data_handling/src/decode_term.rs:
+infrastructure/infrastructure_data_handling/src/decode_atom.rs:
+infrastructure/infrastructure_data_handling/src/decode_binary.rs:
+infrastructure/infrastructure_data_handling/src/encode_atom.rs:
+infrastructure/infrastructure_data_handling/src/encode_binary.rs:
+infrastructure/infrastructure_data_handling/src/print_term.rs:

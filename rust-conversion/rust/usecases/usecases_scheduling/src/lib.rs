@@ -38,7 +38,11 @@
 
 pub mod run_queue;
 pub mod scheduler;
+pub mod initialization;
+pub mod threads;
 
 pub use run_queue::{RunQueue, RunPrioQueue, RunQueueInfo, Priority, dequeue_process, enqueue_process, check_requeue_process};
 pub use scheduler::{Scheduler, schedule_process, erts_schedule, wake_scheduler, init_scheduler_suspend, ScheduleError};
+pub use initialization::{erts_init_scheduling, get_global_schedulers};
+pub use threads::{erts_start_schedulers, erts_stop_schedulers};
 

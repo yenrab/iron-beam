@@ -7,4 +7,5 @@ license = "Apache-2.0"
 authors = ["Erlang/OTP Rust Conversion"]
 
 [dependencies]
+entities_process = { path = "../entities_process" }
 

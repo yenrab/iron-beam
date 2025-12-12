@@ -6,6 +6,7 @@
 //! Based on the instruction execution framework in beam_emu.c
 
 use entities_process::{Process, ErtsCodePtr, Eterm};
+use crate::instruction_decoder::{decode_instruction, opcodes};
 
 /// Instruction execution result
 ///
@@ -25,6 +26,8 @@ pub enum InstructionResult {
     Trap(ErtsCodePtr),
     /// Context switch needed
     ContextSwitch,
+    /// Jump to new instruction pointer (for call/return)
+    Jump(ErtsCodePtr),
 }
 
 /// Instruction executor trait
@@ -53,27 +56,92 @@ pub trait InstructionExecutor {
 
 /// Default instruction executor
 ///
-/// Placeholder executor that returns Continue for all instructions.
-/// In a full implementation, this would dispatch to actual instruction handlers.
+/// Executes BEAM instructions by decoding them and dispatching to handlers.
 pub struct DefaultInstructionExecutor;
 
 impl InstructionExecutor for DefaultInstructionExecutor {
     fn execute_instruction(
         &self,
         _process: &Process,
-        _instruction_ptr: ErtsCodePtr,
-        _registers: &mut [Eterm],
+        instruction_ptr: ErtsCodePtr,
+        registers: &mut [Eterm],
         _heap: &mut [Eterm],
     ) -> Result<InstructionResult, String> {
-        // In the full implementation, this would:
-        // 1. Decode the instruction at instruction_ptr
-        // 2. Execute the instruction based on opcode
-        // 3. Update registers/heap as needed
-        // 4. Return appropriate InstructionResult
+        // Decode the instruction
+        let decoded = decode_instruction(instruction_ptr)?;
         
-        // For now, return Continue to indicate normal flow
-        // This allows the emulator loop to continue executing
-        Ok(InstructionResult::Continue)
+        // Dispatch based on opcode
+        match decoded.opcode {
+            opcodes::MOVE => {
+                // move Src Dst
+                // Move value from source to destination register
+                if decoded.operands.len() >= 2 {
+                    let src = decoded.operands[0] as usize;
+                    let dst = decoded.operands[1] as usize;
+                    
+                    if src < registers.len() && dst < registers.len() {
+                        // For now, assume both are X registers
+                        // In full implementation, we'd decode operand types (x, y, c, etc.)
+                        registers[dst] = registers[src];
+                    }
+                }
+                Ok(InstructionResult::Continue)
+            }
+            opcodes::CALL => {
+                // call Arity Label
+                // Call function at Label, save return address
+                if decoded.operands.len() >= 2 {
+                    let _arity = decoded.operands[0];
+                    let label_offset = decoded.operands[1] as isize;
+                    
+                    // Calculate jump target (relative to current instruction)
+                    unsafe {
+                        let target = instruction_ptr.offset(label_offset);
+                        return Ok(InstructionResult::Jump(target));
+                    }
+                }
+                Ok(InstructionResult::Continue)
+            }
+            opcodes::CALL_LAST => {
+                // call_last Arity Label Deallocate
+                // Tail call - deallocate stack and jump
+                if decoded.operands.len() >= 3 {
+                    let _arity = decoded.operands[0];
+                    let label_offset = decoded.operands[1] as isize;
+                    let _deallocate = decoded.operands[2];
+                    
+                    // Calculate jump target
+                    unsafe {
+                        let target = instruction_ptr.offset(label_offset);
+                        return Ok(InstructionResult::Jump(target));
+                    }
+                }
+                Ok(InstructionResult::Continue)
+            }
+            opcodes::CALL_ONLY => {
+                // call_only Arity Label
+                // Tail call without deallocation
+                if decoded.operands.len() >= 2 {
+                    let _arity = decoded.operands[0];
+                    let label_offset = decoded.operands[1] as isize;
+                    
+                    unsafe {
+                        let target = instruction_ptr.offset(label_offset);
+                        return Ok(InstructionResult::Jump(target));
+                    }
+                }
+                Ok(InstructionResult::Continue)
+            }
+            opcodes::RETURN => {
+                // return - exit function normally
+                Ok(InstructionResult::NormalExit)
+            }
+            _ => {
+                // Unknown instruction - continue for now
+                // In full implementation, we'd handle all opcodes
+                Ok(InstructionResult::Continue)
+            }
+        }
     }
 }
 
@@ -97,8 +165,7 @@ pub fn is_valid_instruction(instruction_ptr: ErtsCodePtr) -> bool {
 /// Get next instruction pointer
 ///
 /// Advances the instruction pointer to the next instruction.
-/// In BEAM, instructions are variable-length, so this would need
-/// to decode the instruction to know how much to advance.
+/// Uses the instruction decoder to determine the actual instruction size.
 ///
 /// # Arguments
 /// * `instruction_ptr` - Current instruction pointer
@@ -110,15 +177,12 @@ pub fn next_instruction(instruction_ptr: ErtsCodePtr) -> Option<ErtsCodePtr> {
         return None;
     }
     
-    // In the full implementation, this would:
-    // 1. Decode the instruction at instruction_ptr
-    // 2. Determine instruction length
-    // 3. Return instruction_ptr + length
+    // Use decoder to get actual instruction size
+    use crate::instruction_decoder::get_instruction_size;
+    let size = get_instruction_size(instruction_ptr);
     
-    // For now, we assume instructions are 8 bytes (one Eterm)
-    // This is a simplification - actual BEAM instructions vary in length
     unsafe {
-        Some(instruction_ptr.add(1))
+        Some(instruction_ptr.add(size / 8)) // Convert bytes to words (8 bytes per word)
     }
 }
 

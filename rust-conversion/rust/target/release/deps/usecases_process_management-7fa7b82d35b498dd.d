@@ -1,0 +1,12 @@
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/usecases_process_management-7fa7b82d35b498dd.d: usecases/usecases_process_management/src/lib.rs usecases/usecases_process_management/src/process_lock.rs usecases/usecases_process_management/src/process_dump.rs usecases/usecases_process_management/src/process_dict.rs usecases/usecases_process_management/src/process_code_tracking.rs usecases/usecases_process_management/src/initialization.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libusecases_process_management-7fa7b82d35b498dd.rlib: usecases/usecases_process_management/src/lib.rs usecases/usecases_process_management/src/process_lock.rs usecases/usecases_process_management/src/process_dump.rs usecases/usecases_process_management/src/process_dict.rs usecases/usecases_process_management/src/process_code_tracking.rs usecases/usecases_process_management/src/initialization.rs
+
+/Volumes/LaCie/iron-beam/rust-conversion/rust/target/release/deps/libusecases_process_management-7fa7b82d35b498dd.rmeta: usecases/usecases_process_management/src/lib.rs usecases/usecases_process_management/src/process_lock.rs usecases/usecases_process_management/src/process_dump.rs usecases/usecases_process_management/src/process_dict.rs usecases/usecases_process_management/src/process_code_tracking.rs usecases/usecases_process_management/src/initialization.rs
+
+usecases/usecases_process_management/src/lib.rs:
+usecases/usecases_process_management/src/process_lock.rs:
+usecases/usecases_process_management/src/process_dump.rs:
+usecases/usecases_process_management/src/process_dict.rs:
+usecases/usecases_process_management/src/process_code_tracking.rs:
+usecases/usecases_process_management/src/initialization.rs:

@@ -130,6 +130,7 @@
       "purpose": "Generate HTML coverage reports using cargo llvm-cov, analyze results to identify files below 95% coverage",
       "constraints": [
         "Activate after Setup Mode completes successfully",
+        "Delete all files matching ._* pattern before running coverage (removes macOS resource fork files)",
         "Use cargo llvm-cov to generate HTML coverage report",
         "Ensure all .rs files in directory and subdirectories are included",
         "Report generated directly by llvm-cov, not reworked by tool",
@@ -346,6 +347,7 @@
       "personality": "Analytical, thorough, experienced at coverage analysis and reporting",
       "responsibilities": [
         "Wait for Setup Mode completion message following ex:ModeTransitionProtocol before activating",
+        "Delete files matching ._* pattern before running coverage: Change working directory to specified directory (or default rust-conversion/rust), then execute command to find and delete all files matching ._* pattern recursively. For Linux/macOS, execute 'find . -name '._*' -type f -delete'. For Windows, execute 'for /r %f in (._*) do @del /q \"%f\"' or use PowerShell 'Get-ChildItem -Path . -Filter '._*' -Recurse -File | Remove-Item -Force'. This removes macOS resource fork files that can interfere with coverage reports. Execute this cleanup step before running cargo llvm-cov",
         "Execute cargo llvm-cov to generate HTML coverage report: Change working directory to specified directory (or default rust-conversion/rust), then execute 'cargo llvm-cov --workspace --all-features --tests --lib --bins --html --output-dir coverage-html/llvm-cov --test-threads=1'. If directory is not a workspace root but contains Cargo.toml, use 'cargo llvm-cov --all-features --tests --lib --bins --html --output-dir coverage-html/llvm-cov --test-threads=1' instead. Always use --test-threads=1 to ensure tests run serially, not in parallel",
         "Ensure all .rs files in directory and subdirectories are included: Verify cargo llvm-cov processes all crates in workspace or all files in single crate. Check output for 'Processing crate:' messages to confirm all crates are included",
         "Report generated directly by llvm-cov, not reworked or interpreted: Do not parse or modify HTML report. Use llvm-cov output for analysis",

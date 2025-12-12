@@ -53,6 +53,8 @@
 pub mod early_init;
 pub mod main_init;
 pub mod initialization;
+pub mod boot_script;
+pub mod env;
 
 pub use early_init::{early_init, EarlyInitResult};
 pub use main_init::{erl_init, erl_start, InitConfig, TimeWarpMode};
