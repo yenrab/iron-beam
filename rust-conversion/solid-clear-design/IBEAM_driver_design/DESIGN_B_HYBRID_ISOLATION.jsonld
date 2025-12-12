@@ -1,0 +1,129 @@
+{
+  "@context": {
+    "@vocab": "https://aalang.org/spec",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "ex": "https://aalang.org/ibeam-driver-design/design-b/"
+  },
+  "@graph": [
+    {
+      "@id": "ex:DesignB",
+      "@type": "LLMAgent",
+      "pattern": "5-mode-6-actor",
+      "purpose": "Hybrid isolation model with partial isolation and shared memory optimization",
+      "description": "NIF libraries run in isolated processes but share read-only memory regions for performance",
+      "modes": [
+        "ex:HybridIsolationMode",
+        "ex:SharedMemoryMode",
+        "ex:HybridIPCMode",
+        "ex:ExecutionMode",
+        "ex:ManagementMode"
+      ],
+      "actors": [
+        "ex:HybridIsolationManagerActor",
+        "ex:SharedMemoryManagerActor",
+        "ex:HybridIPCActor",
+        "ex:ProcessManagerActor",
+        "ex:SerializerActor",
+        "ex:SynchronizationActor"
+      ]
+    },
+    {
+      "@id": "ex:HybridIsolationMode",
+      "@type": "Mode",
+      "purpose": "Manage isolated NIF processes with shared memory regions",
+      "contains": ["ex:HybridIsolationManagerActor", "ex:ProcessManagerActor"]
+    },
+    {
+      "@id": "ex:SharedMemoryMode",
+      "@type": "Mode",
+      "purpose": "Manage shared memory regions between kernel and isolated processes",
+      "contains": ["ex:SharedMemoryManagerActor", "ex:SynchronizationActor"]
+    },
+    {
+      "@id": "ex:HybridIPCMode",
+      "@type": "Mode",
+      "purpose": "Handle hybrid IPC with shared memory optimization",
+      "contains": ["ex:HybridIPCActor", "ex:SerializerActor"]
+    },
+    {
+      "@id": "ex:ExecutionMode",
+      "@type": "Mode",
+      "purpose": "Execute NIF functions with hybrid access patterns",
+      "contains": ["ex:HybridIPCActor", "ex:SharedMemoryManagerActor"]
+    },
+    {
+      "@id": "ex:ManagementMode",
+      "@type": "Mode",
+      "purpose": "Manage lifecycle and shared memory updates",
+      "contains": ["ex:ProcessManagerActor", "ex:SynchronizationActor"]
+    },
+    {
+      "@id": "ex:HybridIsolationManagerActor",
+      "@type": "Actor",
+      "role": "Hybrid Isolation Manager",
+      "operatesIn": ["ex:HybridIsolationMode"],
+      "responsibilities": [
+        "Create isolated processes with shared memory mappings",
+        "Enforce memory protection (read-only shared regions)",
+        "Monitor isolated processes"
+      ]
+    },
+    {
+      "@id": "ex:SharedMemoryManagerActor",
+      "@type": "Actor",
+      "role": "Shared Memory Manager",
+      "operatesIn": ["ex:SharedMemoryMode", "ex:ExecutionMode"],
+      "responsibilities": [
+        "Create shared memory regions for read-only data",
+        "Map shared memory into isolated processes",
+        "Enforce read-only protection"
+      ]
+    },
+    {
+      "@id": "ex:HybridIPCActor",
+      "@type": "Actor",
+      "role": "Hybrid IPC Handler",
+      "operatesIn": ["ex:HybridIPCMode", "ex:ExecutionMode"],
+      "responsibilities": [
+        "Use shared memory for large read-only data transfers",
+        "Use IPC for function calls and write operations",
+        "Optimize serialization using shared memory references"
+      ]
+    },
+    {
+      "@id": "ex:ProcessManagerActor",
+      "@type": "Actor",
+      "role": "Process Manager",
+      "operatesIn": ["ex:HybridIsolationMode", "ex:ManagementMode"],
+      "responsibilities": [
+        "Manage process lifecycle",
+        "Handle process crashes",
+        "Coordinate shared memory updates"
+      ]
+    },
+    {
+      "@id": "ex:SerializerActor",
+      "@type": "Actor",
+      "role": "Serializer",
+      "operatesIn": ["ex:HybridIPCMode"],
+      "responsibilities": [
+        "Serialize write operations for IPC",
+        "Optimize serialization using shared memory references",
+        "Handle selective serialization"
+      ]
+    },
+    {
+      "@id": "ex:SynchronizationActor",
+      "@type": "Actor",
+      "role": "Synchronization Manager",
+      "operatesIn": ["ex:SharedMemoryMode", "ex:ManagementMode"],
+      "responsibilities": [
+        "Synchronize shared memory updates",
+        "Handle periodic snapshot updates",
+        "Coordinate read-only access"
+      ]
+    }
+  ]
+}
+

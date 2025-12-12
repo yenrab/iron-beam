@@ -1,0 +1,129 @@
+{
+  "@context": {
+    "@vocab": "https://aalang.org/spec",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "ex": "https://aalang.org/ibeam-driver-design/design-c/"
+  },
+  "@graph": [
+    {
+      "@id": "ex:DesignC",
+      "@type": "LLMAgent",
+      "pattern": "5-mode-6-actor",
+      "purpose": "Minimal isolation with maximum compatibility",
+      "description": "NIF libraries run in isolated processes but maintain near-direct memory access through shared heap",
+      "modes": [
+        "ex:MinimalIsolationMode",
+        "ex:SharedHeapMode",
+        "ex:CompatibilityIPCMode",
+        "ex:ExecutionMode",
+        "ex:ManagementMode"
+      ],
+      "actors": [
+        "ex:MinimalIsolationManagerActor",
+        "ex:SharedHeapManagerActor",
+        "ex:CompatibilityIPCActor",
+        "ex:ProcessManagerActor",
+        "ex:SynchronizationActor",
+        "ex:CompatibilityActor"
+      ]
+    },
+    {
+      "@id": "ex:MinimalIsolationMode",
+      "@type": "Mode",
+      "purpose": "Manage isolated NIF processes with extensive shared memory",
+      "contains": ["ex:MinimalIsolationManagerActor", "ex:ProcessManagerActor"]
+    },
+    {
+      "@id": "ex:SharedHeapMode",
+      "@type": "Mode",
+      "purpose": "Manage shared heap between kernel and isolated processes",
+      "contains": ["ex:SharedHeapManagerActor", "ex:SynchronizationActor"]
+    },
+    {
+      "@id": "ex:CompatibilityIPCMode",
+      "@type": "Mode",
+      "purpose": "Handle minimal IPC for function call routing",
+      "contains": ["ex:CompatibilityIPCActor"]
+    },
+    {
+      "@id": "ex:ExecutionMode",
+      "@type": "Mode",
+      "purpose": "Execute NIF functions with shared heap access",
+      "contains": ["ex:SharedHeapManagerActor", "ex:CompatibilityActor"]
+    },
+    {
+      "@id": "ex:ManagementMode",
+      "@type": "Mode",
+      "purpose": "Manage lifecycle and shared heap synchronization",
+      "contains": ["ex:ProcessManagerActor", "ex:SynchronizationActor"]
+    },
+    {
+      "@id": "ex:MinimalIsolationManagerActor",
+      "@type": "Actor",
+      "role": "Minimal Isolation Manager",
+      "operatesIn": ["ex:MinimalIsolationMode"],
+      "responsibilities": [
+        "Create isolated processes with shared heap mappings",
+        "Enforce minimal isolation boundaries",
+        "Provide compatibility layer"
+      ]
+    },
+    {
+      "@id": "ex:SharedHeapManagerActor",
+      "@type": "Actor",
+      "role": "Shared Heap Manager",
+      "operatesIn": ["ex:SharedHeapMode", "ex:ExecutionMode"],
+      "responsibilities": [
+        "Create shared heap region mapped into isolated processes",
+        "Synchronize heap access (locks, atomic operations)",
+        "Handle heap growth and reallocation"
+      ]
+    },
+    {
+      "@id": "ex:CompatibilityIPCActor",
+      "@type": "Actor",
+      "role": "Compatibility IPC Handler",
+      "operatesIn": ["ex:CompatibilityIPCMode"],
+      "responsibilities": [
+        "Route function calls from kernel to isolated NIF process",
+        "Return function results",
+        "Handle errors and exceptions"
+      ]
+    },
+    {
+      "@id": "ex:ProcessManagerActor",
+      "@type": "Actor",
+      "role": "Process Manager",
+      "operatesIn": ["ex:MinimalIsolationMode", "ex:ManagementMode"],
+      "responsibilities": [
+        "Manage process lifecycle",
+        "Handle process crashes",
+        "Coordinate shared heap management"
+      ]
+    },
+    {
+      "@id": "ex:SynchronizationActor",
+      "@type": "Actor",
+      "role": "Synchronization Manager",
+      "operatesIn": ["ex:SharedHeapMode", "ex:ManagementMode"],
+      "responsibilities": [
+        "Synchronize heap access via locks/atomics",
+        "Handle heap growth synchronization",
+        "Coordinate read-write access"
+      ]
+    },
+    {
+      "@id": "ex:CompatibilityActor",
+      "@type": "Actor",
+      "role": "Compatibility Layer",
+      "operatesIn": ["ex:ExecutionMode"],
+      "responsibilities": [
+        "Provide NifEnv-like API using shared heap",
+        "Maintain compatibility with existing NIF code",
+        "Handle shared heap access patterns"
+      ]
+    }
+  ]
+}
+

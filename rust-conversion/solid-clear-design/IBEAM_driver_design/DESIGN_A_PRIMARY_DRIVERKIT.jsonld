@@ -1,0 +1,129 @@
+{
+  "@context": {
+    "@vocab": "https://aalang.org/spec",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "ex": "https://aalang.org/ibeam-driver-design/design-a/"
+  },
+  "@graph": [
+    {
+      "@id": "ex:DesignA",
+      "@type": "LLMAgent",
+      "pattern": "5-mode-6-actor",
+      "purpose": "Primary DriverKit approach with full user-space execution and complete memory isolation",
+      "description": "NIF libraries execute in isolated user-space processes with separate memory spaces, communicating with kernel via IPC",
+      "modes": [
+        "ex:IsolationMode",
+        "ex:IPCMode",
+        "ex:LoadingMode",
+        "ex:ExecutionMode",
+        "ex:ManagementMode"
+      ],
+      "actors": [
+        "ex:IsolationManagerActor",
+        "ex:IPCProtocolActor",
+        "ex:ProcessManagerActor",
+        "ex:ProxyActor",
+        "ex:SerializerActor",
+        "ex:LifecycleActor"
+      ]
+    },
+    {
+      "@id": "ex:IsolationMode",
+      "@type": "Mode",
+      "purpose": "Manage isolated NIF processes with complete memory isolation",
+      "contains": ["ex:IsolationManagerActor", "ex:ProcessManagerActor"]
+    },
+    {
+      "@id": "ex:IPCMode",
+      "@type": "Mode",
+      "purpose": "Handle IPC communication between kernel and isolated NIF processes",
+      "contains": ["ex:IPCProtocolActor", "ex:SerializerActor"]
+    },
+    {
+      "@id": "ex:LoadingMode",
+      "@type": "Mode",
+      "purpose": "Load NIF libraries into isolated processes",
+      "contains": ["ex:ProcessManagerActor", "ex:LifecycleActor"]
+    },
+    {
+      "@id": "ex:ExecutionMode",
+      "@type": "Mode",
+      "purpose": "Execute NIF functions in isolated processes",
+      "contains": ["ex:ProxyActor", "ex:IPCProtocolActor"]
+    },
+    {
+      "@id": "ex:ManagementMode",
+      "@type": "Mode",
+      "purpose": "Manage lifecycle of isolated NIF processes",
+      "contains": ["ex:LifecycleActor", "ex:ProcessManagerActor"]
+    },
+    {
+      "@id": "ex:IsolationManagerActor",
+      "@type": "Actor",
+      "role": "Isolation Manager",
+      "operatesIn": ["ex:IsolationMode"],
+      "responsibilities": [
+        "Create isolated process for each NIF library",
+        "Enforce memory isolation boundaries",
+        "Monitor isolated processes for crashes"
+      ]
+    },
+    {
+      "@id": "ex:IPCProtocolActor",
+      "@type": "Actor",
+      "role": "IPC Protocol Handler",
+      "operatesIn": ["ex:IPCMode", "ex:ExecutionMode"],
+      "responsibilities": [
+        "Serialize/deserialize Erlang terms for IPC",
+        "Handle function call requests",
+        "Manage heap allocation requests/responses"
+      ]
+    },
+    {
+      "@id": "ex:ProcessManagerActor",
+      "@type": "Actor",
+      "role": "Process Manager",
+      "operatesIn": ["ex:IsolationMode", "ex:LoadingMode", "ex:ManagementMode"],
+      "responsibilities": [
+        "Manage process lifecycle (start, stop, restart)",
+        "Monitor process health",
+        "Handle process crashes"
+      ]
+    },
+    {
+      "@id": "ex:ProxyActor",
+      "@type": "Actor",
+      "role": "Kernel NIF Proxy",
+      "operatesIn": ["ex:ExecutionMode"],
+      "responsibilities": [
+        "Route NIF function calls to isolated processes",
+        "Serialize process state for IPC",
+        "Handle IPC errors and timeouts"
+      ]
+    },
+    {
+      "@id": "ex:SerializerActor",
+      "@type": "Actor",
+      "role": "Serializer",
+      "operatesIn": ["ex:IPCMode"],
+      "responsibilities": [
+        "Serialize Erlang terms for IPC transfer",
+        "Deserialize IPC responses",
+        "Optimize serialization performance"
+      ]
+    },
+    {
+      "@id": "ex:LifecycleActor",
+      "@type": "Actor",
+      "role": "Lifecycle Manager",
+      "operatesIn": ["ex:LoadingMode", "ex:ManagementMode"],
+      "responsibilities": [
+        "Handle NIF library loading",
+        "Manage process startup/shutdown",
+        "Handle library unloading"
+      ]
+    }
+  ]
+}
+
