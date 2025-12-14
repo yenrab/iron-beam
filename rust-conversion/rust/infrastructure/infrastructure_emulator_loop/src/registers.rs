@@ -135,71 +135,434 @@ impl Default for RegisterManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
+    /// Helper function to create a process with a specific arity
+    fn create_process_with_arity(id: u64, arity: u8) -> Arc<Process> {
+        let mut process = Process::new(id);
+        process.set_arity(arity);
+        Arc::new(process)
+    }
+
     #[test]
     fn test_register_manager_creation() {
         let manager = RegisterManager::new();
         assert_eq!(manager.x_reg_array().len(), MAX_X_REGS);
         assert!(manager.x_reg_array().iter().all(|&x| x == 0));
     }
-    
+
     #[test]
-    fn test_copy_in_registers() {
+    fn test_register_manager_default() {
+        let manager = RegisterManager::default();
+        assert_eq!(manager.x_reg_array().len(), MAX_X_REGS);
+        assert!(manager.x_reg_array().iter().all(|&x| x == 0));
+    }
+
+    #[test]
+    fn test_register_manager_x_reg_array() {
+        let manager = RegisterManager::new();
+        let array = manager.x_reg_array();
+        assert_eq!(array.len(), MAX_X_REGS);
+        assert!(array.iter().all(|&x| x == 0));
+    }
+
+    #[test]
+    fn test_register_manager_x_reg_array_mut() {
+        let mut manager = RegisterManager::new();
+        let array = manager.x_reg_array_mut();
+        assert_eq!(array.len(), MAX_X_REGS);
+        
+        // Modify array
+        array[0] = 42;
+        array[1] = 100;
+        
+        // Verify changes
+        assert_eq!(array[0], 42);
+        assert_eq!(array[1], 100);
+        
+        // Verify through immutable access
+        let array_ref = manager.x_reg_array();
+        assert_eq!(array_ref[0], 42);
+        assert_eq!(array_ref[1], 100);
+    }
+
+    #[test]
+    fn test_copy_in_registers_zero_arity() {
         let process = Arc::new(Process::new(1));
-        let mut reg_array = vec![0u64; MAX_X_REGS];
+        let mut reg_array = vec![999u64; MAX_X_REGS];
         
         copy_in_registers(&process, &mut reg_array);
         
-        // All registers should be initialized (to 0 for a new process)
+        // With arity=0, all registers should be zeroed
         assert!(reg_array.iter().all(|&x| x == 0));
     }
-    
+
     #[test]
-    fn test_copy_out_registers() {
+    fn test_copy_in_registers_with_arity() {
+        let process = create_process_with_arity(1, 5);
+        let mut reg_array = vec![999u64; MAX_X_REGS];
+        
+        // Set some values in process heap at heap_start
+        {
+            let mut heap_data = process.heap_slice_mut();
+            let heap_start = process.heap_start_index();
+            for i in 0..5 {
+                if heap_start + i < heap_data.len() {
+                    heap_data[heap_start + i] = (i + 1) as u64 * 10;
+                }
+            }
+        }
+        
+        copy_in_registers(&process, &mut reg_array);
+        
+        // First 5 registers should be copied from heap
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        for i in 0..5 {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(reg_array[i], (i + 1) as u64 * 10);
+            } else {
+                assert_eq!(reg_array[i], 0);
+            }
+        }
+        
+        // Remaining registers should be zeroed
+        for i in 5..reg_array.len().min(MAX_X_REGS) {
+            assert_eq!(reg_array[i], 0);
+        }
+    }
+
+    #[test]
+    fn test_copy_in_registers_small_array() {
+        let process = create_process_with_arity(1, 10);
+        let mut reg_array = vec![999u64; 5]; // Smaller than arity
+        
+        copy_in_registers(&process, &mut reg_array);
+        
+        // Should only copy up to array length
+        assert_eq!(reg_array.len(), 5);
+    }
+
+    #[test]
+    fn test_copy_in_registers_large_arity() {
+        let process = create_process_with_arity(1, 255); // Max u8 value, larger than typical usage
+        let mut reg_array = vec![999u64; MAX_X_REGS];
+        
+        copy_in_registers(&process, &mut reg_array);
+        
+        // Should only copy MAX_X_REGS registers (arity is capped at MAX_X_REGS)
+        assert_eq!(reg_array.len(), MAX_X_REGS);
+    }
+
+    #[test]
+    fn test_copy_in_registers_heap_overflow() {
+        let process = create_process_with_arity(1, 10);
+        let mut reg_array = vec![999u64; MAX_X_REGS];
+        
+        // Process heap might be smaller than arity
+        copy_in_registers(&process, &mut reg_array);
+        
+        // Should not panic, should zero out registers beyond heap size
+        // This tests the bounds check in copy_in_registers
+    }
+
+    #[test]
+    fn test_copy_out_registers_zero_arity() {
         let process = Arc::new(Process::new(1));
         let reg_array = vec![42u64; MAX_X_REGS];
+        
+        copy_out_registers(&process, &reg_array);
+        
+        // With arity=0, nothing should be copied
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        if heap_start < heap_data.len() {
+            // Heap should remain unchanged (or be empty)
+        }
+    }
+
+    #[test]
+    fn test_copy_out_registers_with_arity() {
+        let process = create_process_with_arity(1, 5);
+        let reg_array: Vec<Eterm> = (1..=5).map(|i| i as u64 * 10).collect();
         
         copy_out_registers(&process, &reg_array);
         
         // Verify that registers were copied to process heap
         let heap_data = process.heap_slice();
         let heap_start = process.heap_start_index();
-        let arity = process.arity() as usize;
-        let max_copy = arity.min(MAX_X_REGS);
         
-        for i in 0..max_copy {
+        for i in 0..5 {
             if heap_start + i < heap_data.len() {
-                assert_eq!(heap_data[heap_start + i], 42);
+                assert_eq!(heap_data[heap_start + i], (i + 1) as u64 * 10);
             }
         }
     }
-    
+
     #[test]
-    fn test_register_manager_copy_operations() {
-        let process = Arc::new(Process::new(1));
+    fn test_copy_out_registers_heap_resize() {
+        let process = create_process_with_arity(1, 100);
+        let reg_array: Vec<Eterm> = (0..100).map(|i| i as u64).collect();
         
-        // Set process arity to allow copying registers
-        // In a real scenario, arity would be set when a process is called
-        // For testing, we need to manually set it or use a process with non-zero arity
-        // Since we can't modify arity directly, we'll test with a process that has arity > 0
-        // by creating a process and setting up its heap
+        // Initial heap might be smaller than needed
+        let initial_heap_size = process.heap_slice().len();
         
+        copy_out_registers(&process, &reg_array);
+        
+        // Heap should be resized if needed
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        let required_size = heap_start + 100;
+        
+        assert!(heap_data.len() >= required_size);
+        
+        // Verify values were copied
+        for i in 0..100 {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(heap_data[heap_start + i], i as u64);
+            }
+        }
+    }
+
+    #[test]
+    fn test_copy_out_registers_small_array() {
+        let process = create_process_with_arity(1, 10);
+        let reg_array = vec![42u64, 43u64, 44u64];
+        
+        copy_out_registers(&process, &reg_array);
+        
+        // Should only copy up to array length
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        
+        for i in 0..3 {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(heap_data[heap_start + i], (42 + i) as u64);
+            }
+        }
+    }
+
+    #[test]
+    fn test_copy_out_registers_large_arity() {
+        let process = create_process_with_arity(1, 255); // Max u8 value, larger than typical usage
+        let reg_array: Vec<Eterm> = (0..MAX_X_REGS).map(|i| i as u64).collect();
+        
+        copy_out_registers(&process, &reg_array);
+        
+        // Should only copy MAX_X_REGS registers (arity is capped at MAX_X_REGS)
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        
+        for i in 0..MAX_X_REGS {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(heap_data[heap_start + i], i as u64);
+            }
+        }
+    }
+
+    #[test]
+    fn test_register_manager_copy_in() {
+        let process = create_process_with_arity(1, 5);
+        let mut manager = RegisterManager::new();
+        
+        // Set some values in process heap
+        {
+            let mut heap_data = process.heap_slice_mut();
+            let heap_start = process.heap_start_index();
+            for i in 0..5 {
+                if heap_start + i < heap_data.len() {
+                    heap_data[heap_start + i] = (i + 1) as u64 * 100;
+                }
+            }
+        }
+        
+        // Copy in from process
+        manager.copy_in(&process);
+        
+        // Verify registers were copied
+        let reg_array = manager.x_reg_array();
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        
+        for i in 0..5 {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(reg_array[i], (i + 1) as u64 * 100);
+            }
+        }
+    }
+
+    #[test]
+    fn test_register_manager_copy_out() {
+        let process = create_process_with_arity(1, 5);
         let mut manager = RegisterManager::new();
         
         // Set some register values
         let reg_array = manager.x_reg_array_mut();
-        reg_array[0] = 100;
-        reg_array[1] = 200;
-        reg_array[2] = 300;
+        for i in 0..5 {
+            reg_array[i] = (i + 1) as u64 * 200;
+        }
         
         // Copy out to process
-        // Note: This will only copy if process.arity() > 0
-        // For a new process with arity=0, nothing will be copied
         manager.copy_out(&process);
         
-        // For this test, we verify that copy_out doesn't panic
-        // The actual copying depends on process state (arity > 0)
-        // In a real scenario, the process would have arity set before copying
+        // Verify registers were copied to process heap
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        
+        for i in 0..5 {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(heap_data[heap_start + i], (i + 1) as u64 * 200);
+            }
+        }
+    }
+
+    #[test]
+    fn test_register_manager_round_trip() {
+        let process = create_process_with_arity(1, 10);
+        let mut manager = RegisterManager::new();
+        
+        // Set initial values in process heap
+        {
+            let mut heap_data = process.heap_slice_mut();
+            let heap_start = process.heap_start_index();
+            for i in 0..10 {
+                if heap_start + i < heap_data.len() {
+                    heap_data[heap_start + i] = (i + 1) as u64 * 50;
+                }
+            }
+        }
+        
+        // Copy in from process
+        manager.copy_in(&process);
+        
+        // Modify registers
+        let reg_array = manager.x_reg_array_mut();
+        for i in 0..10 {
+            reg_array[i] = reg_array[i] * 2;
+        }
+        
+        // Copy out to process
+        manager.copy_out(&process);
+        
+        // Verify round trip
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        
+        for i in 0..10 {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(heap_data[heap_start + i], (i + 1) as u64 * 100);
+            }
+        }
+    }
+
+    #[test]
+    fn test_copy_in_registers_max_x_regs() {
+        let process = create_process_with_arity(1, MAX_X_REGS as u8);
+        let mut reg_array = vec![999u64; MAX_X_REGS];
+        
+        copy_in_registers(&process, &mut reg_array);
+        
+        // Should handle MAX_X_REGS correctly
+        assert_eq!(reg_array.len(), MAX_X_REGS);
+    }
+
+    #[test]
+    fn test_copy_out_registers_max_x_regs() {
+        // Note: arity is u8, so max is 255, not MAX_X_REGS (1024)
+        // But we can test with MAX_X_REGS array and smaller arity
+        let process = create_process_with_arity(1, 255); // Max u8 value
+        let reg_array: Vec<Eterm> = (0..MAX_X_REGS).map(|i| i as u64).collect();
+        
+        copy_out_registers(&process, &reg_array);
+        
+        // Should handle up to arity (255) registers, capped at MAX_X_REGS
+        let heap_data = process.heap_slice();
+        let heap_start = process.heap_start_index();
+        let max_copy = 255.min(MAX_X_REGS).min(reg_array.len());
+        assert!(heap_data.len() >= heap_start + max_copy);
+        
+        // Verify values were copied (up to arity)
+        for i in 0..max_copy {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(heap_data[heap_start + i], i as u64);
+            }
+        }
+    }
+
+    #[test]
+    fn test_register_manager_multiple_processes() {
+        let process1 = create_process_with_arity(1, 5);
+        let process2 = create_process_with_arity(2, 3);
+        let mut manager = RegisterManager::new();
+        
+        // Copy from first process
+        {
+            let mut heap_data = process1.heap_slice_mut();
+            let heap_start = process1.heap_start_index();
+            for i in 0..5 {
+                if heap_start + i < heap_data.len() {
+                    heap_data[heap_start + i] = (i + 1) as u64 * 10;
+                }
+            }
+        }
+        manager.copy_in(&process1);
+        
+        // Verify first process values
+        let reg_array = manager.x_reg_array();
+        for i in 0..5 {
+            if i < reg_array.len() {
+                assert_eq!(reg_array[i], (i + 1) as u64 * 10);
+            }
+        }
+        
+        // Copy from second process
+        {
+            let mut heap_data = process2.heap_slice_mut();
+            let heap_start = process2.heap_start_index();
+            for i in 0..3 {
+                if heap_start + i < heap_data.len() {
+                    heap_data[heap_start + i] = (i + 1) as u64 * 20;
+                }
+            }
+        }
+        manager.copy_in(&process2);
+        
+        // Verify second process values
+        let reg_array = manager.x_reg_array();
+        for i in 0..3 {
+            if i < reg_array.len() {
+                assert_eq!(reg_array[i], (i + 1) as u64 * 20);
+            }
+        }
+    }
+
+    #[test]
+    fn test_copy_in_registers_empty_array() {
+        let process = Arc::new(Process::new(1));
+        let mut reg_array = vec![999u64; 0];
+        
+        copy_in_registers(&process, &mut reg_array);
+        
+        // Should not panic with empty array
+        assert_eq!(reg_array.len(), 0);
+    }
+
+    #[test]
+    fn test_copy_out_registers_empty_array() {
+        let process = Arc::new(Process::new(1));
+        let reg_array = vec![42u64; 0];
+        
+        copy_out_registers(&process, &reg_array);
+        
+        // Should not panic with empty array
+    }
+
+    #[test]
+    fn test_register_manager_default_vs_new() {
+        let manager1 = RegisterManager::new();
+        let manager2 = RegisterManager::default();
+        
+        assert_eq!(manager1.x_reg_array().len(), manager2.x_reg_array().len());
+        assert_eq!(manager1.x_reg_array(), manager2.x_reg_array());
     }
 }
 

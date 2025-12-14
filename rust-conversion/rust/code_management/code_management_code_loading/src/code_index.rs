@@ -214,6 +214,7 @@ pub fn get_global_code_ix() -> &'static CodeIndexManager {
     })
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;

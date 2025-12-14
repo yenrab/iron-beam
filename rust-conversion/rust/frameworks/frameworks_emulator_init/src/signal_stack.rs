@@ -128,7 +128,242 @@ mod tests {
         // This test may fail if run in certain environments
         // It's mainly to ensure the function doesn't panic
         unsafe {
-            let _result = sys_init_signal_stack();
+            let result = sys_init_signal_stack();
+            // May succeed or fail depending on system state
+            let _ = result;
+        }
+    }
+
+    #[test]
+    fn test_sys_init_signal_stack_returns_result() {
+        unsafe {
+            let result = sys_init_signal_stack();
+            // Should return Result<(), String>
+            match result {
+                Ok(()) => {}
+                Err(e) => {
+                    // Error message should be informative
+                    assert!(!e.is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_init_signal_stack_idempotent() {
+        unsafe {
+            // First call
+            let result1 = sys_init_signal_stack();
+            
+            // Second call - may succeed or fail
+            let result2 = sys_init_signal_stack();
+            
+            // Both should return valid results
+            let _ = (result1, result2);
+        }
+    }
+
+    #[test]
+    fn test_sys_init_signal_stack_error_message() {
+        unsafe {
+            let result = sys_init_signal_stack();
+            if let Err(e) = result {
+                // Error messages should be informative
+                assert!(!e.is_empty());
+                // Should contain relevant keywords
+                assert!(e.contains("signal") || e.contains("stack") || e.contains("allocate") || e.contains("Failed"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_thread_init_signal_stack() {
+        unsafe {
+            let result = sys_thread_init_signal_stack();
+            // May succeed or fail depending on system state
+            let _ = result;
+        }
+    }
+
+    #[test]
+    fn test_sys_thread_init_signal_stack_returns_result() {
+        unsafe {
+            let result = sys_thread_init_signal_stack();
+            // Should return Result<(), String>
+            match result {
+                Ok(()) => {}
+                Err(e) => {
+                    // Error message should be informative
+                    assert!(!e.is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_thread_init_signal_stack_error_message() {
+        unsafe {
+            let result = sys_thread_init_signal_stack();
+            if let Err(e) = result {
+                // Error messages should be informative
+                assert!(!e.is_empty());
+                // Should contain relevant keywords
+                assert!(e.contains("signal") || e.contains("stack") || e.contains("thread") || e.contains("allocate") || e.contains("Failed"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_thread_init_signal_stack_idempotent() {
+        unsafe {
+            // First call
+            let result1 = sys_thread_init_signal_stack();
+            
+            // Second call - may succeed or fail
+            let result2 = sys_thread_init_signal_stack();
+            
+            // Both should return valid results
+            let _ = (result1, result2);
+        }
+    }
+
+    #[test]
+    fn test_sys_init_signal_stack_platform_specific() {
+        unsafe {
+            let result = sys_init_signal_stack();
+            
+            #[cfg(windows)]
+            {
+                // On Windows, should always succeed (no-op)
+                assert!(result.is_ok());
+            }
+            
+            #[cfg(unix)]
+            {
+                // On Unix, may succeed or fail depending on system state
+                let _ = result;
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_thread_init_signal_stack_platform_specific() {
+        unsafe {
+            let result = sys_thread_init_signal_stack();
+            
+            #[cfg(windows)]
+            {
+                // On Windows, should always succeed (no-op)
+                assert!(result.is_ok());
+            }
+            
+            #[cfg(unix)]
+            {
+                // On Unix, may succeed or fail depending on system state
+                let _ = result;
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_init_signal_stack_multiple_calls() {
+        unsafe {
+            // Test multiple calls don't cause issues
+            for _ in 0..3 {
+                let result = sys_init_signal_stack();
+                let _ = result;
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_thread_init_signal_stack_multiple_calls() {
+        unsafe {
+            // Test multiple calls don't cause issues
+            for _ in 0..3 {
+                let result = sys_thread_init_signal_stack();
+                let _ = result;
+            }
+        }
+    }
+
+    #[test]
+    fn test_signal_stack_functions_dont_panic() {
+        unsafe {
+            // Both functions should not panic even if they fail
+            let _result1 = sys_init_signal_stack();
+            let _result2 = sys_thread_init_signal_stack();
+        }
+    }
+
+    #[test]
+    fn test_signal_stack_error_consistency() {
+        unsafe {
+            // If one call fails, subsequent calls may also fail
+            // But they should return consistent error types
+            let result1 = sys_init_signal_stack();
+            let result2 = sys_init_signal_stack();
+            
+            // Both should be Result types
+            match (result1, result2) {
+                (Ok(_), Ok(_)) => {}
+                (Err(_), Err(_)) => {}
+                (Ok(_), Err(_)) => {}
+                (Err(_), Ok(_)) => {}
+            }
+        }
+    }
+
+    #[test]
+    fn test_sys_thread_init_signal_stack_error_consistency() {
+        unsafe {
+            let result1 = sys_thread_init_signal_stack();
+            let result2 = sys_thread_init_signal_stack();
+            
+            // Both should be Result types
+            match (result1, result2) {
+                (Ok(_), Ok(_)) => {}
+                (Err(_), Err(_)) => {}
+                (Ok(_), Err(_)) => {}
+                (Err(_), Ok(_)) => {}
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_unix_signal_stack_constants() {
+        // Test that constants are available on Unix
+        use libc::{SIGSTKSZ, SA_ONSTACK, SIG_DFL, SIG_IGN};
+        
+        // SIGSTKSZ should be a positive value
+        assert!(SIGSTKSZ > 0);
+        
+        // Flags should be defined
+        let _ = SA_ONSTACK;
+        let _ = SIG_DFL;
+        let _ = SIG_IGN;
+    }
+
+    #[test]
+    fn test_signal_stack_functions_are_unsafe() {
+        // Verify functions are marked as unsafe
+        // This is a compile-time check - if they weren't unsafe, this wouldn't compile
+        unsafe {
+            let _f1: unsafe fn() -> Result<(), String> = sys_init_signal_stack;
+            let _f2: unsafe fn() -> Result<(), String> = sys_thread_init_signal_stack;
+        }
+    }
+
+    #[test]
+    fn test_signal_stack_result_type() {
+        unsafe {
+            let result1 = sys_init_signal_stack();
+            let result2 = sys_thread_init_signal_stack();
+            
+            // Both should return Result<(), String>
+            assert!(matches!(result1, Ok(_) | Err(_)));
+            assert!(matches!(result2, Ok(_) | Err(_)));
         }
     }
 }

@@ -37,7 +37,7 @@ fn test_dec_term_simple() {
 fn test_enc_term_with_atom_table() {
     use entities_data_handling::atom::AtomEncoding;
     
-    let mut atom_table = AtomTable::new(1000);
+    let mut atom_table = AtomTable::new();
     let atom_index = atom_table.put_index(b"test", AtomEncoding::Latin1, false).unwrap();
     let term = Term::Atom(atom_index as u32);
     
@@ -72,7 +72,7 @@ fn test_erts_decode_ext() {
 fn test_enc_atom() {
     use entities_data_handling::atom::AtomEncoding;
     
-    let mut atom_table = AtomTable::new(1000);
+    let mut atom_table = AtomTable::new();
     let atom_index = atom_table.put_index(b"test_atom", AtomEncoding::Latin1, false).unwrap();
     let mut buf = Vec::new();
     
@@ -85,12 +85,12 @@ fn test_enc_atom() {
 fn test_dec_atom() {
     use entities_data_handling::atom::AtomEncoding;
     
-    let mut atom_table = AtomTable::new(1000);
+    let mut atom_table = AtomTable::new();
     let atom_index = atom_table.put_index(b"test_atom", AtomEncoding::Latin1, false).unwrap();
     let mut buf = Vec::new();
     enc_atom(atom_index, Some(&atom_table), &mut buf).unwrap();
     
-    let mut atom_table2 = AtomTable::new(1000);
+    let mut atom_table2 = AtomTable::new();
     let result = dec_atom(&buf, Some(&mut atom_table2));
     assert!(result.is_ok());
     let (decoded_index, _bytes_consumed) = result.unwrap();
@@ -282,4 +282,6 @@ fn test_decode_missing_version_magic() {
     // Should fail or handle gracefully
     let _ = result;
 }
+
+
 

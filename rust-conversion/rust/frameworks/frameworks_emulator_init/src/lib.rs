@@ -57,6 +57,6 @@ pub mod boot_script;
 pub mod env;
 
 pub use early_init::{early_init, EarlyInitResult};
-pub use main_init::{erl_init, erl_start, InitConfig, TimeWarpMode};
+pub use main_init::{erl_init, erl_start, InitConfig, TimeWarpMode, verify_beam_execution_setup};
 pub use initialization::{InitializationState, is_initialized, set_initialized};
 

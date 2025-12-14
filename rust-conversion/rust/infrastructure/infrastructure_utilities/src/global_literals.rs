@@ -48,6 +48,7 @@ impl GlobalLiterals {
     ///
     /// Allocates a new chunk for global literals.
     fn expand_area(&self, size: usize) -> Result<(), String> {
+        // LOCK ORDER: lock -> areas -> current_offset -> current_size (see LOCKING.md)
         let _guard = self.lock.lock().unwrap();
         
         // Allocate new area using Vec for safety
@@ -88,6 +89,9 @@ fn get_global_literals() -> &'static GlobalLiterals {
     GLOBAL_LITERALS.get_or_init(GlobalLiterals::new)
 }
 
+/// Track if global literals have been initialized
+static GLOBAL_LITERALS_INITIALIZED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
 /// Initialize global literals
 ///
 /// Based on `init_global_literals()` from erl_global_literals.c
@@ -97,21 +101,27 @@ fn get_global_literals() -> &'static GlobalLiterals {
 /// - Expanding the shared global literal area
 /// - Initializing the empty tuple
 ///
+/// This function is idempotent - calling it multiple times is safe and will
+/// only perform initialization once.
+///
 /// # Returns
 /// * `Ok(())` - Initialization successful
 /// * `Err(String)` - Initialization error
 pub fn init_global_literals() -> Result<(), String> {
-    let literals = get_global_literals();
-    
-    // Expand shared global literal area
-    // In C: expand_shared_global_literal_area(GLOBAL_LITERAL_INITIAL_SIZE)
-    // GLOBAL_LITERAL_INITIAL_SIZE is typically 1<<16 (65536 bytes)
-    const GLOBAL_LITERAL_INITIAL_SIZE: usize = 1 << 16;
-    literals.expand_area(GLOBAL_LITERAL_INITIAL_SIZE)?;
-    
-    // Initialize empty tuple
-    literals.init_empty_tuple()?;
-    
+    // Make initialization idempotent
+    if GLOBAL_LITERALS_INITIALIZED.set(()).is_ok() {
+        let literals = get_global_literals();
+        
+        // Expand shared global literal area
+        // In C: expand_shared_global_literal_area(GLOBAL_LITERAL_INITIAL_SIZE)
+        // GLOBAL_LITERAL_INITIAL_SIZE is typically 1<<16 (65536 bytes)
+        const GLOBAL_LITERAL_INITIAL_SIZE: usize = 1 << 16;
+        literals.expand_area(GLOBAL_LITERAL_INITIAL_SIZE)?;
+        
+        // Initialize empty tuple
+        literals.init_empty_tuple()?;
+    }
+    // If already initialized, just return Ok(())
     Ok(())
 }
 

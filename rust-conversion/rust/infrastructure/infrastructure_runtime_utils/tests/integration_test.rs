@@ -114,7 +114,7 @@ fn test_erts_bld_atom() {
     use entities_data_handling::atom::AtomTable;
     
     let mut builder = HeapBuilder::new_size_calc();
-    let atom_table = AtomTable::new(1000);
+    let atom_table = AtomTable::new();
     
     let result = erts_bld_atom(&mut builder, &atom_table, "test_atom");
     assert!(result.is_ok());

@@ -44,12 +44,12 @@ pub struct ModuleCodeArea {
     /// Start address of module code area
     pub code_start: *const u8,
     /// Size of module code area in bytes
-    pub code_size: u32,
+    pub code_size: usize,
 }
 
 impl ModuleCodeArea {
     /// Create a new ModuleCodeArea from code start and size
-    pub fn new(code_start: *const u8, code_size: u32) -> Self {
+    pub fn new(code_start: *const u8, code_size: usize) -> Self {
         Self {
             code_start,
             code_size,
@@ -95,7 +95,7 @@ impl ModuleCodeArea {
 /// assert!(pointer_in_module_area(ptr_in, mod_start, mod_size));
 /// assert!(!pointer_in_module_area(ptr_out, mod_start, mod_size));
 /// ```
-pub fn pointer_in_module_area(ptr: ErtsCodePtr, mod_start: *const u8, mod_size: u32) -> bool {
+pub fn pointer_in_module_area(ptr: ErtsCodePtr, mod_start: *const u8, mod_size: usize) -> bool {
     if ptr.is_null() || mod_start.is_null() {
         return false;
     }
@@ -277,7 +277,7 @@ pub fn any_dirty_process_uses_module(module_code: &ModuleCodeArea) -> bool {
 pub fn check_nif_in_module_area(
     process: &Process,
     mod_start: *const u8,
-    mod_size: u32,
+    mod_size: usize,
 ) -> bool {
     // Check all NIF pointers tracked in the process
     // The Process struct maintains a Vec<*const u8> of NIF pointers
@@ -333,7 +333,7 @@ pub fn check_nif_in_module_area(
 pub fn check_continuation_pointers_in_module(
     process: &Process,
     mod_start: *const u8,
-    mod_size: u32,
+    mod_size: usize,
 ) -> bool {
     // Get stack boundaries
     let stack_top = match process.stack_top_index() {

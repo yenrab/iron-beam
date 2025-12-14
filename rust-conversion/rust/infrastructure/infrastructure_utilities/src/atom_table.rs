@@ -32,8 +32,7 @@ static GLOBAL_ATOM_TABLE: std::sync::OnceLock<AtomTable> = std::sync::OnceLock::
 /// ```
 pub fn get_global_atom_table() -> &'static AtomTable {
     GLOBAL_ATOM_TABLE.get_or_init(|| {
-        // Default limit of 1,048,576 atoms (2^20) - matches Erlang's default
-        AtomTable::new(1_048_576)
+        AtomTable::new()
     })
 }
 

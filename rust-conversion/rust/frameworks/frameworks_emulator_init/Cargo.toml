@@ -11,6 +11,7 @@ authors = ["Erlang/OTP Rust Conversion"]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_process = { path = "../../entities/entities_process" }
 entities_utilities = { path = "../../entities/entities_utilities" }
+entities_io_operations = { path = "../../entities/entities_io_operations" }
 
 # Infrastructure layer
 infrastructure_runtime_utils = { path = "../../infrastructure/infrastructure_runtime_utils" }

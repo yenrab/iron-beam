@@ -1316,5 +1316,213 @@ mod tests {
         let result = DynamicLibraryLoader::try_unload("nonexistent", process_id);
         assert_eq!(result, Err(LibraryError::NotFound));
     }
+
+    #[test]
+    fn test_library_info_all_fields() {
+        let result = DynamicLibraryLoader::library_info("nonexistent", "all");
+        assert_eq!(result, Err(LibraryError::NotFound));
+    }
+
+    #[test]
+    fn test_library_info_specific_field() {
+        let result = DynamicLibraryLoader::library_info("nonexistent", "path");
+        assert_eq!(result, Err(LibraryError::NotFound));
+    }
+
+    #[test]
+    fn test_library_info_invalid_field() {
+        let result = DynamicLibraryLoader::library_info("nonexistent", "invalid");
+        // May return NotFound or handle invalid field
+        let _ = result;
+    }
+
+    #[test]
+    fn test_load_options_default() {
+        let options = LoadOptions::default();
+        assert_eq!(options.reload, None);
+        assert_eq!(options.monitor, None);
+    }
+
+    #[test]
+    fn test_load_options_with_reload() {
+        let options = LoadOptions {
+            reload: Some(ReloadOption::PendingDriver),
+            monitor: None,
+        };
+        assert_eq!(options.reload, Some(ReloadOption::PendingDriver));
+    }
+
+    #[test]
+    fn test_load_options_with_monitor() {
+        let options = LoadOptions {
+            reload: None,
+            monitor: Some(MonitorOption::PendingDriver),
+        };
+        assert_eq!(options.monitor, Some(MonitorOption::PendingDriver));
+    }
+
+    #[test]
+    fn test_load_options_with_both() {
+        let options = LoadOptions {
+            reload: Some(ReloadOption::PendingProcess),
+            monitor: Some(MonitorOption::PendingProcess),
+        };
+        assert_eq!(options.reload, Some(ReloadOption::PendingProcess));
+        assert_eq!(options.monitor, Some(MonitorOption::PendingProcess));
+    }
+
+
+    #[test]
+    fn test_library_status_debug() {
+        let statuses = vec![
+            LibraryStatus::Loaded,
+            LibraryStatus::Unloading,
+            LibraryStatus::Reloading,
+            LibraryStatus::PendingLoad,
+            LibraryStatus::PendingUnload,
+        ];
+        for status in statuses {
+            let debug_str = format!("{:?}", status);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_library_status_equality() {
+        assert_eq!(LibraryStatus::Loaded, LibraryStatus::Loaded);
+        assert_ne!(LibraryStatus::Loaded, LibraryStatus::Unloading);
+        assert_ne!(LibraryStatus::Reloading, LibraryStatus::PendingLoad);
+    }
+
+    #[test]
+    fn test_load_result_debug() {
+        let results = vec![
+            LoadResult::Loaded,
+            LoadResult::AlreadyLoaded,
+            LoadResult::PendingDriver,
+            LoadResult::PendingProcess,
+        ];
+        for result in results {
+            let debug_str = format!("{:?}", result);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_load_result_equality() {
+        assert_eq!(LoadResult::Loaded, LoadResult::Loaded);
+        assert_ne!(LoadResult::Loaded, LoadResult::AlreadyLoaded);
+    }
+
+    #[test]
+    fn test_unload_result_debug() {
+        let results = vec![
+            UnloadResult::Unloaded,
+            UnloadResult::Pending,
+        ];
+        for result in results {
+            let debug_str = format!("{:?}", result);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_unload_result_equality() {
+        assert_eq!(UnloadResult::Unloaded, UnloadResult::Unloaded);
+        assert_ne!(UnloadResult::Unloaded, UnloadResult::Pending);
+    }
+
+    #[test]
+    fn test_library_error_all_variants_debug() {
+        let errors = vec![
+            LibraryError::NotFound,
+            LibraryError::LoadError("test".to_string()),
+            LibraryError::CompilationError { message: "compile error".to_string(), details: "details".to_string() },
+            LibraryError::UnsafeLibrary,
+        ];
+        
+        for error in errors {
+            let debug_str = format!("{:?}", error);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_library_error_clone() {
+        let error1 = LibraryError::LoadError("test".to_string());
+        let error2 = error1.clone();
+        assert_eq!(error1, error2);
+    }
+
+    #[test]
+    fn test_library_info_clone_with_all_fields() {
+        use std::path::PathBuf;
+        let info = LibraryInfo {
+            name: "test".to_string(),
+            path: PathBuf::from("/path/to/lib"),
+            status: LibraryStatus::Loaded,
+            process_count: 1,
+            options: LoadOptions::default(),
+            is_linked_in: false,
+            is_permanent: false,
+        };
+        let cloned = info.clone();
+        assert_eq!(info.name, cloned.name);
+        assert_eq!(info.path, cloned.path);
+        assert_eq!(info.status, cloned.status);
+        assert_eq!(info.process_count, cloned.process_count);
+    }
+
+    #[test]
+    fn test_library_info_debug() {
+        use std::path::PathBuf;
+        let info = LibraryInfo {
+            name: "test".to_string(),
+            path: PathBuf::from("/path/to/lib"),
+            status: LibraryStatus::Loaded,
+            process_count: 1,
+            options: LoadOptions::default(),
+            is_linked_in: false,
+            is_permanent: false,
+        };
+        let debug_str = format!("{:?}", info);
+        assert!(!debug_str.is_empty());
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_allocate_process_id_multiple() {
+        let id1 = DynamicLibraryLoader::allocate_process_id();
+        let id2 = DynamicLibraryLoader::allocate_process_id();
+        let id3 = DynamicLibraryLoader::allocate_process_id();
+        
+        // All should be unique
+        assert_ne!(id1, id2);
+        assert_ne!(id1, id3);
+        assert_ne!(id2, id3);
+    }
+
+    #[test]
+    fn test_loaded_libraries_after_operations() {
+        // Test that loaded_libraries returns consistent results
+        let loaded1 = DynamicLibraryLoader::loaded_libraries();
+        let process_id = DynamicLibraryLoader::allocate_process_id();
+        let _ = DynamicLibraryLoader::try_unload("nonexistent", process_id);
+        let loaded2 = DynamicLibraryLoader::loaded_libraries();
+        
+        // Should return same length (no library was actually loaded)
+        assert_eq!(loaded1.len(), loaded2.len());
+    }
+
+    #[test]
+    fn test_compile_error_with_message() {
+        let error = LibraryError::CompilationError {
+            message: "error: expected `;`".to_string(),
+            details: "test.rs:10:5".to_string(),
+        };
+        let debug_str = format!("{:?}", error);
+        assert!(!debug_str.is_empty());
+        assert!(debug_str.contains("error: expected"));
+    }
 }
 

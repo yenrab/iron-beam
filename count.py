@@ -351,7 +351,7 @@ def main():
     
     # Print results
     print(f"Total non-empty lines: {total_non_empty}")
-    print(f"Documentation lines: {total_documentation}")
+    print(f"Developer_Documentation lines: {total_documentation}")
     print(f"Source code lines: {total_source_code}")
     print(f"Test code lines: {total_test_code}")
     print(f"Unsafe code lines: {total_unsafe_code}")
@@ -367,7 +367,7 @@ def main():
     # Verify totals
     calculated_total = total_documentation + total_source_code + total_test_code
     if calculated_total != total_non_empty:
-        print(f"\nWarning: Sum mismatch! Documentation + Source + Test = {calculated_total}, "
+        print(f"\nWarning: Sum mismatch! Developer_Documentation + Source + Test = {calculated_total}, "
               f"but total non-empty = {total_non_empty}", file=os.sys.stderr)
         print(f"Difference: {abs(calculated_total - total_non_empty)} lines", file=os.sys.stderr)
 

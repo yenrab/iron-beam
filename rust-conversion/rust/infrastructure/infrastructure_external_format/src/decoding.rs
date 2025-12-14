@@ -205,7 +205,7 @@ mod tests {
     fn test_dec_atom() {
         // SMALL_ATOM_EXT = 115, length = 4, "test"
         let data = vec![115, 4, b't', b'e', b's', b't'];
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let (atom_index, new_pos) = dec_atom(&data, Some(&mut atom_table)).unwrap();
         assert_eq!(new_pos, 6); // 1 (tag) + 1 (length) + 4 (bytes)
         assert!(atom_index > 0);
@@ -531,7 +531,7 @@ mod tests {
         // Encode an atom first, then decode it
         use super::super::encoding::enc_term;
         use entities_data_handling::atom::{AtomTable, AtomEncoding};
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
         let term = Term::Atom(atom_index as u32);
         let encoded = enc_term(&term, Some(&atom_table)).unwrap();

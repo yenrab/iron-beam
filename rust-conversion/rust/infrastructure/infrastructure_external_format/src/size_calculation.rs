@@ -324,7 +324,7 @@ mod tests {
     
     #[test]
     fn test_encode_size_struct_int_atom_with_table() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"test", AtomEncoding::SevenBitAscii, false).unwrap();
         let term = Term::Atom(atom_index as u32);
         let size = encode_size_struct_int(&term, Some(&atom_table)).unwrap();
@@ -334,7 +334,7 @@ mod tests {
     
     #[test]
     fn test_encode_size_struct_int_atom_large() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         // Create a large atom name (255 bytes, which is MAX_ATOM_CHARACTERS)
         // This will use SMALL_ATOM_EXT since name_len <= 255
         let large_name = "a".repeat(255);
@@ -355,7 +355,7 @@ mod tests {
     
     #[test]
     fn test_encode_size_struct_int_atom_not_found() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let term = Term::Atom(999); // Not in table
         let size = encode_size_struct_int(&term, Some(&atom_table)).unwrap();
         // Should use estimate
@@ -528,7 +528,7 @@ mod tests {
     
     #[test]
     fn test_erts_encode_ext_size_atom() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
         let term = Term::Atom(atom_index as u32);
         let size = erts_encode_ext_size(&term, Some(&atom_table)).unwrap();
@@ -676,7 +676,7 @@ mod tests {
     
     #[test]
     fn test_encode_size_struct_int_atom_small_vs_large() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         
         // Small atom (100 bytes)
         let small_name = "a".repeat(100);

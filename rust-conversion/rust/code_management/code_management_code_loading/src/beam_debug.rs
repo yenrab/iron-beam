@@ -109,6 +109,9 @@ impl BeamDebugTracer {
     ///
     /// # Returns
     /// The trace index (1-based) if successful, or None if trace list is full
+    ///
+    /// # Lock Ordering
+    /// LOCK ORDER: traced_mfas -> traced_by_index -> next_index (see LOCKING.md)
     pub fn set_traced_mfa(&self, module: &str, function: &str, arity: u32) -> Option<usize> {
         // In a full implementation, would convert strings to atoms using atom table
         // For now, we'll use a simple hash-based approach
@@ -116,6 +119,7 @@ impl BeamDebugTracer {
         let function_atom = self.string_to_atom(function);
         let mfa = Mfa::new(module_atom, function_atom, arity);
 
+        // LOCK ORDER: traced_mfas -> traced_by_index -> next_index (see LOCKING.md)
         let mut traced = self.traced_mfas.lock().unwrap();
         let mut by_index = self.traced_by_index.lock().unwrap();
         let mut next_idx = self.next_index.lock().unwrap();
@@ -194,7 +198,11 @@ impl BeamDebugTracer {
     }
 
     /// Clear all traced MFAs
+    ///
+    /// # Lock Ordering
+    /// LOCK ORDER: traced_mfas -> traced_by_index -> next_index (see LOCKING.md)
     pub fn clear(&self) {
+        // LOCK ORDER: traced_mfas -> traced_by_index -> next_index (see LOCKING.md)
         let mut traced = self.traced_mfas.lock().unwrap();
         let mut by_index = self.traced_by_index.lock().unwrap();
         let mut next_idx = self.next_index.lock().unwrap();

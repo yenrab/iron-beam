@@ -150,7 +150,8 @@ pub struct Process {
     heap_top_index: Mutex<usize>,
     /// Stack top index (position of stack top in heap_data)
     /// In Erlang, stack and heap share the same memory block
-    stack_top_index: Option<usize>,
+    /// Protected by Mutex for thread-safe access
+    stack_top_index: Mutex<Option<usize>>,
     /// Process flags (ERTS_PSFLG_*)
     flags: u32,
     /// Number of reductions for this process
@@ -202,7 +203,7 @@ impl Process {
             heap_data: Mutex::new(heap_data),
             heap_start_index: 0,
             heap_top_index: Mutex::new(0),
-            stack_top_index: None,
+            stack_top_index: Mutex::new(None),
             flags: 0,
             reds: 0,
             fcalls: 0,
@@ -250,7 +251,7 @@ impl Process {
 
     /// Get stack top index
     pub fn stack_top_index(&self) -> Option<usize> {
-        self.stack_top_index
+        *self.stack_top_index.lock().unwrap()
     }
 
     /// Get heap top index
@@ -297,8 +298,9 @@ impl Process {
     /// If the heap is full, it returns `None` and the caller should
     /// handle GC or heap growth separately.
     pub fn allocate_heap_words(&self, words: usize) -> Option<usize> {
-        let mut heap_top = self.heap_top_index.lock().unwrap();
+        // LOCK ORDER: heap_data -> heap_top_index (see LOCKING.md)
         let heap_data = self.heap_data.lock().unwrap();
+        let mut heap_top = self.heap_top_index.lock().unwrap();
         
         // Check if we have enough space
         if *heap_top + words > heap_data.len() {
@@ -313,8 +315,126 @@ impl Process {
     /// Calculate stack size in words
     /// Returns None if stack_top_index is not set
     pub fn stack_size_words(&self) -> Option<usize> {
+        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
         let heap_top = *self.heap_top_index.lock().unwrap();
-        self.stack_top_index.map(|stop| stop.saturating_sub(heap_top))
+        self.stack_top_index.lock().unwrap().map(|stop| stop.saturating_sub(heap_top))
+    }
+
+    /// Push a value onto the stack
+    ///
+    /// In Erlang, the stack grows downward (toward lower indices).
+    /// This method pushes a value onto the stack by decrementing the stack top index.
+    ///
+    /// # Arguments
+    /// * `value` - Value to push onto the stack
+    ///
+    /// # Returns
+    /// * `Ok(())` - Successfully pushed
+    /// * `Err(String)` - Stack overflow or allocation error
+    pub fn stack_push(&self, value: Eterm) -> Result<(), String> {
+        // LOCK ORDER: heap_data -> heap_top_index -> stack_top_index (see LOCKING.md)
+        let mut heap_data = self.heap_data.lock().unwrap();
+        let heap_top = *self.heap_top_index.lock().unwrap();
+        let mut stack_top_guard = self.stack_top_index.lock().unwrap();
+        
+        // Initialize stack_top_index if not set
+        let stack_top = if let Some(stop) = *stack_top_guard {
+            stop
+        } else {
+            // Initialize stack at the end of heap data (stack grows downward)
+            let initial_stop = heap_data.len();
+            *stack_top_guard = Some(initial_stop);
+            initial_stop
+        };
+        
+        // Check for stack overflow (stack should not overlap with heap)
+        if stack_top <= heap_top {
+            return Err(format!("Stack overflow: stack_top={}, heap_top={}", stack_top, heap_top));
+        }
+        
+        // Grow heap_data if needed to accommodate stack
+        if stack_top == 0 {
+            return Err("Stack overflow: cannot push when stack_top is 0".to_string());
+        }
+        
+        // Decrement stack top (stack grows downward)
+        let new_stack_top = stack_top - 1;
+        
+        // Ensure heap_data is large enough
+        if new_stack_top >= heap_data.len() {
+            // Grow heap_data to accommodate stack
+            let new_size = (new_stack_top + 1).max(heap_data.len() * 2);
+            heap_data.resize(new_size, 0);
+            // Note: We can't update heap_sz here since it's not behind a Mutex
+            // This is a limitation of the current design
+        }
+        
+        // Store value at new stack top
+        heap_data[new_stack_top] = value;
+        *stack_top_guard = Some(new_stack_top);
+        
+        Ok(())
+    }
+
+    /// Pop a value from the stack
+    ///
+    /// In Erlang, the stack grows downward. This method pops a value
+    /// from the stack by incrementing the stack top index.
+    ///
+    /// # Returns
+    /// * `Some(Eterm)` - Popped value
+    /// * `None` - Stack is empty
+    pub fn stack_pop(&self) -> Option<Eterm> {
+        // LOCK ORDER: heap_data -> stack_top_index (see LOCKING.md)
+        let mut heap_data = self.heap_data.lock().unwrap();
+        let mut stack_top_guard = self.stack_top_index.lock().unwrap();
+        
+        let stack_top = match *stack_top_guard {
+            Some(v) => v,
+            None => return None,
+        };
+        
+        // Check if stack is empty (stack_top >= heap_data.len() means no stack)
+        if stack_top >= heap_data.len() {
+            return None;
+        }
+        
+        // Get value from stack
+        let value = heap_data[stack_top];
+        
+        // Increment stack top (stack grows downward, so popping means moving up)
+        let new_stack_top = stack_top + 1;
+        
+        // If stack is now empty (reached end of heap_data), clear stack_top_index
+        if new_stack_top >= heap_data.len() {
+            *stack_top_guard = None;
+        } else {
+            *stack_top_guard = Some(new_stack_top);
+        }
+        
+        Some(value)
+    }
+
+    /// Peek at the top of the stack without popping
+    ///
+    /// # Returns
+    /// * `Some(Eterm)` - Top value on stack
+    /// * `None` - Stack is empty
+    pub fn stack_peek(&self) -> Option<Eterm> {
+        // LOCK ORDER: heap_data -> stack_top_index (see LOCKING.md)
+        let heap_data = self.heap_data.lock().unwrap();
+        let stack_top_guard = self.stack_top_index.lock().unwrap();
+        
+        let stack_top = match *stack_top_guard {
+            Some(v) => v,
+            None => return None,
+        };
+        
+        if stack_top >= heap_data.len() {
+            return None;
+        }
+        
+        Some(heap_data[stack_top])
     }
 
     /// Get process flags
@@ -335,6 +455,14 @@ impl Process {
     /// Get arity
     pub fn arity(&self) -> u8 {
         self.arity
+    }
+
+    /// Set arity (number of live argument registers)
+    ///
+    /// # Arguments
+    /// * `arity` - Number of arguments for the current function call
+    pub fn set_arity(&mut self, arity: u8) {
+        self.arity = arity;
     }
 
     /// Get catches
@@ -389,7 +517,7 @@ impl Process {
 
     #[deprecated(note = "Use stack_top_index() instead")]
     pub fn stop(&self) -> Option<usize> {
-        self.stack_top_index
+        *self.stack_top_index.lock().unwrap()
     }
 
     /// Add a NIF pointer to this process's tracking list
@@ -626,8 +754,9 @@ mod tests {
     fn test_process_stack_size_calculation() {
         let mut process = Process::new(1);
         // Set stack top index
-        process.stack_top_index = Some(100);
+        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
         *process.heap_top_index.lock().unwrap() = 50;
+        *process.stack_top_index.lock().unwrap() = Some(100);
         
         let stack_size = process.stack_size_words();
         assert_eq!(stack_size, Some(50));
@@ -767,8 +896,9 @@ mod tests {
         let mut process = Process::new(1);
         
         // Set stack top index
-        process.stack_top_index = Some(100);
+        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
         *process.heap_top_index.lock().unwrap() = 50;
+        *process.stack_top_index.lock().unwrap() = Some(100);
         
         let stack_size = process.stack_size_words();
         assert_eq!(stack_size, Some(50));
@@ -779,8 +909,9 @@ mod tests {
         let mut process = Process::new(1);
         
         // Test saturating_sub when stack_top < heap_top
-        process.stack_top_index = Some(50);
+        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
         *process.heap_top_index.lock().unwrap() = 100;
+        *process.stack_top_index.lock().unwrap() = Some(50);
         
         let stack_size = process.stack_size_words();
         // saturating_sub(50, 100) = 0
@@ -1033,7 +1164,7 @@ mod tests {
         
         // Test when Some
         let mut process2 = Process::new(2);
-        process2.stack_top_index = Some(100);
+        *process2.stack_top_index.lock().unwrap() = Some(100);
         let stop2 = process2.stop();
         assert_eq!(stop2, Some(100));
     }
@@ -1044,7 +1175,7 @@ mod tests {
         
         // Modify some fields to ensure they appear in debug output
         *process.heap_top_index.lock().unwrap() = 50;
-        process.stack_top_index = Some(100);
+        *process.stack_top_index.lock().unwrap() = Some(100);
         
         let debug_str = format!("{:?}", process);
         
@@ -1187,13 +1318,15 @@ mod tests {
         let mut process = Process::new(1);
         
         // Test with equal indices
-        process.stack_top_index = Some(50);
+        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
         *process.heap_top_index.lock().unwrap() = 50;
+        *process.stack_top_index.lock().unwrap() = Some(50);
         assert_eq!(process.stack_size_words(), Some(0));
         
         // Test with stack_top < heap_top (saturating)
-        process.stack_top_index = Some(30);
+        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
         *process.heap_top_index.lock().unwrap() = 50;
+        *process.stack_top_index.lock().unwrap() = Some(30);
         assert_eq!(process.stack_size_words(), Some(0));
     }
 }

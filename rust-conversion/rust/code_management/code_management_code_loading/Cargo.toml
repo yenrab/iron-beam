@@ -10,4 +10,8 @@ authors = ["Erlang/OTP Rust Conversion"]
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 entities_io_operations = { path = "../../entities/entities_io_operations" }
 infrastructure_code_loading = { path = "../../infrastructure/infrastructure_code_loading" }
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["memoryapi", "sysinfoapi", "winnt"] }
 

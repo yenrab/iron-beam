@@ -43,7 +43,7 @@
 //! use entities_data_handling::term_hashing::{Term, make_hash};
 //!
 //! // Create an atom table and register atoms
-//! let table = AtomTable::new(1000);
+//! let table = AtomTable::new();
 //! let atom_index = table.put_index(b"my_atom", AtomEncoding::SevenBitAscii, false).unwrap();
 //!
 //! // Create terms and hash them

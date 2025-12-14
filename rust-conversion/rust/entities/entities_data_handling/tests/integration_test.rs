@@ -77,7 +77,7 @@ fn test_term_hashing_integration() {
 #[test]
 fn test_atom_table_integration() {
     // Test creating atoms and using them in term hashing
-    let table = AtomTable::new(1000);
+        let table = AtomTable::new();
     
     // Create some atoms
     let atom1_index = table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
@@ -109,7 +109,7 @@ fn test_atom_table_integration() {
 #[test]
 fn test_atom_table_with_maps_integration() {
     // Test using atoms from atom table as map keys
-    let table = AtomTable::new(1000);
+        let table = AtomTable::new();
     let mut map = Map::new();
     
     // Create atoms
@@ -143,7 +143,7 @@ fn test_atom_table_with_maps_integration() {
 #[test]
 fn test_cross_module_workflow() {
     // Test a complete workflow: create atoms, use in maps, hash terms
-    let table = AtomTable::new(1000);
+        let table = AtomTable::new();
     let mut map = Map::new();
     
     // Step 1: Create atoms
@@ -178,24 +178,23 @@ fn test_cross_module_workflow() {
 
 #[test]
 fn test_atom_table_limits_integration() {
-    // Test atom table behavior at limits
-    let table = AtomTable::new(5); // Small limit for testing
+    // Test atom table behavior (no limits on number of atoms)
+    let table = AtomTable::new();
     
-    // Fill up the table
-    for i in 0..5 {
+    // Add many atoms - should all succeed
+    for i in 0..100 {
         let name = format!("atom_{}", i);
         let result = table.put_index(name.as_bytes(), AtomEncoding::SevenBitAscii, false);
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Failed to add atom {}", i);
     }
     
-    // Try to add one more - should fail
+    // Verify we can add more atoms without limit
     let result = table.put_index(b"overflow", AtomEncoding::SevenBitAscii, false);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), AtomError::TableFull);
+    assert!(result.is_ok(), "Should be able to add unlimited atoms");
     
     // Verify existing atoms still work
     assert_eq!(table.get(b"atom_0", AtomEncoding::SevenBitAscii), Some(0));
-    assert_eq!(table.get(b"atom_4", AtomEncoding::SevenBitAscii), Some(4));
+    assert_eq!(table.get(b"atom_99", AtomEncoding::SevenBitAscii), Some(99));
 }
 
 #[test]

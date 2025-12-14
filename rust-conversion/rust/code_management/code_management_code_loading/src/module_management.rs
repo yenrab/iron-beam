@@ -37,15 +37,19 @@ pub struct ModuleInstance {
     /// Code header (simplified - will be properly typed later)
     pub code_hdr: Option<*const ()>,
     /// Length of loaded code in bytes
-    pub code_length: u32,
+    /// Uses usize to match code_data.len() and support code larger than 4GB
+    pub code_length: usize,
+    /// Raw BEAM code data (stored as static reference for lifetime management)
+    /// This is the actual code bytes loaded from the BEAM file, used for label resolution
+    pub code_data: Option<&'static [u8]>,
     /// Catches (simplified)
-    pub catches: u32,
+    pub catches: usize,
     /// NIF pointer (simplified)
     pub nif: Option<*mut ()>,
     /// Number of breakpoints
-    pub num_breakpoints: u32,
+    pub num_breakpoints: usize,
     /// Number of traced exports
-    pub num_traced_exports: u32,
+    pub num_traced_exports: usize,
     /// Executable region (simplified)
     pub executable_region: Option<*const ()>,
     /// Writable region (simplified)
@@ -63,6 +67,7 @@ impl ModuleInstance {
     pub fn init(&mut self) {
         self.code_hdr = None;
         self.code_length = 0;
+        self.code_data = None;
         self.catches = 0;
         self.nif = None;
         self.num_breakpoints = 0;
@@ -71,6 +76,23 @@ impl ModuleInstance {
         self.writable_region = None;
         self.metadata = None;
         self.unsealed = false;
+    }
+    
+    /// Set the code data for this module instance
+    ///
+    /// # Arguments
+    /// * `code_data` - The BEAM code data bytes (must be 'static lifetime)
+    pub fn set_code_data(&mut self, code_data: &'static [u8]) {
+        self.code_data = Some(code_data);
+        self.code_length = code_data.len();
+    }
+    
+    /// Get the code data for this module instance
+    ///
+    /// # Returns
+    /// Some reference to code data if available, None otherwise
+    pub fn get_code_data(&self) -> Option<&'static [u8]> {
+        self.code_data
     }
 
     /// Unseal a module (make it writable for modification)
@@ -122,7 +144,7 @@ impl ModuleInstance {
             
             // Check if ptr is within executable region
             if ptr_addr >= exec_start && 
-               ptr_addr < exec_start + self.code_length as usize {
+               ptr_addr < exec_start + self.code_length {
                 let offset = ptr_addr - exec_start;
                 Some((writable_start + offset) as *mut ())
             } else {
@@ -139,6 +161,7 @@ impl Default for ModuleInstance {
         let mut inst = Self {
             code_hdr: None,
             code_length: 0,
+            code_data: None,
             catches: 0,
             nif: None,
             num_breakpoints: 0,
@@ -164,7 +187,7 @@ unsafe impl Sync for ModuleInstance {}
 #[derive(Debug, Clone)]
 pub struct Module {
     /// Module atom index (not tagged)
-    pub module: u32,
+    pub module: usize,
     /// Seen flag (used by finish_loading)
     pub seen: bool,
     /// Current module instance
@@ -185,7 +208,7 @@ unsafe impl Sync for Module {}
 #[derive(Debug)]
 pub struct ModuleTable {
     /// Hash map from module atom index to module
-    modules: Arc<RwLock<HashMap<u32, Arc<Module>>>>,
+    modules: Arc<RwLock<HashMap<usize, Arc<Module>>>>,
     /// Total bytes used by modules
     total_bytes: AtomicU64,
     /// Maximum number of modules
@@ -213,7 +236,7 @@ impl ModuleTable {
     ///
     /// # Returns
     /// Reference to module if found, None otherwise
-    pub fn get_module(&self, module: u32) -> Option<Arc<Module>> {
+    pub fn get_module(&self, module: usize) -> Option<Arc<Module>> {
         let modules = self.modules.read().unwrap();
         modules.get(&module).map(|m| Arc::clone(m))
     }
@@ -225,7 +248,7 @@ impl ModuleTable {
     ///
     /// # Returns
     /// Reference to the module (existing or newly created)
-    pub fn put_module(&self, module: u32) -> Arc<Module> {
+    pub fn put_module(&self, module: usize) -> Arc<Module> {
         let mut modules = self.modules.write().unwrap();
         
         if let Some(existing) = modules.get(&module) {
@@ -273,7 +296,7 @@ impl ModuleTable {
     /// Module if index is valid, None otherwise
     pub fn get_module_by_index(&self, index: usize) -> Option<Arc<Module>> {
         let modules = self.modules.read().unwrap();
-        let keys: Vec<u32> = modules.keys().copied().collect();
+        let keys: Vec<usize> = modules.keys().copied().collect();
         if index < keys.len() {
             let key = keys[index];
             modules.get(&key).map(|m| Arc::clone(m))
@@ -287,6 +310,115 @@ impl ModuleTable {
         let mut modules = self.modules.write().unwrap();
         modules.clear();
         self.total_bytes.store(0, Ordering::Release);
+    }
+
+    /// Store code data for a module
+    ///
+    /// This stores the BEAM code data in the module's current instance.
+    /// The code data is stored as a static reference for lifetime management.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `code_data` - BEAM code data bytes (must be 'static lifetime)
+    ///
+    /// # Returns
+    /// true if module was found and code data was stored, false otherwise
+    pub fn store_code_data(&self, module: usize, code_data: &'static [u8]) -> bool {
+        let mut modules = self.modules.write().unwrap();
+        if let Some(module_arc) = modules.get(&module) {
+            // Clone the module, update code data, and replace
+            let mut module_clone = (**module_arc).clone();
+            module_clone.curr.set_code_data(code_data);
+            modules.insert(module, Arc::new(module_clone));
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Update module instance
+    ///
+    /// Updates the current module instance for a module. This is used to
+    /// set executable memory regions and other instance-specific data.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `updater` - Closure that receives a mutable reference to the module instance
+    ///
+    /// # Returns
+    /// true if module was found and updated, false otherwise
+    pub fn update_module_instance<F>(&self, module: usize, updater: F) -> bool
+    where
+        F: FnOnce(&mut ModuleInstance),
+    {
+        let mut modules = self.modules.write().unwrap();
+        if let Some(module_arc) = modules.get(&module) {
+            // Clone the module, update instance, and replace
+            let mut module_clone = (**module_arc).clone();
+            updater(&mut module_clone.curr);
+            modules.insert(module, Arc::new(module_clone));
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Get code data for a module
+    ///
+    /// Retrieves the BEAM code data stored in the module's current instance.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    ///
+    /// # Returns
+    /// Some reference to code data if module exists and has code data, None otherwise
+    pub fn get_code_data(&self, module: usize) -> Option<&'static [u8]> {
+        let modules = self.modules.read().unwrap();
+        modules.get(&module).and_then(|m| m.curr.get_code_data())
+    }
+
+    /// Store code data and create module if it doesn't exist
+    ///
+    /// This is a convenience method that creates the module entry if it doesn't exist,
+    /// then stores the code data in it.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `code_data` - BEAM code data bytes (must be 'static lifetime)
+    ///
+    /// # Returns
+    /// Reference to the module (existing or newly created)
+    pub fn put_module_with_code(&self, module: usize, code_data: &'static [u8]) -> Arc<Module> {
+        let mut modules = self.modules.write().unwrap();
+        
+        // Check if module exists
+        if let Some(existing) = modules.get(&module) {
+            // Update existing module with code data
+            let mut module_clone = (**existing).clone();
+            module_clone.curr.set_code_data(code_data);
+            let updated_module = Arc::new(module_clone);
+            modules.insert(module, Arc::clone(&updated_module));
+            updated_module
+        } else {
+            // Create new module with code data
+            if modules.len() >= self.limit {
+                // In a full implementation, this would return an error
+            }
+            
+            let mut new_module = Module {
+                module,
+                seen: false,
+                curr: ModuleInstance::default(),
+                old: ModuleInstance::default(),
+                on_load: None,
+            };
+            new_module.curr.set_code_data(code_data);
+            
+            let module_arc = Arc::new(new_module);
+            self.total_bytes.fetch_add(std::mem::size_of::<Module>() as u64, Ordering::Relaxed);
+            modules.insert(module, Arc::clone(&module_arc));
+            module_arc
+        }
     }
 }
 
@@ -377,29 +509,70 @@ impl ModuleTableManager {
     /// # Arguments
     /// * `active_ix` - Active code index
     /// * `staging_ix` - Staging code index
+    ///
+    /// # Lock Ordering
+    /// LOCK ORDER: Always lock module tables by code index (lower index first) to prevent deadlocks.
+    /// This ensures that if two threads call start_staging with reversed indices,
+    /// they will both try to acquire the same lock first, preventing circular wait.
+    /// See LOCKING.md for details.
     pub fn start_staging(&self, active_ix: usize, staging_ix: usize) {
-        let src_table = self.get_table(active_ix);
-        let dst_table = self.get_table(staging_ix);
+        // LOCK ORDER: Always lock by code index (lower index first) to prevent deadlocks
+        // This ensures that if two threads call start_staging with reversed indices,
+        // they will both try to acquire the same lock first, preventing circular wait.
+        let (first_ix, second_ix, first_is_src) = if active_ix <= staging_ix {
+            (active_ix, staging_ix, true)
+        } else {
+            (staging_ix, active_ix, false)
+        };
         
-        let src_modules = src_table.modules.read().unwrap();
-        let mut dst_modules = dst_table.modules.write().unwrap();
+        let first_table = self.get_table(first_ix);
+        let second_table = self.get_table(second_ix);
         
-        // Copy all modules from source to destination
-        for (module_id, src_module) in src_modules.iter() {
-            // Create a copy of the module
-            let dst_module = Arc::new(Module {
-                module: src_module.module,
-                seen: src_module.seen,
-                curr: src_module.curr.clone(),
-                old: src_module.old.clone(),
-                on_load: src_module.on_load.clone(),
-            });
+        // Lock first table, then second table (always in index order)
+        if first_is_src {
+            // First table is source (read lock), second is destination (write lock)
+            let src_modules = first_table.modules.read().unwrap();
+            let mut dst_modules = second_table.modules.write().unwrap();
             
-            // Update total bytes
-            let module_size = std::mem::size_of::<Module>() as u64;
-            dst_table.total_bytes.fetch_add(module_size, Ordering::Relaxed);
+            // Copy all modules from source to destination
+            for (module_id, src_module) in src_modules.iter() {
+                // Create a copy of the module
+                let dst_module = Arc::new(Module {
+                    module: src_module.module,
+                    seen: src_module.seen,
+                    curr: src_module.curr.clone(),
+                    old: src_module.old.clone(),
+                    on_load: src_module.on_load.clone(),
+                });
+                
+                // Update total bytes
+                let module_size = std::mem::size_of::<Module>() as u64;
+                second_table.total_bytes.fetch_add(module_size, Ordering::Relaxed);
+                
+                dst_modules.insert(*module_id, dst_module);
+            }
+        } else {
+            // First table is destination (write lock), second is source (read lock)
+            let mut dst_modules = first_table.modules.write().unwrap();
+            let src_modules = second_table.modules.read().unwrap();
             
-            dst_modules.insert(*module_id, dst_module);
+            // Copy all modules from source to destination
+            for (module_id, src_module) in src_modules.iter() {
+                // Create a copy of the module
+                let dst_module = Arc::new(Module {
+                    module: src_module.module,
+                    seen: src_module.seen,
+                    curr: src_module.curr.clone(),
+                    old: src_module.old.clone(),
+                    on_load: src_module.on_load.clone(),
+                });
+                
+                // Update total bytes
+                let module_size = std::mem::size_of::<Module>() as u64;
+                first_table.total_bytes.fetch_add(module_size, Ordering::Relaxed);
+                
+                dst_modules.insert(*module_id, dst_module);
+            }
         }
     }
 
@@ -418,7 +591,7 @@ impl ModuleTableManager {
         if !commit {
             // Abort: remove modules added during staging
             let mut modules = table.modules.write().unwrap();
-            let keys_to_remove: Vec<u32> = modules
+            let keys_to_remove: Vec<usize> = modules
                 .keys()
                 .copied()
                 .collect::<Vec<_>>()
@@ -516,6 +689,54 @@ impl ModuleTableManager {
     /// Write guard that must be dropped to release the lock
     pub fn rwlock_old_code(&self, code_ix: usize) -> RwLockWriteGuard<'_, ()> {
         self.old_code_locks[code_ix % 3].write()
+    }
+
+    /// Store code data for a module in the active code index
+    ///
+    /// This is a convenience method that stores code data in the active code index table.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `code_data` - BEAM code data bytes (must be 'static lifetime)
+    /// * `active_code_ix` - Active code index
+    ///
+    /// # Returns
+    /// true if code data was stored successfully, false otherwise
+    pub fn store_code_data(&self, module: usize, code_data: &'static [u8], active_code_ix: usize) -> bool {
+        let table = self.get_table(active_code_ix);
+        table.store_code_data(module, code_data)
+    }
+
+    /// Get code data for a module from the active code index
+    ///
+    /// This is a convenience method that retrieves code data from the active code index table.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `active_code_ix` - Active code index
+    ///
+    /// # Returns
+    /// Some reference to code data if module exists and has code data, None otherwise
+    pub fn get_code_data(&self, module: usize, active_code_ix: usize) -> Option<&'static [u8]> {
+        let table = self.get_table(active_code_ix);
+        table.get_code_data(module)
+    }
+
+    /// Store code data and create module if it doesn't exist in the active code index
+    ///
+    /// This is a convenience method that creates the module entry if it doesn't exist,
+    /// then stores the code data in it, using the active code index.
+    ///
+    /// # Arguments
+    /// * `module` - Module atom index
+    /// * `code_data` - BEAM code data bytes (must be 'static lifetime)
+    /// * `active_code_ix` - Active code index
+    ///
+    /// # Returns
+    /// Reference to the module (existing or newly created)
+    pub fn put_module_with_code(&self, module: usize, code_data: &'static [u8], active_code_ix: usize) -> Arc<Module> {
+        let table = self.get_table(active_code_ix);
+        table.put_module_with_code(module, code_data)
     }
 }
 

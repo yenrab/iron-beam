@@ -25,6 +25,7 @@ use epmd::start_epmd_daemon;
 use signal_stack::sys_init_signal_stack;
 
 fn main() {
+    eprintln!("[DEBUG] in main");
     // Initialize signal stack before any threads are created
     // This is critical for scheduler thread safety
     unsafe {
@@ -33,16 +34,16 @@ fn main() {
             // Continue anyway - signal stack is important but not fatal
         }
     }
-
+    eprintln!("[DEBUG] after signal stack initialization");
     // Parse command-line arguments (replaces erlexec argument processing)
     let args = EmulatorArgs::parse();
-
+    eprintln!("[DEBUG] after args parsing");
     // Handle special modes (must exit early)
     if args.emu_name_exit {
         println!("beam");
         process::exit(0);
     }
-
+    eprintln!("[DEBUG] after emu_name_exit");
     if args.emu_args_exit {
         // Print all arguments
         for arg in std::env::args().skip(1) {
@@ -50,7 +51,7 @@ fn main() {
         }
         process::exit(0);
     }
-
+    eprintln!("[DEBUG] after emu_args_exit");
     if args.emu_qouted_cmd_exit {
         // Print quoted command line
         print!("\"beam\" ");
@@ -60,13 +61,13 @@ fn main() {
         println!();
         process::exit(0);
     }
-
+    eprintln!("[DEBUG] after emu_qouted_cmd_exit");
     // Validate argument combinations
     if let Err(e) = args.validate() {
         eprintln!("Error: {}", e);
         process::exit(1);
     }
-
+    eprintln!("[DEBUG] after validate");
     // Determine rootdir and bindir
     let (rootdir, bindir) = match determine_paths() {
         Ok(paths) => paths,
@@ -75,11 +76,11 @@ fn main() {
             process::exit(1);
         }
     };
-
+    eprintln!("[DEBUG] after determine_paths");
     // Set environment variables (replaces erlexec environment setup)
     set_env_vars(&rootdir, &bindir, "beam");
     manipulate_path(&bindir, &rootdir);
-
+    eprintln!("[DEBUG] after set_env_vars");
     // Start epmd daemon if needed (replaces erlexec epmd management)
     if args.should_start_epmd() {
         if let Err(e) = start_epmd_daemon(&bindir, args.epmd.as_deref()) {
@@ -87,11 +88,11 @@ fn main() {
             // Continue anyway - epmd may already be running
         }
     }
-
+    eprintln!("[DEBUG] after start_epmd_daemon");
     // Build arguments for erl_start (replaces erlexec argument construction)
     let mut emulator_args = args.build_emulator_args(&rootdir, &bindir);
     let mut argc = emulator_args.len();
-
+    eprintln!("[DEBUG] after build_emulator_args, argc: {}", argc);
     // Call Rust erl_start directly (no execv, no process replacement)
     // This is the key difference from C: we call erl_start() directly instead
     // of using execv() to launch a separate binary
@@ -100,6 +101,7 @@ fn main() {
     // 2. Load boot script
     // 3. Create init process
     // 4. Enter main execution loop (blocks until shutdown)
+    eprintln!("[DEBUG] about to call erl_start");
     match frameworks_emulator_init::main_init::erl_start(&mut argc, &mut emulator_args) {
         Ok(()) => {
             // erl_start() returns after shutdown is complete
@@ -110,5 +112,6 @@ fn main() {
             process::exit(1);
         }
     }
+    eprintln!("[DEBUG] after erl_start");
 }
 

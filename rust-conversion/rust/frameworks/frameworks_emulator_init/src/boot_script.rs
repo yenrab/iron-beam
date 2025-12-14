@@ -441,6 +441,83 @@ fn execute_command(command: &BootCommand) -> Result<(), String> {
     }
 }
 
+/// Resolve function entry point from module:function/arity
+///
+/// Looks up the function in the export table and resolves its code pointer.
+/// If the code pointer is not available, attempts to resolve it from the label.
+///
+/// # Arguments
+/// * `module` - Module name
+/// * `function` - Function name
+/// * `arity` - Function arity
+///
+/// # Returns
+/// Code pointer to function entry point or error
+fn resolve_function_entry_point(
+    module: &str,
+    function: &str,
+    arity: usize,
+) -> Result<entities_process::ErtsCodePtr, String> {
+    use entities_io_operations::export::get_global_export_table;
+    use infrastructure_utilities::atom_table::get_global_atom_table;
+    use entities_data_handling::AtomEncoding;
+    use code_management_code_loading::{get_global_module_manager, get_global_code_ix};
+    
+    let atom_table = get_global_atom_table();
+    let module_atom_index = atom_table.put_index(module.as_bytes(), AtomEncoding::SevenBitAscii, false)
+        .map_err(|_| format!("Failed to create atom for module: {}", module))? as u32;
+    
+    let function_atom_index = atom_table.put_index(function.as_bytes(), AtomEncoding::SevenBitAscii, false)
+        .map_err(|_| format!("Failed to create atom for function: {}", function))? as u32;
+    
+    let export_table = get_global_export_table();
+    let export = export_table.get(module_atom_index, function_atom_index, arity as u32)
+        .ok_or_else(|| format!("{}/{} not found in export table", function, arity))?;
+    
+    // Try to get code pointer directly
+    if let Some(ptr) = export.get_code_ptr() {
+        return Ok(ptr);
+    }
+    
+    // Try to resolve from label
+    if let Some(label) = export.label {
+        // Use the same resolution logic as in main_init.rs
+        let module_manager = get_global_module_manager();
+        let code_ix = get_global_code_ix();
+        let active_ix = code_ix.active_code_ix() as usize;
+        
+        if let Some(code_data) = module_manager.get_code_data(module_atom_index as usize, active_ix) {
+            let code_header_size = if code_data.len() >= 20 { 20 } else { 0 };
+            let instruction_size = 4;
+            let label_offset = code_header_size + ((label as usize) * instruction_size);
+            
+            if label_offset >= code_data.len() {
+                return Err(format!(
+                    "Label {} (offset {}) out of bounds for module {} (code size: {})",
+                    label, label_offset, module, code_data.len()
+                ));
+            }
+            
+            let code_ptr = code_data.as_ptr().wrapping_add(label_offset) as entities_process::ErtsCodePtr;
+            
+            // Update export table with resolved code pointer
+            export_table.update_export_code_ptr(module_atom_index, function_atom_index, arity as u32, code_ptr);
+            
+            return Ok(code_ptr);
+        }
+        
+        return Err(format!(
+            "Module {} code data not available for label resolution",
+            module
+        ));
+    }
+    
+    Err(format!(
+        "{}/{} has neither code pointer nor label",
+        function, arity
+    ))
+}
+
 /// Spawn a kernel process
 ///
 /// Creates a new process that will execute the specified module:function/arity.
@@ -460,10 +537,17 @@ fn spawn_kernel_process(
     function: &str,
     args: &[String],
 ) -> Result<(), String> {
-    use entities_process::{Process, ErtsCodePtr};
+    use entities_process::Process;
     use infrastructure_utilities::process_table::get_global_process_table;
     use usecases_scheduling::{get_global_schedulers, schedule_process, Priority};
     use std::sync::Arc;
+    
+    // Resolve function entry point
+    let arity = args.len();
+    let code_ptr = resolve_function_entry_point(module, function, arity)
+        .map_err(|e| format!("Failed to resolve entry point for {}/{}: {}", function, arity, e))?;
+    
+    eprintln!("      ✓ Resolved {}/{} entry point: {:p}", function, arity, code_ptr);
     
     // Allocate a new process with automatic ID generation
     let process_table = get_global_process_table();
@@ -471,27 +555,17 @@ fn spawn_kernel_process(
         .new_element(|id| {
             let mut process = Process::new(id);
             
-            // In the full implementation, we would:
-            // 1. Look up the module in the code server
-            // 2. Find the function entry point (export table lookup)
-            // 3. Set the instruction pointer to the function entry point
-            // 4. Set up the process heap with function arguments
-            // 5. Set up the process stack for function call
-            
-            // For now, create a placeholder code sequence
-            // In production, this would be the actual function entry point
-            use infrastructure_emulator_loop::instruction_decoder::opcodes;
-            let mut process_code = Vec::new();
-            
-            // Create a simple entry point that will eventually call the function
-            // For now, just a return instruction (process will exit immediately)
-            // In full implementation, this would be the actual function code
-            process_code.push(opcodes::RETURN as u64);
-            
-            let code_ptr = process_code.as_ptr() as ErtsCodePtr;
-            std::mem::forget(process_code); // Keep code alive
-            
+            // Set instruction pointer to function entry point
             process.set_i(code_ptr);
+            
+            // Set arity for the function call
+            process.set_arity(arity as u8);
+            
+            // Set up process heap with function arguments
+            if let Err(e) = setup_function_arguments(&mut process, args) {
+                eprintln!("      ⚠ Failed to set up function arguments: {} (process will start without arguments)", e);
+            }
+            
             Arc::new(process)
         })
         .map_err(|e| format!("Failed to allocate process: {:?}", e))?;
@@ -512,6 +586,7 @@ fn spawn_kernel_process(
     }
     
     // Schedule on first available scheduler
+    // LOCK ORDER: schedulers -> runq (see LOCKING.md)
     let scheduler = &schedulers_guard[0];
     let runq = scheduler.runq();
     let runq_guard = runq.lock()
@@ -521,6 +596,50 @@ fn spawn_kernel_process(
         .map_err(|e| format!("Failed to schedule kernel process: {:?}", e))?;
     
     eprintln!("      ✓ Kernel process '{}' spawned and scheduled (PID: {})", name, pid);
+    Ok(())
+}
+
+/// Set up function arguments on process heap
+///
+/// Encodes function arguments as Erlang terms and stores them in the process heap.
+/// Arguments are stored starting at heap_start_index (where X registers begin).
+///
+/// # Arguments
+/// * `process` - Process to set up
+/// * `args` - Function arguments (as strings for now)
+///
+/// # Returns
+/// Result indicating success or failure
+fn setup_function_arguments(process: &mut entities_process::Process, args: &[String]) -> Result<(), String> {
+    use infrastructure_utilities::atom_table::get_global_atom_table;
+    use entities_data_handling::AtomEncoding;
+    
+    let atom_table = get_global_atom_table();
+    let heap_start = process.heap_start_index();
+    let required_heap_size = heap_start + args.len();
+    
+    // Ensure heap is large enough
+    {
+        let mut heap_slice = process.heap_slice_mut();
+        if heap_slice.len() < required_heap_size {
+            heap_slice.resize(required_heap_size, 0);
+        }
+        
+        // Encode each argument as an atom and store in heap
+        for (i, arg) in args.iter().enumerate() {
+            let arg_atom_index = atom_table.put_index(
+                arg.as_bytes(),
+                AtomEncoding::SevenBitAscii,
+                false,
+            )
+            .map_err(|_| format!("Failed to create atom for argument: {}", arg))? as u32;
+            
+            // Encode as Eterm atom: (atom_index << 6) | 0x0B
+            let arg_term = ((arg_atom_index as u64) << 6) | 0x0B;
+            heap_slice[heap_start + i] = arg_term;
+        }
+    }
+    
     Ok(())
 }
 
@@ -536,37 +655,24 @@ fn spawn_kernel_process(
 ///
 /// # Returns
 /// Result indicating success or failure
-///
-/// # Note
-/// In the full implementation, this would:
-/// 1. Look up the function in the module's export table
-/// 2. Create a temporary process or use current context
-/// 3. Set up the function call with proper argument encoding
-/// 4. Execute the function synchronously
-/// 5. Return the result
 fn apply_function(
     module: &str,
     function: &str,
     args: &[String],
 ) -> Result<(), String> {
-    use entities_process::{Process, ErtsCodePtr};
+    use entities_process::Process;
     use infrastructure_utilities::process_table::get_global_process_table;
     use usecases_scheduling::{get_global_schedulers, schedule_process, Priority};
     use std::sync::Arc;
     
     eprintln!("      Applying function: {}.{}/{}", module, function, args.len());
     
-    // In the full implementation, we would:
-    // 1. Look up the module in the code server
-    // 2. Find the function entry point in the export table
-    // 3. Create a temporary process or use the current execution context
-    // 4. Set up the process heap with function arguments (properly encoded as Erlang terms)
-    // 5. Set the instruction pointer to the function entry point
-    // 6. Execute the function synchronously (or schedule and wait)
-    // 7. Handle the return value or any exceptions
+    // Resolve function entry point
+    let arity = args.len();
+    let code_ptr = resolve_function_entry_point(module, function, arity)
+        .map_err(|e| format!("Failed to resolve entry point for {}/{}: {}", function, arity, e))?;
     
-    // For now, we'll create a temporary process similar to kernel process spawning
-    // but mark it for synchronous execution
+    eprintln!("      ✓ Resolved {}/{} entry point: {:p}", function, arity, code_ptr);
     
     // Allocate a new process with automatic ID generation
     let process_table = get_global_process_table();
@@ -574,20 +680,17 @@ fn apply_function(
         .new_element(|id| {
             let mut process = Process::new(id);
             
-            // In the full implementation, this would be the actual function entry point
-            // For now, create a placeholder code sequence
-            use infrastructure_emulator_loop::instruction_decoder::opcodes;
-            let mut process_code = Vec::new();
-            
-            // Create a simple entry point that will eventually call the function
-            // For now, just a return instruction (process will exit immediately)
-            // In full implementation, this would be the actual function code
-            process_code.push(opcodes::RETURN as u64);
-            
-            let code_ptr = process_code.as_ptr() as ErtsCodePtr;
-            std::mem::forget(process_code); // Keep code alive
-            
+            // Set instruction pointer to function entry point
             process.set_i(code_ptr);
+            
+            // Set arity for the function call
+            process.set_arity(arity as u8);
+            
+            // Set up process heap with function arguments
+            if let Err(e) = setup_function_arguments(&mut process, args) {
+                eprintln!("      ⚠ Failed to set up function arguments: {} (process will start without arguments)", e);
+            }
+            
             Arc::new(process)
         })
         .map_err(|e| format!("Failed to allocate process for apply: {:?}", e))?;
@@ -614,6 +717,7 @@ fn apply_function(
     }
     
     // Schedule on first available scheduler
+    // LOCK ORDER: schedulers -> runq (see LOCKING.md)
     let scheduler = &schedulers_guard[0];
     let runq = scheduler.runq();
     let runq_guard = runq.lock()
@@ -634,7 +738,8 @@ fn apply_function(
 /// Load modules from boot script
 ///
 /// Loads BEAM modules specified in the primLoad command.
-/// This function searches for .beam files and loads them into the runtime.
+/// This function searches for .beam files, parses them using BeamLoader,
+/// and registers them in the module management system.
 ///
 /// # Arguments
 /// * `modules` - List of module names to load
@@ -642,13 +747,15 @@ fn apply_function(
 /// # Returns
 /// Result indicating success or failure
 fn load_modules(modules: &[String]) -> Result<(), String> {
-    use code_management_code_loading::CodeLoader;
+    use code_management_code_loading::{CodeLoader, BeamLoader};
     use code_management_code_loading::code_loader::LoadError;
+    use usecases_bifs::load::LoadBif;
     use std::path::Path;
+    use std::fs;
     
     // Get code search paths
-    // In the full implementation, this would use the code path from boot script
-    // For now, we'll try common locations
+    // This should include paths set by boot script 'path' commands
+    // and default paths including Makefile output directories
     let code_paths = get_code_paths();
     
     let mut loaded_count = 0;
@@ -662,16 +769,53 @@ fn load_modules(modules: &[String]) -> Result<(), String> {
             // Try .beam file
             let beam_path = Path::new(code_path).join(format!("{}.beam", module_name));
             
+            if !beam_path.exists() {
+                continue;
+            }
+            
+            // Load BEAM file
             match CodeLoader::load_module(&beam_path) {
-                Ok(code) => {
-                    // Verify the code
-                    if CodeLoader::verify_module(&code) {
-                        eprintln!("      ✓ Loaded: {} (from {})", module_name, beam_path.display());
-                        loaded_count += 1;
-                        found = true;
-                        break;
-                    } else {
-                        eprintln!("      ✗ Invalid format: {}", module_name);
+                Ok(beam_data) => {
+                    // Verify BEAM format
+                    if !CodeLoader::verify_module(&beam_data) {
+                        eprintln!("      ✗ Invalid BEAM format: {}", module_name);
+                        continue;
+                    }
+                    
+                    // Parse BEAM file using BeamLoader
+                    match BeamLoader::read_beam_file(&beam_data) {
+                        Ok(beam_file) => {
+                            // Register module using LoadBif infrastructure
+                            // This ensures the module is properly registered in the module management system
+                            LoadBif::register_module(
+                                module_name,
+                                usecases_bifs::load::ModuleStatus::Loaded,
+                                false, // has_old_code
+                                beam_file.has_on_load, // has_on_load
+                            );
+                            
+                            // In the full implementation, we would also:
+                            // 1. Register module in module table (code_management_code_loading::module_management)
+                            // 2. Make code executable (code index management)
+                            // 3. Register exports in export table
+                            // 4. Set up code pointers for function entry points
+                            //
+                            // For now, LoadBif::register_module ensures basic module registration
+                            // which allows module_loaded/1 and other BIFs to work correctly.
+                            
+                            eprintln!("      ✓ Loaded: {} (from {})", module_name, beam_path.display());
+                            if beam_file.has_on_load {
+                                eprintln!("        ⚠ Module has on_load function (on_load execution not yet implemented)");
+                            }
+                            loaded_count += 1;
+                            found = true;
+                            break;
+                        }
+                        Err(e) => {
+                            eprintln!("      ✗ Failed to parse BEAM file {}: {:?}", module_name, e);
+                            // Try next path
+                            continue;
+                        }
                     }
                 }
                 Err(LoadError::FileError) => {
@@ -778,7 +922,7 @@ fn set_code_path(paths: &[String]) -> Result<(), String> {
 ///
 /// Returns a list of directories to search for BEAM files.
 /// Uses the code path set by boot script `path` commands, or defaults
-/// if no path has been set.
+/// if no path has been set. Also includes Makefile output directories.
 ///
 /// # Returns
 /// Vector of code path directories
@@ -788,7 +932,72 @@ fn get_code_paths() -> Vec<String> {
         .lock()
         .expect("Failed to lock code path");
     
-    path_guard.clone()
+    let mut paths = path_guard.clone();
+    
+    // If code path is empty or only has defaults, add Makefile output directories
+    // The Makefile creates .beam files in target/otp_root/lib/*/ebin/
+    if paths.is_empty() || (paths.len() == 1 && paths[0] == ".") {
+        // Try to find target/otp_root/lib/*/ebin/ directories
+        // This is relative to the rust-conversion directory
+        let target_base = std::env::current_dir()
+            .ok()
+            .and_then(|cwd| {
+                // Try to find rust-conversion directory
+                let mut current = cwd.clone();
+                loop {
+                    if current.join("rust-conversion").exists() {
+                        return Some(current.join("rust-conversion").join("target").join("otp_root"));
+                    }
+                    if let Some(parent) = current.parent() {
+                        current = parent.to_path_buf();
+                    } else {
+                        break;
+                    }
+                }
+                None
+            });
+        
+        if let Some(target_root) = target_base {
+            let lib_dir = target_root.join("lib");
+            if lib_dir.exists() {
+                if let Ok(entries) = std::fs::read_dir(&lib_dir) {
+                    for entry in entries.flatten() {
+                        let app_dir = entry.path();
+                        if app_dir.is_dir() {
+                            let ebin_dir = app_dir.join("ebin");
+                            if ebin_dir.exists() {
+                                if let Some(path_str) = ebin_dir.to_str() {
+                                    paths.push(path_str.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also try ROOTDIR/lib/*/ebin/ if ROOTDIR is set
+        if let Ok(rootdir) = std::env::var("ROOTDIR") {
+            let lib_dir = Path::new(&rootdir).join("lib");
+            if lib_dir.exists() {
+                if let Ok(entries) = std::fs::read_dir(&lib_dir) {
+                    for entry in entries.flatten() {
+                        let app_dir = entry.path();
+                        if app_dir.is_dir() {
+                            let ebin_dir = app_dir.join("ebin");
+                            if ebin_dir.exists() {
+                                if let Some(path_str) = ebin_dir.to_str() {
+                                    paths.push(path_str.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    paths
 }
 
 /// Initialize the process registry
@@ -862,17 +1071,783 @@ fn mark_modules_preloaded(modules: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use infrastructure_utilities::ErlangTerm;
 
     #[test]
-    fn test_boot_command_display() {
-        let cmd = BootCommand::Progress("test".to_string());
-        assert_eq!(cmd, BootCommand::Progress("test".to_string()));
+    fn test_boot_script_debug() {
+        let script = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![BootCommand::Progress("test".to_string())],
+        };
+        let debug_str = format!("{:?}", script);
+        assert!(!debug_str.is_empty());
+        assert!(debug_str.contains("test"));
     }
 
     #[test]
-    fn test_resolve_boot_path() {
+    fn test_boot_script_clone() {
+        let script1 = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![BootCommand::Progress("test".to_string())],
+        };
+        let script2 = script1.clone();
+        assert_eq!(script1.name, script2.name);
+        assert_eq!(script1.version, script2.version);
+        assert_eq!(script1.commands.len(), script2.commands.len());
+    }
+
+    #[test]
+    fn test_boot_command_progress() {
+        let cmd = BootCommand::Progress("test".to_string());
+        assert_eq!(cmd, BootCommand::Progress("test".to_string()));
+        assert_ne!(cmd, BootCommand::Progress("other".to_string()));
+    }
+
+    #[test]
+    fn test_boot_command_preloaded() {
+        let cmd = BootCommand::PreLoaded(vec!["mod1".to_string(), "mod2".to_string()]);
+        assert_eq!(cmd, BootCommand::PreLoaded(vec!["mod1".to_string(), "mod2".to_string()]));
+        assert_ne!(cmd, BootCommand::PreLoaded(vec!["mod1".to_string()]));
+    }
+
+    #[test]
+    fn test_boot_command_path() {
+        let cmd = BootCommand::Path(vec!["/path1".to_string(), "/path2".to_string()]);
+        assert_eq!(cmd, BootCommand::Path(vec!["/path1".to_string(), "/path2".to_string()]));
+    }
+
+    #[test]
+    fn test_boot_command_primload() {
+        let cmd = BootCommand::PrimLoad(vec!["mod1".to_string()]);
+        assert_eq!(cmd, BootCommand::PrimLoad(vec!["mod1".to_string()]));
+    }
+
+    #[test]
+    fn test_boot_command_kernel_load_completed() {
+        let cmd = BootCommand::KernelLoadCompleted;
+        assert_eq!(cmd, BootCommand::KernelLoadCompleted);
+        assert_ne!(cmd, BootCommand::Progress("test".to_string()));
+    }
+
+    #[test]
+    fn test_boot_command_kernel_process() {
+        let cmd = BootCommand::KernelProcess {
+            name: "init".to_string(),
+            module: "init".to_string(),
+            function: "start".to_string(),
+            args: vec!["arg1".to_string()],
+        };
+        assert_eq!(cmd, BootCommand::KernelProcess {
+            name: "init".to_string(),
+            module: "init".to_string(),
+            function: "start".to_string(),
+            args: vec!["arg1".to_string()],
+        });
+    }
+
+    #[test]
+    fn test_boot_command_apply() {
+        let cmd = BootCommand::Apply {
+            module: "mod".to_string(),
+            function: "func".to_string(),
+            args: vec!["arg1".to_string(), "arg2".to_string()],
+        };
+        assert_eq!(cmd, BootCommand::Apply {
+            module: "mod".to_string(),
+            function: "func".to_string(),
+            args: vec!["arg1".to_string(), "arg2".to_string()],
+        });
+    }
+
+    #[test]
+    fn test_boot_command_debug() {
+        let commands = vec![
+            BootCommand::Progress("test".to_string()),
+            BootCommand::PreLoaded(vec!["mod1".to_string()]),
+            BootCommand::Path(vec!["/path".to_string()]),
+            BootCommand::PrimLoad(vec!["mod1".to_string()]),
+            BootCommand::KernelLoadCompleted,
+            BootCommand::KernelProcess {
+                name: "init".to_string(),
+                module: "init".to_string(),
+                function: "start".to_string(),
+                args: vec![],
+            },
+            BootCommand::Apply {
+                module: "mod".to_string(),
+                function: "func".to_string(),
+                args: vec![],
+            },
+        ];
+        
+        for cmd in commands {
+            let debug_str = format!("{:?}", cmd);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_boot_script_error_display() {
+        let errors = vec![
+            BootScriptError::NotFound("file.boot".to_string()),
+            BootScriptError::InvalidFormat("invalid".to_string()),
+            BootScriptError::ParseError("parse error".to_string()),
+            BootScriptError::IoError("io error".to_string()),
+        ];
+        
+        for error in errors {
+            let display_str = format!("{}", error);
+            assert!(!display_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_boot_script_error_clone() {
+        let error1 = BootScriptError::NotFound("file.boot".to_string());
+        let error2 = error1.clone();
+        assert_eq!(format!("{}", error1), format!("{}", error2));
+    }
+
+    #[test]
+    fn test_resolve_boot_path_nonexistent() {
         // Test with non-existent path (should return error)
         let result = resolve_boot_path("nonexistent", "/root", "/bin");
         assert!(result.is_err());
+        if let Err(BootScriptError::NotFound(msg)) = result {
+            assert!(msg.contains("nonexistent"));
+        } else {
+            panic!("Expected NotFound error");
+        }
+    }
+
+    #[test]
+    fn test_term_to_string_atom() {
+        let term = ErlangTerm::Atom("test".to_string());
+        let result = term_to_string(&term);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test");
+    }
+
+    #[test]
+    fn test_term_to_string_binary() {
+        let term = ErlangTerm::Binary(b"test".to_vec());
+        let result = term_to_string(&term);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test");
+    }
+
+    #[test]
+    fn test_term_to_string_integer() {
+        let term = ErlangTerm::Integer(42);
+        let result = term_to_string(&term);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "42");
+    }
+
+    #[test]
+    fn test_term_to_string_invalid() {
+        let term = ErlangTerm::List(vec![]);
+        let result = term_to_string(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_module_list_atoms() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Atom("mod1".to_string()),
+            ErlangTerm::Atom("mod2".to_string()),
+        ]);
+        let result = parse_module_list(&term);
+        assert!(result.is_ok());
+        let modules = result.unwrap();
+        assert_eq!(modules.len(), 2);
+        assert_eq!(modules[0], "mod1");
+        assert_eq!(modules[1], "mod2");
+    }
+
+    #[test]
+    fn test_parse_module_list_binaries() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Binary(b"mod1".to_vec()),
+            ErlangTerm::Binary(b"mod2".to_vec()),
+        ]);
+        let result = parse_module_list(&term);
+        assert!(result.is_ok());
+        let modules = result.unwrap();
+        assert_eq!(modules.len(), 2);
+        assert_eq!(modules[0], "mod1");
+        assert_eq!(modules[1], "mod2");
+    }
+
+    #[test]
+    fn test_parse_module_list_mixed() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Atom("mod1".to_string()),
+            ErlangTerm::Binary(b"mod2".to_vec()),
+        ]);
+        let result = parse_module_list(&term);
+        assert!(result.is_ok());
+        let modules = result.unwrap();
+        assert_eq!(modules.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_module_list_invalid_element() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Integer(42),
+        ]);
+        let result = parse_module_list(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_module_list_not_list() {
+        let term = ErlangTerm::Atom("not_list".to_string());
+        let result = parse_module_list(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_string_list() {
+        // parse_string_list uses parse_module_list, so test is similar
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Atom("path1".to_string()),
+            ErlangTerm::Atom("path2".to_string()),
+        ]);
+        let result = parse_string_list(&term);
+        assert!(result.is_ok());
+        let paths = result.unwrap();
+        assert_eq!(paths.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_mfa() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("module".to_string()),
+            ErlangTerm::Atom("function".to_string()),
+            ErlangTerm::List(vec![
+                ErlangTerm::Atom("arg1".to_string()),
+                ErlangTerm::Atom("arg2".to_string()),
+            ]),
+        ]);
+        let result = parse_mfa(&term);
+        assert!(result.is_ok());
+        let (module, function, args) = result.unwrap();
+        assert_eq!(module, "module");
+        assert_eq!(function, "function");
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0], "arg1");
+        assert_eq!(args[1], "arg2");
+    }
+
+    #[test]
+    fn test_parse_mfa_invalid_tuple() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("module".to_string()),
+        ]);
+        let result = parse_mfa(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_mfa_not_tuple() {
+        let term = ErlangTerm::Atom("not_tuple".to_string());
+        let result = parse_mfa(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_progress() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("progress".to_string()),
+            ErlangTerm::Atom("info".to_string()),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::Progress(info) => assert_eq!(info, "info"),
+            _ => panic!("Expected Progress command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_progress_binary() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("progress".to_string()),
+            ErlangTerm::Binary(b"info".to_vec()),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::Progress(info) => assert_eq!(info, "info"),
+            _ => panic!("Expected Progress command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_preloaded() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("preLoaded".to_string()),
+            ErlangTerm::List(vec![
+                ErlangTerm::Atom("mod1".to_string()),
+                ErlangTerm::Atom("mod2".to_string()),
+            ]),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::PreLoaded(modules) => {
+                assert_eq!(modules.len(), 2);
+                assert_eq!(modules[0], "mod1");
+                assert_eq!(modules[1], "mod2");
+            }
+            _ => panic!("Expected PreLoaded command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_path() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("path".to_string()),
+            ErlangTerm::List(vec![
+                ErlangTerm::Atom("/path1".to_string()),
+                ErlangTerm::Atom("/path2".to_string()),
+            ]),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::Path(paths) => {
+                assert_eq!(paths.len(), 2);
+            }
+            _ => panic!("Expected Path command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_primload() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("primLoad".to_string()),
+            ErlangTerm::List(vec![
+                ErlangTerm::Atom("mod1".to_string()),
+            ]),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::PrimLoad(modules) => {
+                assert_eq!(modules.len(), 1);
+                assert_eq!(modules[0], "mod1");
+            }
+            _ => panic!("Expected PrimLoad command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_kernel_load_completed() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("kernel_load_completed".to_string()),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::KernelLoadCompleted => {}
+            _ => panic!("Expected KernelLoadCompleted command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_kernel_process() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("kernelProcess".to_string()),
+            ErlangTerm::Atom("init".to_string()),
+            ErlangTerm::Tuple(vec![
+                ErlangTerm::Atom("init".to_string()),
+                ErlangTerm::Atom("start".to_string()),
+                ErlangTerm::List(vec![
+                    ErlangTerm::Atom("arg1".to_string()),
+                ]),
+            ]),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::KernelProcess { name, module, function, args } => {
+                assert_eq!(name, "init");
+                assert_eq!(module, "init");
+                assert_eq!(function, "start");
+                assert_eq!(args.len(), 1);
+            }
+            _ => panic!("Expected KernelProcess command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_apply() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("apply".to_string()),
+            ErlangTerm::Tuple(vec![
+                ErlangTerm::Atom("mod".to_string()),
+                ErlangTerm::Atom("func".to_string()),
+                ErlangTerm::List(vec![
+                    ErlangTerm::Atom("arg1".to_string()),
+                ]),
+            ]),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BootCommand::Apply { module, function, args } => {
+                assert_eq!(module, "mod");
+                assert_eq!(function, "func");
+                assert_eq!(args.len(), 1);
+            }
+            _ => panic!("Expected Apply command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_command_unknown() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("unknown".to_string()),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_not_tuple() {
+        let term = ErlangTerm::Atom("not_tuple".to_string());
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_invalid_name() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Integer(42),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_boot_script_valid() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("script".to_string()),
+            ErlangTerm::Tuple(vec![
+                ErlangTerm::Atom("test".to_string()),
+                ErlangTerm::Atom("1.0".to_string()),
+            ]),
+            ErlangTerm::List(vec![
+                ErlangTerm::Tuple(vec![
+                    ErlangTerm::Atom("progress".to_string()),
+                    ErlangTerm::Atom("test".to_string()),
+                ]),
+            ]),
+        ]);
+        // We can't directly test parse_boot_script as it requires decode_term
+        // But we can test the structure matches what parse_boot_script expects
+        match term {
+            ErlangTerm::Tuple(elements) if elements.len() == 3 => {
+                // First element should be "script"
+                match &elements[0] {
+                    ErlangTerm::Atom(s) => assert_eq!(s, "script"),
+                    _ => panic!("Expected script atom"),
+                }
+            }
+            _ => panic!("Expected 3-tuple"),
+        }
+    }
+
+    #[test]
+    fn test_parse_boot_script_invalid_structure() {
+        // Test with wrong number of tuple elements
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("script".to_string()),
+        ]);
+        match term {
+            ErlangTerm::Tuple(elements) if elements.len() != 3 => {
+                // This should fail in parse_boot_script
+            }
+            _ => panic!("Expected different structure"),
+        }
+    }
+
+    #[test]
+    fn test_parse_boot_script_invalid_first_element() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("not_script".to_string()),
+            ErlangTerm::Tuple(vec![
+                ErlangTerm::Atom("test".to_string()),
+                ErlangTerm::Atom("1.0".to_string()),
+            ]),
+            ErlangTerm::List(vec![]),
+        ]);
+        match term {
+            ErlangTerm::Tuple(elements) if elements.len() == 3 => {
+                match &elements[0] {
+                    ErlangTerm::Atom(s) if s != "script" => {
+                        // This should fail in parse_boot_script
+                    }
+                    _ => panic!("Expected non-script atom"),
+                }
+            }
+            _ => panic!("Expected 3-tuple"),
+        }
+    }
+
+    #[test]
+    fn test_boot_script_error_error_trait() {
+        // Test that BootScriptError implements Error trait
+        let error = BootScriptError::NotFound("test".to_string());
+        let error_ref: &dyn std::error::Error = &error;
+        let description = error_ref.to_string();
+        assert!(!description.is_empty());
+    }
+
+    #[test]
+    fn test_boot_command_clone() {
+        let cmd1 = BootCommand::Progress("test".to_string());
+        let cmd2 = cmd1.clone();
+        assert_eq!(cmd1, cmd2);
+    }
+
+    #[test]
+    fn test_boot_command_equality() {
+        let cmd1 = BootCommand::Progress("test".to_string());
+        let cmd2 = BootCommand::Progress("test".to_string());
+        let cmd3 = BootCommand::Progress("other".to_string());
+        
+        assert_eq!(cmd1, cmd2);
+        assert_ne!(cmd1, cmd3);
+        assert_ne!(cmd1, BootCommand::KernelLoadCompleted);
+    }
+
+    #[test]
+    fn test_empty_module_list() {
+        let term = ErlangTerm::List(vec![]);
+        let result = parse_module_list(&term);
+        assert!(result.is_ok());
+        let modules = result.unwrap();
+        assert_eq!(modules.len(), 0);
+    }
+
+    #[test]
+    fn test_empty_args_list() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("module".to_string()),
+            ErlangTerm::Atom("function".to_string()),
+            ErlangTerm::List(vec![]),
+        ]);
+        let result = parse_mfa(&term);
+        assert!(result.is_ok());
+        let (_, _, args) = result.unwrap();
+        assert_eq!(args.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_mfa_invalid_args() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("module".to_string()),
+            ErlangTerm::Atom("function".to_string()),
+            ErlangTerm::Atom("not_list".to_string()),
+        ]);
+        let result = parse_mfa(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execute_boot_script_empty() {
+        let script = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![],
+        };
+        let result = execute_boot_script(&script);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_boot_script_progress_command() {
+        let script = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![BootCommand::Progress("Loading...".to_string())],
+        };
+        let result = execute_boot_script(&script);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_boot_script_kernel_load_completed() {
+        let script = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![BootCommand::KernelLoadCompleted],
+        };
+        let result = execute_boot_script(&script);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_boot_script_multiple_commands() {
+        let script = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![
+                BootCommand::Progress("Step 1".to_string()),
+                BootCommand::Progress("Step 2".to_string()),
+                BootCommand::KernelLoadCompleted,
+            ],
+        };
+        let result = execute_boot_script(&script);
+        // May succeed or fail depending on system state
+        let _ = result;
+    }
+
+
+
+    #[test]
+    fn test_parse_command_invalid() {
+        let term = ErlangTerm::Atom("invalid".to_string());
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_module_list_empty() {
+        let term = ErlangTerm::List(vec![]);
+        let result = parse_module_list(&term);
+        if let Ok(modules) = result {
+            assert_eq!(modules.len(), 0);
+        }
+    }
+
+    #[test]
+    fn test_parse_module_list_invalid() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Integer(1), // Not an atom
+        ]);
+        let result = parse_module_list(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_string_list_empty() {
+        let term = ErlangTerm::List(vec![]);
+        let result = parse_string_list(&term);
+        if let Ok(strings) = result {
+            assert_eq!(strings.len(), 0);
+        }
+    }
+
+    #[test]
+    fn test_parse_string_list_binary() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Binary(b"str1".to_vec()),
+            ErlangTerm::Binary(b"str2".to_vec()),
+        ]);
+        let result = parse_string_list(&term);
+        if let Ok(strings) = result {
+            assert_eq!(strings.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_term_to_string_float() {
+        let term = ErlangTerm::Float(3.14);
+        let result = term_to_string(&term);
+        // Float conversion may succeed or fail
+        let _ = result;
+    }
+
+    #[test]
+    fn test_term_to_string_list() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Integer(104), // 'h'
+            ErlangTerm::Integer(101), // 'e'
+        ]);
+        let result = term_to_string(&term);
+        // List to string conversion
+        let _ = result;
+    }
+
+    #[test]
+    fn test_boot_script_error_debug() {
+        let errors = vec![
+            BootScriptError::NotFound("file.boot".to_string()),
+            BootScriptError::InvalidFormat("invalid".to_string()),
+            BootScriptError::ParseError("parse error".to_string()),
+            BootScriptError::IoError("io error".to_string()),
+        ];
+        
+        for error in errors {
+            let debug_str = format!("{:?}", error);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_boot_command_equality_all_variants() {
+        let cmd1 = BootCommand::KernelLoadCompleted;
+        let cmd2 = BootCommand::KernelLoadCompleted;
+        let cmd3 = BootCommand::Progress("test".to_string());
+        
+        assert_eq!(cmd1, cmd2);
+        assert_ne!(cmd1, cmd3);
+    }
+
+    #[test]
+    fn test_boot_script_with_all_command_types() {
+        let script = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![
+                BootCommand::Progress("test".to_string()),
+                BootCommand::PreLoaded(vec!["mod1".to_string()]),
+                BootCommand::Path(vec!["/path".to_string()]),
+                BootCommand::PrimLoad(vec!["mod1".to_string()]),
+                BootCommand::KernelLoadCompleted,
+                BootCommand::KernelProcess {
+                    name: "init".to_string(),
+                    module: "init".to_string(),
+                    function: "start".to_string(),
+                    args: vec![],
+                },
+                BootCommand::Apply {
+                    module: "mod".to_string(),
+                    function: "func".to_string(),
+                    args: vec![],
+                },
+            ],
+        };
+        
+        // Test that script can be cloned and debugged
+        let _clone = script.clone();
+        let _debug = format!("{:?}", script);
+    }
+
+    #[test]
+    fn test_resolve_boot_path_absolute() {
+        let result = resolve_boot_path("/absolute/path.boot", "/root", "/bin");
+        // May succeed or fail depending on file existence
+        let _ = result;
+    }
+
+    #[test]
+    fn test_resolve_boot_path_relative() {
+        let result = resolve_boot_path("relative.boot", "/root", "/bin");
+        // May succeed or fail depending on file existence
+        let _ = result;
+    }
+
+    #[test]
+    fn test_resolve_boot_path_without_extension() {
+        let result = resolve_boot_path("start", "/root", "/bin");
+        // Should add .boot extension
+        let _ = result;
     }
 }

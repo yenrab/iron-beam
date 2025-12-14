@@ -349,7 +349,7 @@ mod tests {
     
     #[test]
     fn test_enc_atom() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"test", AtomEncoding::SevenBitAscii, false).unwrap();
         
         let mut buf = Vec::new();
@@ -430,7 +430,7 @@ mod tests {
     
     #[test]
     fn test_enc_atom_not_found() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut buf = Vec::new();
         let result = enc_atom(999, Some(&atom_table), &mut buf);
         assert!(result.is_err());
@@ -447,7 +447,7 @@ mod tests {
     
     #[test]
     fn test_enc_atom_utf8() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         // Create an atom with UTF-8 characters
         let atom_index = atom_table.put_index("café".as_bytes(), AtomEncoding::Utf8, false).unwrap();
         let mut buf = Vec::new();
@@ -457,7 +457,7 @@ mod tests {
     
     #[test]
     fn test_enc_atom_latin1() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         // Create an atom with Latin1 characters
         let atom_index = atom_table.put_index(b"\xe9", AtomEncoding::Latin1, false).unwrap();
         let mut buf = Vec::new();
@@ -467,7 +467,7 @@ mod tests {
     
     #[test]
     fn test_enc_atom_invalid_utf8() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         // Create an atom with invalid UTF-8 bytes
         let invalid_utf8 = vec![0xFF, 0xFE, 0xFD];
         let atom_index = atom_table.put_index(&invalid_utf8, AtomEncoding::Latin1, false).unwrap();
@@ -588,7 +588,7 @@ mod tests {
     
     #[test]
     fn test_enc_term_atom_with_table() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
         let term = Term::Atom(atom_index as u32);
         let encoded = enc_term(&term, Some(&atom_table)).unwrap();
@@ -769,7 +769,7 @@ mod tests {
     
     #[test]
     fn test_enc_atom_seven_bit_ascii() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         // Create an ASCII atom (should use SevenBitAscii)
         let atom_index = atom_table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
         let mut buf = Vec::new();
@@ -779,7 +779,7 @@ mod tests {
     
     #[test]
     fn test_enc_atom_latin1_detection() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         // Create an atom with Latin1 characters (0x80-0x9F range)
         let latin1_bytes = vec![0x80, 0x90, 0xA0];
         let atom_index = atom_table.put_index(&latin1_bytes, AtomEncoding::Latin1, false).unwrap();
@@ -885,7 +885,7 @@ mod tests {
     #[test]
     fn test_enc_term_atom_ascii_detection() {
         // Test that ASCII atoms use SevenBitAscii encoding
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"test123", AtomEncoding::SevenBitAscii, false).unwrap();
         let mut buf = Vec::new();
         enc_atom(atom_index, Some(&atom_table), &mut buf).unwrap();
@@ -917,7 +917,7 @@ mod tests {
     
     #[test]
     fn test_enc_term_map_with_atoms() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let key_atom = atom_table.put_index(b"key", AtomEncoding::SevenBitAscii, false).unwrap();
         let value_atom = atom_table.put_index(b"value", AtomEncoding::SevenBitAscii, false).unwrap();
         
@@ -931,7 +931,7 @@ mod tests {
     
     #[test]
     fn test_enc_term_tuple_with_atoms() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"test", AtomEncoding::SevenBitAscii, false).unwrap();
         
         let term = Term::Tuple(vec![
@@ -945,7 +945,7 @@ mod tests {
     
     #[test]
     fn test_enc_term_list_with_atoms() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let atom_index = atom_table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
         
         let term = Term::List {

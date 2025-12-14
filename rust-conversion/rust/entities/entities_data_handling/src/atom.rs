@@ -29,7 +29,6 @@
 //!
 //! - Maximum characters per atom: 255 (`MAX_ATOM_CHARACTERS`)
 //! - Maximum bytes per atom: 1024 (`MAX_ATOM_SZ_LIMIT`)
-//! - Maximum atoms in table: Configurable via `AtomTable::new(limit)`
 //!
 //! ## Examples
 //!
@@ -37,7 +36,7 @@
 //! use entities_data_handling::{AtomTable, AtomEncoding};
 //!
 //! // Create an atom table
-//! let table = AtomTable::new(1000);
+//! let table = AtomTable::new();
 //!
 //! // Create an atom with 7-bit ASCII encoding
 //! let index = table.put_index(b"my_atom", AtomEncoding::SevenBitAscii, false).unwrap();
@@ -110,7 +109,7 @@ use std::collections::HashMap;
 /// ```rust
 /// use entities_data_handling::{AtomTable, AtomEncoding};
 ///
-/// let table = AtomTable::new(1000);
+/// let table = AtomTable::new();
 ///
 /// // 7-bit ASCII: only basic characters
 /// let _ = table.put_index(b"hello", AtomEncoding::SevenBitAscii, false);
@@ -154,20 +153,14 @@ pub struct AtomTable {
     atoms: RwLock<HashMap<Vec<u8>, usize>>,
     /// Reverse map from index to atom name
     index_to_name: RwLock<Vec<Option<Vec<u8>>>>,
-    /// Current number of atoms
-    entries: RwLock<usize>,
-    /// Maximum number of atoms
-    limit: usize,
 }
 
 impl AtomTable {
     /// Create a new atom table
-    pub fn new(limit: usize) -> Self {
+    pub fn new() -> Self {
         Self {
             atoms: RwLock::new(HashMap::new()),
             index_to_name: RwLock::new(Vec::new()),
-            entries: RwLock::new(0),
-            limit,
         }
     }
 
@@ -190,14 +183,13 @@ impl AtomTable {
     /// * `Ok(usize)` - The atom index if successful
     /// * `Err(AtomError::TooLong)` - If the name is too long and truncation is disabled
     /// * `Err(AtomError::InvalidEncoding)` - If the encoding is invalid for the given bytes
-    /// * `Err(AtomError::TableFull)` - If the atom table has reached its capacity limit
     ///
     /// # Examples
     ///
     /// ```rust
     /// use entities_data_handling::{AtomTable, AtomEncoding};
     ///
-    /// let table = AtomTable::new(1000);
+    /// let table = AtomTable::new();
     ///
     /// // Create a new atom
     /// let index1 = table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
@@ -234,19 +226,13 @@ impl AtomTable {
         // Create new atom
         let mut atoms = self.atoms.write().unwrap();
         let mut index_to_name = self.index_to_name.write().unwrap();
-        let mut entries = self.entries.write().unwrap();
 
-        if *entries >= self.limit {
-            return Err(AtomError::TableFull);
-        }
-
-        let index = *entries;
+        let index = atoms.len();
         atoms.insert(validated_name.clone(), index);
         if index >= index_to_name.len() {
             index_to_name.resize(index + 1, None);
         }
         index_to_name[index] = Some(validated_name);
-        *entries += 1;
 
         Ok(index)
     }
@@ -269,7 +255,7 @@ impl AtomTable {
     /// ```rust
     /// use entities_data_handling::{AtomTable, AtomEncoding};
     ///
-    /// let table = AtomTable::new(1000);
+    /// let table = AtomTable::new();
     ///
     /// // Atom doesn't exist yet
     /// assert_eq!(table.get(b"nonexistent", AtomEncoding::SevenBitAscii), None);
@@ -309,7 +295,7 @@ impl AtomTable {
     /// ```rust
     /// use entities_data_handling::{AtomTable, AtomEncoding};
     ///
-    /// let table = AtomTable::new(1000);
+    /// let table = AtomTable::new();
     ///
     /// // Create an atom and get its index
     /// let index = table.put_index(b"my_atom", AtomEncoding::SevenBitAscii, false).unwrap();
@@ -345,7 +331,7 @@ impl AtomTable {
     /// ```rust
     /// use entities_data_handling::{AtomTable, AtomEncoding};
     ///
-    /// let table = AtomTable::new(1000);
+    /// let table = AtomTable::new();
     /// assert_eq!(table.size(), 0);
     ///
     /// let _ = table.put_index(b"atom1", AtomEncoding::SevenBitAscii, false);
@@ -359,7 +345,7 @@ impl AtomTable {
     /// assert_eq!(table.size(), 2);
     /// ```
     pub fn size(&self) -> usize {
-        *self.entries.read().unwrap()
+        self.atoms.read().unwrap().len()
     }
 
     fn validate_atom_name(
@@ -416,9 +402,6 @@ impl AtomTable {
 ///   for `AtomEncoding::SevenBitAscii`, or an invalid UTF-8 sequence would be
 ///   rejected for `AtomEncoding::Utf8`.
 ///
-/// - **TableFull**: The atom table has reached its maximum capacity. The capacity
-///   is set when creating the table with `AtomTable::new(limit)`. Once the limit
-///   is reached, no new atoms can be created.
 ///
 /// # Examples
 ///
@@ -426,15 +409,6 @@ impl AtomTable {
 /// use entities_data_handling::{AtomTable, AtomEncoding};
 /// use entities_data_handling::atom::AtomError;
 ///
-/// let table = AtomTable::new(2); // Small limit for testing
-///
-/// // Fill the table
-/// let _ = table.put_index(b"atom1", AtomEncoding::SevenBitAscii, false);
-/// let _ = table.put_index(b"atom2", AtomEncoding::SevenBitAscii, false);
-///
-/// // Try to add one more - should fail
-/// let result = table.put_index(b"atom3", AtomEncoding::SevenBitAscii, false);
-/// assert_eq!(result, Err(AtomError::TableFull));
 ///
 /// // Invalid encoding
 /// let result = table.put_index(&[0x80], AtomEncoding::SevenBitAscii, false);
@@ -446,8 +420,6 @@ pub enum AtomError {
     TooLong,
     /// Invalid encoding for the specified format
     InvalidEncoding,
-    /// Atom table has reached its capacity limit
-    TableFull,
 }
 
 fn latin1_to_utf8(latin1: &[u8]) -> Vec<u8> {
@@ -605,13 +577,13 @@ mod tests {
 
     #[test]
     fn test_atom_table_creation() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         assert_eq!(table.size(), 0);
     }
 
     #[test]
     fn test_atom_put_get() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let name = b"test_atom";
         let index = table
             .put_index(name, AtomEncoding::SevenBitAscii, false)
@@ -621,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_atom_duplicate() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let name = b"duplicate";
         let index1 = table
             .put_index(name, AtomEncoding::SevenBitAscii, false)
@@ -634,7 +606,7 @@ mod tests {
 
     #[test]
     fn test_atom_get_name() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let name = b"named_atom";
         let index = table
             .put_index(name, AtomEncoding::SevenBitAscii, false)
@@ -644,7 +616,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_valid() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Valid ASCII
         assert!(table.put_index(b"hello", AtomEncoding::Utf8, false).is_ok());
@@ -664,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_invalid_overlong() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Overlong encoding: 'A' (0x41) encoded as 0xC1 0x81
         let overlong = [0xC1, 0x81];
@@ -690,7 +662,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_invalid_incomplete() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Incomplete 2-byte sequence
         let incomplete = [0xC3];
@@ -716,7 +688,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_invalid_continuation() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Invalid continuation byte
         let invalid = [0xC3, 0x40]; // 0x40 is not a valid continuation byte
@@ -728,7 +700,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_invalid_surrogate() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Surrogate pair: 0xED 0xA0 0x80 (U+D800)
         let surrogate = [0xED, 0xA0, 0x80];
@@ -740,7 +712,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_invalid_out_of_range() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Code point > 0x10FFFF: 0xF5 0x80 0x80 0x80
         let out_of_range = [0xF5, 0x80, 0x80, 0x80];
@@ -759,7 +731,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_character_limit() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string with exactly 255 characters (all ASCII)
         let long_name = vec![b'a'; MAX_ATOM_CHARACTERS];
@@ -775,7 +747,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_byte_limit() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string at byte limit (all 4-byte UTF-8 characters)
         // Each character is 4 bytes, so 255 characters = 1020 bytes
@@ -789,7 +761,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_truncate() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string that exceeds character limit
         let too_long = vec![b'a'; MAX_ATOM_CHARACTERS + 10];
@@ -808,7 +780,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_mixed_sequences() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Mixed ASCII and multi-byte UTF-8
         let mixed = b"Hello\xC3\xA5\xE4\xB8\xAD\xF0\x9F\x98\x80World";
@@ -820,24 +792,10 @@ mod tests {
         assert_eq!(retrieved, mixed);
     }
 
-    #[test]
-    fn test_table_full() {
-        let table = AtomTable::new(2); // Small limit
-        
-        // Fill the table
-        assert!(table.put_index(b"atom1", AtomEncoding::SevenBitAscii, false).is_ok());
-        assert!(table.put_index(b"atom2", AtomEncoding::SevenBitAscii, false).is_ok());
-        
-        // Try to add one more - should fail
-        assert_eq!(
-            table.put_index(b"atom3", AtomEncoding::SevenBitAscii, false),
-            Err(AtomError::TableFull)
-        );
-    }
 
     #[test]
     fn test_seven_bit_ascii_invalid_encoding() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Byte with high bit set (invalid for 7-bit ASCII)
         let invalid = [0x80];
@@ -856,7 +814,7 @@ mod tests {
 
     #[test]
     fn test_seven_bit_ascii_too_long() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string longer than MAX_ATOM_CHARACTERS
         let too_long = vec![b'a'; MAX_ATOM_CHARACTERS + 1];
@@ -873,7 +831,7 @@ mod tests {
 
     #[test]
     fn test_latin1_encoding() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Latin1 encoding with ASCII characters
         let ascii = b"hello";
@@ -893,7 +851,7 @@ mod tests {
 
     #[test]
     fn test_latin1_too_long() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string longer than MAX_ATOM_CHARACTERS
         let too_long = vec![0xA5; MAX_ATOM_CHARACTERS + 1];
@@ -910,7 +868,7 @@ mod tests {
 
     #[test]
     fn test_latin1_truncate() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string at the limit
         let at_limit = vec![0xA5; MAX_ATOM_CHARACTERS];
@@ -931,7 +889,7 @@ mod tests {
 
     #[test]
     fn test_get_invalid_encoding() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Try to get with invalid encoding
         let invalid = [0x80]; // High bit set
@@ -950,7 +908,7 @@ mod tests {
 
     #[test]
     fn test_get_name_invalid_index() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Try to get name for non-existent index
         assert_eq!(table.get_name(999), None);
@@ -968,7 +926,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_byte_limit_truncate() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string that exceeds byte limit
         let mut too_long = Vec::new();
@@ -990,7 +948,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_character_limit_at_boundary() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Test exactly at character limit with multi-byte characters
         let mut at_limit = Vec::new();
@@ -1010,7 +968,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_truncate_at_character_boundary() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string with multi-byte characters that exceeds limit
         let mut too_long = Vec::new();
@@ -1031,7 +989,7 @@ mod tests {
 
     #[test]
     fn test_index_to_name_resize() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Add atoms to trigger resize of index_to_name vector
         // First atom at index 0
@@ -1049,7 +1007,7 @@ mod tests {
 
     #[test]
     fn test_seven_bit_ascii_exact_limit() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Create a string with exactly MAX_ATOM_CHARACTERS
         let exact = vec![b'a'; MAX_ATOM_CHARACTERS];
@@ -1063,7 +1021,7 @@ mod tests {
 
     #[test]
     fn test_latin1_mixed_ascii_and_extended() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Mix of ASCII and extended Latin1
         let mixed = [0x48, 0x65, 0x6C, 0x6C, 0x6F, 0xC4, 0xE5, 0x6C, 0x6C, 0x6F];
@@ -1080,7 +1038,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_edge_cases() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Test empty string
         assert!(table.put_index(b"", AtomEncoding::Utf8, false).is_ok());
@@ -1107,7 +1065,7 @@ mod tests {
 
     #[test]
     fn test_utf8_validation_invalid_start_byte() {
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         
         // Invalid start bytes: 0xF8-0xFF (5+ byte sequences are invalid in UTF-8)
         let invalid_start = [0xF8, 0x80, 0x80, 0x80, 0x80];

@@ -351,8 +351,19 @@ impl ProcessTable {
             }
         }
 
-        // Try to get a free ID first (for reuse)
+        // Try to get a free ID and insert into table
+        // LOCK ORDER: table -> free_ids (see LOCKING.md)
         loop {
+            // Acquire table lock first (LOCK ORDER: table -> free_ids)
+            let mut table = self.table.write().unwrap();
+            
+            // Check capacity again (another thread might have filled it)
+            if self.max_size > 0 && table.len() >= self.max_size {
+                drop(table);
+                return Err(ProcessTableError::TableFull);
+            }
+
+            // Get a free ID (acquire free_ids while holding table lock)
             let id = {
                 let mut free_ids = self.free_ids.write().unwrap();
                 if let Some(free_id) = free_ids.pop_front() {
@@ -370,32 +381,24 @@ impl ProcessTable {
                 }
             };
 
-            // Create process with the generated ID
-            let process = init_fn(id);
-
-            // Insert into table
-            let mut table = self.table.write().unwrap();
-            
-            // Check capacity again (another thread might have filled it)
-            if self.max_size > 0 && table.len() >= self.max_size {
-                // Put ID back in free pool
-                drop(table);
-                let mut free_ids = self.free_ids.write().unwrap();
-                free_ids.push_front(id);
-                return Err(ProcessTableError::TableFull);
-            }
-
             // Verify ID doesn't already exist (shouldn't happen, but be safe)
             if table.contains_key(&id) {
                 // Put ID back in free pool and try next ID
-                drop(table);
+                // Note: We're still holding table.write(), so we can safely acquire free_ids.write()
                 let mut free_ids = self.free_ids.write().unwrap();
                 free_ids.push_front(id);
+                drop(table); // Drop table lock before continuing loop
                 continue; // Try again with next ID
-            } else {
-                table.insert(id, Arc::clone(&process));
-                return Ok((id, process));
             }
+
+            // Create process with the generated ID
+            let process = init_fn(id);
+            
+            // Insert into table (we're still holding both locks)
+            table.insert(id, Arc::clone(&process));
+            
+            // Locks are dropped here automatically
+            return Ok((id, process));
         }
     }
 }

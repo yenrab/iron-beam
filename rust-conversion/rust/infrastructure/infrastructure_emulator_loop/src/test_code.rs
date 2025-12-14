@@ -16,7 +16,7 @@ use entities_process::ErtsCodePtr;
 /// # Returns
 /// Pointer to allocated test code (must be kept alive during execution)
 pub fn create_test_code() -> Vec<u64> {
-    use infrastructure_emulator_loop::instruction_decoder::opcodes;
+    use crate::instruction_decoder::opcodes;
     
     // Create a simple test program:
     // move x(0) x(1)  - move register 0 to register 1

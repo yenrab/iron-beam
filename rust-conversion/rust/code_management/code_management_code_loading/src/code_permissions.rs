@@ -146,7 +146,12 @@ impl CodePermissionManager {
     ///
     /// # Returns
     /// `true` if both permissions were granted, `false` otherwise
+    ///
+    /// # Lock Ordering
+    /// LOCK ORDER: stage_permission -> mod_permission (see LOCKING.md)
+    /// This order must be consistent across all code that acquires both permissions.
     pub fn try_seize_code_load_permission(&self, process_id: ProcessId) -> bool {
+        // LOCK ORDER: stage_permission -> mod_permission (see LOCKING.md)
         // First try staging permission
         if self.try_seize_code_stage_permission(process_id) {
             // Then try modification permission
@@ -160,7 +165,12 @@ impl CodePermissionManager {
     }
 
     /// Release code load permission (releases both staging and modification)
+    ///
+    /// # Lock Ordering
+    /// Releases locks in reverse order of acquisition (mod_permission -> stage_permission).
+    /// This is acceptable for releases, but acquisition order must be: stage_permission -> mod_permission.
     pub fn release_code_load_permission(&self) {
+        // Release in reverse order of acquisition (acceptable for releases)
         self.release_code_mod_permission();
         self.release_code_stage_permission();
     }
@@ -194,7 +204,12 @@ impl CodePermissionManager {
     ///
     /// # Returns
     /// `true` if process has both permissions
+    ///
+    /// # Lock Ordering
+    /// LOCK ORDER: stage_permission -> mod_permission (see LOCKING.md)
+    /// Each permission check acquires a lock, so order must match acquisition order.
     pub fn has_code_load_permission(&self, process_id: ProcessId) -> bool {
+        // LOCK ORDER: stage_permission -> mod_permission (see LOCKING.md)
         self.has_code_stage_permission(process_id) && self.has_code_mod_permission(process_id)
     }
 

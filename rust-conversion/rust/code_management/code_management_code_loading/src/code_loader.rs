@@ -90,6 +90,7 @@
 
 use std::fs;
 use std::path::Path;
+use crate::beam_loader::BeamLoader;
 
 /// Code loader for managing module loading
 ///
@@ -222,8 +223,8 @@ impl CodeLoader {
     /// - [`load_module`](Self::load_module): Load code from a file
     /// - [`beam_loader::BeamLoader`](super::beam_loader::BeamLoader): BEAM file verification
     pub fn verify_module(code: &[u8]) -> bool {
-        // TODO: Implement code verification
-        !code.is_empty()
+        // Use BeamLoader to verify the code is a valid BEAM file
+        BeamLoader::read_beam_file(code).is_ok()
     }
 }
 
@@ -277,11 +278,46 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let test_file = temp_dir.join("test_module.bin");
         
+        // Test loading invalid code (should load but not verify)
         fs::write(&test_file, b"test code").unwrap();
         let code = CodeLoader::load_module(&test_file).unwrap();
-        assert!(CodeLoader::verify_module(&code));
+        assert!(!CodeLoader::verify_module(&code)); // Invalid code should fail verification
         
         let _ = fs::remove_file(&test_file);
+    }
+
+    #[test]
+    fn test_code_loader_valid_beam() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_module.beam");
+        
+        // Create minimal valid BEAM file
+        let mut data = vec![0u8; 16];
+        // FOR1 form ID
+        data[0..4].copy_from_slice(b"FOR1");
+        // Form size (8 bytes: BEAM form type)
+        data[4..8].copy_from_slice(&8u32.to_be_bytes());
+        // BEAM form type
+        data[8..12].copy_from_slice(b"BEAM");
+        
+        fs::write(&test_file, &data).unwrap();
+        let code = CodeLoader::load_module(&test_file).unwrap();
+        assert!(CodeLoader::verify_module(&code)); // Valid BEAM should pass verification
+        
+        let _ = fs::remove_file(&test_file);
+    }
+
+    #[test]
+    fn test_verify_module_empty() {
+        // Empty code should fail verification
+        assert!(!CodeLoader::verify_module(&[]));
+    }
+
+    #[test]
+    fn test_verify_module_invalid() {
+        // Invalid data should fail verification
+        assert!(!CodeLoader::verify_module(b"INVALID"));
+        assert!(!CodeLoader::verify_module(b"test code"));
     }
 }
 

@@ -690,7 +690,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_atom_with_table() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let atom_index = table.put_index(b"my_atom", AtomEncoding::SevenBitAscii, false).unwrap();
         let term = Term::Atom(atom_index as u32);
         
@@ -740,7 +740,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_pid() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let node_index = table.put_index(b"test@node", AtomEncoding::Utf8, false).unwrap();
         
         let term = Term::Pid {
@@ -776,7 +776,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_port() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let node_index = table.put_index(b"test@node", AtomEncoding::Utf8, false).unwrap();
         
         let term = Term::Port {
@@ -796,7 +796,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_ref() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let node_index = table.put_index(b"test@node", AtomEncoding::Utf8, false).unwrap();
         
         let term = Term::Ref {
@@ -815,7 +815,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_fun_export() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let module_index = table.put_index(b"lists", AtomEncoding::SevenBitAscii, false).unwrap();
         let function_index = table.put_index(b"reverse", AtomEncoding::SevenBitAscii, false).unwrap();
         
@@ -937,7 +937,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_atom_latin1_fallback() {
         use entities_data_handling::atom::{AtomTable, AtomEncoding};
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         // Create atom with Latin1 bytes (invalid UTF-8)
         let latin1_bytes = vec![0xC0, 0x80]; // Invalid UTF-8 sequence
         let atom_index = table.put_index(&latin1_bytes, AtomEncoding::Latin1, false).unwrap();
@@ -955,7 +955,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_atom_utf8() {
         use entities_data_handling::atom::{AtomTable, AtomEncoding};
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         // Create atom with UTF-8 characters
         let utf8_bytes = "café".as_bytes().to_vec();
         let atom_index = table.put_index(&utf8_bytes, AtomEncoding::Utf8, false).unwrap();
@@ -971,7 +971,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_atom_not_in_table() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         // Use an atom index that doesn't exist in the table
         let term = Term::Atom(9999);
         
@@ -1031,7 +1031,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_pid_node_not_in_table() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         // Use node index that doesn't exist
         let term = Term::Pid {
             node: 9999,
@@ -1050,7 +1050,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_port_node_not_in_table() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let term = Term::Port {
             node: 9999,
             id: 12345,
@@ -1067,7 +1067,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_ref_node_not_in_table() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let term = Term::Ref {
             node: 9999,
             ids: vec![100, 200, 300],
@@ -1084,7 +1084,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_fun_local_without_env() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let module_index = table.put_index(b"test", AtomEncoding::SevenBitAscii, false).unwrap();
         let function_index = table.put_index(b"func", AtomEncoding::SevenBitAscii, false).unwrap();
         
@@ -1108,7 +1108,7 @@ mod tests {
     #[test]
     fn test_external_term_encode_fun_local_with_env_unsupported() {
         use entities_data_handling::atom::AtomTable;
-        let table = AtomTable::new(1000);
+        let table = AtomTable::new();
         let module_index = table.put_index(b"test", AtomEncoding::SevenBitAscii, false).unwrap();
         let function_index = table.put_index(b"func", AtomEncoding::SevenBitAscii, false).unwrap();
         

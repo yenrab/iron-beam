@@ -77,9 +77,13 @@ fn test_code_loading_workflow_integration() {
     assert_eq!(code_ix.staging_code_ix(), 1);
     
     // Step 3: Load a module (simplified - just verify the loader works)
-    let test_code = b"test module code";
-    let result = code_management_code_loading::code_loader::CodeLoader::verify_module(test_code);
-    assert!(result); // Non-empty code should verify
+    // Create minimal valid BEAM file for testing
+    let mut test_code = vec![0u8; 16];
+    test_code[0..4].copy_from_slice(b"FOR1");
+    test_code[4..8].copy_from_slice(&8u32.to_be_bytes()); // Form size (8 bytes: BEAM form type)
+    test_code[8..12].copy_from_slice(b"BEAM");
+    let result = code_management_code_loading::code_loader::CodeLoader::verify_module(&test_code);
+    assert!(result); // Valid BEAM file should verify
     
     // Step 4: End and commit staging
     code_ix.end_staging();
@@ -262,11 +266,14 @@ fn test_code_loader_with_module_management_integration() {
     
     module_table.init();
     
-    // Create test code
-    let test_code = b"test module code for integration test";
+    // Create minimal valid BEAM file for testing
+    let mut test_code = vec![0u8; 16];
+    test_code[0..4].copy_from_slice(b"FOR1");
+    test_code[4..8].copy_from_slice(&8u32.to_be_bytes()); // Form size (8 bytes: BEAM form type)
+    test_code[8..12].copy_from_slice(b"BEAM");
     
     // Verify code
-    assert!(code_management_code_loading::code_loader::CodeLoader::verify_module(test_code));
+    assert!(code_management_code_loading::code_loader::CodeLoader::verify_module(&test_code));
     
     // In a full implementation, would:
     // 1. Load code using code_loader

@@ -46,6 +46,7 @@ pub mod beam_loader;
 pub mod code_permissions;
 pub mod code_barriers;
 pub mod beam_debug;
+mod executable_memory;
 
 pub use code_loader::CodeLoader;
 pub use unicode::UnicodeHandler;
@@ -55,4 +56,22 @@ pub use beam_loader::{BeamLoader, BeamFile, BeamFileReadResult, BeamLoadError};
 pub use code_permissions::{CodePermissionManager, ProcessId, get_global_code_permissions};
 pub use code_barriers::{CodeBarrier, CodeBarrierManager, get_global_code_barriers, debug_require_code_barrier, debug_check_code_barrier};
 pub use beam_debug::{BeamDebugTracer, get_global_debug_tracer, dbg_set_traced_mfa, dbg_is_traced_mfa, dbg_vtrace_mfa};
+
+/// Ensure all global singletons are initialized
+///
+/// This function forces initialization of all global singletons to prevent
+/// deadlocks when tests run in parallel. Call this in test setup before any
+/// module table operations.
+///
+/// # Lock Ordering
+/// This function ensures that global singleton initialization completes before
+/// any module table locks are acquired, following the lock ordering rule:
+/// Global singleton init → Module table locks (see LOCKING.md)
+pub fn ensure_globals_initialized() {
+    // Force initialization of all global singletons
+    // LOCK ORDER: Global singleton init → Module table locks (see LOCKING.md)
+    let _ = get_global_code_ix();
+    let _ = get_global_module_manager();
+    // Add other global singletons here as needed
+}
 

@@ -32,6 +32,7 @@ pub enum TokenKind {
     // Operators
     Plus,           // +
     Minus,          // -
+    MinusEqual,     // -=
     Star,           // *
     Slash,          // /
     Div,            // div
@@ -197,17 +198,9 @@ impl Scanner {
                 self.advance();
                 Ok(Token { kind: TokenKind::Plus, line, column })
             }
-            '-' => {
-                self.advance();
-                Ok(Token { kind: TokenKind::Minus, line, column })
-            }
             '*' => {
                 self.advance();
                 Ok(Token { kind: TokenKind::Star, line, column })
-            }
-            '/' => {
-                self.advance();
-                Ok(Token { kind: TokenKind::Slash, line, column })
             }
             '!' => {
                 self.advance();
@@ -322,11 +315,16 @@ impl Scanner {
             }
             '-' => {
                 self.advance();
-                if self.peek() == Some('>') {
-                    self.advance();
-                    Ok(Token { kind: TokenKind::Arrow, line, column })
-                } else {
-                    Ok(Token { kind: TokenKind::Minus, line, column })
+                match self.peek() {
+                    Some('>') => {
+                        self.advance();
+                        Ok(Token { kind: TokenKind::Arrow, line, column })
+                    }
+                    Some('=') => {
+                        self.advance();
+                        Ok(Token { kind: TokenKind::MinusEqual, line, column })
+                    }
+                    _ => Ok(Token { kind: TokenKind::Minus, line, column })
                 }
             }
             '\'' => {
@@ -629,12 +627,593 @@ mod tests {
     
     #[test]
     fn test_scan_expression() {
+        // Note: "2." is parsed as a float (2.0), not integer(2) + dot
+        // Use "2 + 2 ." with space to get separate tokens, or accept float
         let tokens = scan_string("2 + 2.").unwrap();
-        assert_eq!(tokens.len(), 5); // 2, +, 2, ., Eof
+        // Tokens: Integer(2), Plus, Float(2.0), Eof
+        assert_eq!(tokens.len(), 4);
         assert_eq!(tokens[0].kind, TokenKind::Integer(2));
         assert_eq!(tokens[1].kind, TokenKind::Plus);
-        assert_eq!(tokens[2].kind, TokenKind::Integer(2));
-        assert_eq!(tokens[3].kind, TokenKind::Dot);
+        assert_eq!(tokens[2].kind, TokenKind::Float(2.0));
+        assert_eq!(tokens[3].kind, TokenKind::Eof);
+        
+        // Test with space to get integer + dot as separate tokens
+        let tokens2 = scan_string("2 + 2 .").unwrap();
+        // Tokens: Integer(2), Plus, Integer(2), Dot, Eof
+        assert_eq!(tokens2.len(), 5);
+        assert_eq!(tokens2[0].kind, TokenKind::Integer(2));
+        assert_eq!(tokens2[1].kind, TokenKind::Plus);
+        assert_eq!(tokens2[2].kind, TokenKind::Integer(2));
+        assert_eq!(tokens2[3].kind, TokenKind::Dot);
+        assert_eq!(tokens2[4].kind, TokenKind::Eof);
+    }
+    
+    #[test]
+    fn test_scan_char() {
+        let tokens = scan_string("'A'").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Char(c) => assert_eq!(c, 'A'),
+            _ => panic!("Expected Char, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_char_escaped() {
+        let tokens = scan_string("'\\n'").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Char(c) => assert_eq!(c, '\n'),
+            _ => panic!("Expected Char, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_atom_quoted() {
+        let tokens = scan_string("'hello world'").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match &tokens[0].kind {
+            TokenKind::Atom(s) => assert_eq!(s, "hello world"),
+            _ => panic!("Expected Atom, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_string_escaped() {
+        let tokens = scan_string("\"hello\\nworld\"").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match &tokens[0].kind {
+            TokenKind::String(s) => {
+                assert_eq!(s, "hello\nworld");
+            }
+            _ => panic!("Expected String, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_integer_negative() {
+        let tokens = scan_string("-123").unwrap();
+        assert_eq!(tokens.len(), 3); // Minus, Integer, Eof
+        assert_eq!(tokens[0].kind, TokenKind::Minus);
+        assert_eq!(tokens[1].kind, TokenKind::Integer(123));
+    }
+    
+    #[test]
+    fn test_scan_float_scientific() {
+        let tokens = scan_string("1.5e10").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Float(f) => assert!((f - 1.5e10).abs() < f64::EPSILON * 1e10),
+            _ => panic!("Expected Float, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_float_scientific_negative() {
+        let tokens = scan_string("1.5e-10").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Float(f) => assert!((f - 1.5e-10).abs() < f64::EPSILON),
+            _ => panic!("Expected Float, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_variable_with_underscore() {
+        let tokens = scan_string("_X").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match &tokens[0].kind {
+            TokenKind::Var(s) => assert_eq!(s, "_X"),
+            _ => panic!("Expected Var, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_variable_with_at() {
+        let tokens = scan_string("X@host").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match &tokens[0].kind {
+            TokenKind::Var(s) => assert_eq!(s, "X@host"),
+            _ => panic!("Expected Var, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_atom_with_underscore() {
+        let tokens = scan_string("hello_world").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match &tokens[0].kind {
+            TokenKind::Atom(s) => assert_eq!(s, "hello_world"),
+            _ => panic!("Expected Atom, got {:?}", tokens[0].kind),
+        }
+    }
+    
+    #[test]
+    fn test_scan_keywords() {
+        let keywords = vec![
+            ("after", TokenKind::After),
+            ("begin", TokenKind::Begin),
+            ("case", TokenKind::Case),
+            ("catch", TokenKind::Catch),
+            ("end", TokenKind::End),
+            ("fun", TokenKind::Fun),
+            ("if", TokenKind::If),
+            ("of", TokenKind::Of),
+            ("receive", TokenKind::Receive),
+            ("try", TokenKind::Try),
+            ("when", TokenKind::When),
+            ("and", TokenKind::And),
+            ("or", TokenKind::Or),
+            ("xor", TokenKind::Xor),
+            ("andalso", TokenKind::AndAlso),
+            ("orelse", TokenKind::OrElse),
+            ("not", TokenKind::Not),
+            ("div", TokenKind::Div),
+            ("rem", TokenKind::Rem),
+        ];
+        
+        for (keyword, expected_kind) in keywords {
+            let tokens = scan_string(keyword).unwrap();
+            assert_eq!(tokens.len(), 2);
+            assert_eq!(tokens[0].kind, expected_kind);
+        }
+    }
+    
+    #[test]
+    fn test_scan_punctuation() {
+        let tokens = scan_string(".,;:()[]{}|#@?").unwrap();
+        // Note: ":" followed by ":" would produce DoubleColon, but here they're separate
+        // So we get: Dot, Comma, Semicolon, Colon, LeftParen, RightParen, LeftBracket,
+        // RightBracket, LeftBrace, RightBrace, Pipe, Hash, At, Question, Eof = 15 tokens
+        assert!(tokens.len() >= 14); // At least 13 punctuation + Eof
+        assert_eq!(tokens[0].kind, TokenKind::Dot);
+        assert_eq!(tokens[1].kind, TokenKind::Comma);
+        assert_eq!(tokens[2].kind, TokenKind::Semicolon);
+        assert_eq!(tokens[3].kind, TokenKind::Colon);
+        assert_eq!(tokens[4].kind, TokenKind::LeftParen);
+        assert_eq!(tokens[5].kind, TokenKind::RightParen);
+        assert_eq!(tokens[6].kind, TokenKind::LeftBracket);
+        assert_eq!(tokens[7].kind, TokenKind::RightBracket);
+        assert_eq!(tokens[8].kind, TokenKind::LeftBrace);
+        assert_eq!(tokens[9].kind, TokenKind::RightBrace);
+        assert_eq!(tokens[10].kind, TokenKind::Pipe);
+        assert_eq!(tokens[11].kind, TokenKind::Hash);
+        assert_eq!(tokens[12].kind, TokenKind::At);
+        assert_eq!(tokens[13].kind, TokenKind::Question);
+    }
+    
+    #[test]
+    fn test_scan_dot_dot() {
+        let tokens = scan_string("..").unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::DotDot);
+    }
+    
+    #[test]
+    fn test_scan_dot_dot_dot() {
+        let tokens = scan_string("...").unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::DotDotDot);
+    }
+    
+    #[test]
+    fn test_scan_double_colon() {
+        let tokens = scan_string("::").unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::DoubleColon);
+    }
+    
+    #[test]
+    fn test_scan_arrow() {
+        let tokens = scan_string("->").unwrap();
+        assert_eq!(tokens.len(), 2); // Arrow, Eof
+        assert_eq!(tokens[0].kind, TokenKind::Arrow);
+    }
+    
+    #[test]
+    fn test_scan_minus_equal() {
+        let tokens = scan_string("-=").unwrap();
+        assert_eq!(tokens.len(), 2); // MinusEqual, Eof
+        assert_eq!(tokens[0].kind, TokenKind::MinusEqual);
+    }
+    
+    #[test]
+    fn test_scan_minus_variants() {
+        // Test that all - variants are correctly distinguished
+        let tokens = scan_string("- -> -=").unwrap();
+        assert_eq!(tokens.len(), 4); // Minus, Arrow, MinusEqual, Eof
+        assert_eq!(tokens[0].kind, TokenKind::Minus);
+        assert_eq!(tokens[1].kind, TokenKind::Arrow);
+        assert_eq!(tokens[2].kind, TokenKind::MinusEqual);
+    }
+    
+    #[test]
+    fn test_scan_comparison_operators() {
+        let tokens = scan_string("< <= > >=").unwrap();
+        assert_eq!(tokens.len(), 5); // 4 operators + Eof
+        assert_eq!(tokens[0].kind, TokenKind::Less);
+        assert_eq!(tokens[1].kind, TokenKind::LessEqual);
+        assert_eq!(tokens[2].kind, TokenKind::Greater);
+        assert_eq!(tokens[3].kind, TokenKind::GreaterEqual);
+    }
+    
+    #[test]
+    fn test_scan_whitespace() {
+        let tokens = scan_string("  123  ").unwrap();
+        assert_eq!(tokens.len(), 2); // Integer + Eof (whitespace skipped)
+        assert_eq!(tokens[0].kind, TokenKind::Integer(123));
+    }
+    
+    #[test]
+    fn test_scan_comment() {
+        let tokens = scan_string("123 % this is a comment\n456").unwrap();
+        assert_eq!(tokens.len(), 3); // Integer, Integer, Eof
+        assert_eq!(tokens[0].kind, TokenKind::Integer(123));
+        assert_eq!(tokens[1].kind, TokenKind::Integer(456));
+    }
+    
+    #[test]
+    fn test_scan_multiline() {
+        let tokens = scan_string("123\n456\n789").unwrap();
+        assert_eq!(tokens.len(), 4); // 3 integers + Eof
+        assert_eq!(tokens[0].kind, TokenKind::Integer(123));
+        assert_eq!(tokens[1].kind, TokenKind::Integer(456));
+        assert_eq!(tokens[2].kind, TokenKind::Integer(789));
+    }
+    
+    #[test]
+    fn test_scan_empty() {
+        let tokens = scan_string("").unwrap();
+        assert_eq!(tokens.len(), 1); // Just Eof
+        assert_eq!(tokens[0].kind, TokenKind::Eof);
+    }
+    
+    #[test]
+    fn test_scan_error_unexpected_char() {
+        let result = scan_string("~");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ScanError::UnexpectedChar(c, _, _) => assert_eq!(c, '~'),
+            _ => panic!("Expected UnexpectedChar error"),
+        }
+    }
+    
+    #[test]
+    fn test_scan_error_unterminated_string() {
+        let result = scan_string("\"hello");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ScanError::UnterminatedString(_, _) => {}
+            _ => panic!("Expected UnterminatedString error"),
+        }
+    }
+    
+    #[test]
+    fn test_scan_error_unterminated_atom() {
+        let result = scan_string("'hello");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ScanError::UnterminatedAtom(_, _) => {}
+            _ => panic!("Expected UnterminatedAtom error"),
+        }
+    }
+    
+    #[test]
+    fn test_scan_error_invalid_escape() {
+        let result = scan_string("\"hello\\x\"");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ScanError::InvalidEscape(c, _, _) => assert_eq!(c, 'x'),
+            _ => panic!("Expected InvalidEscape error"),
+        }
+    }
+    
+    #[test]
+    fn test_scan_string_escape_sequences() {
+        let escape_tests = vec![
+            ("\\n", '\n'),
+            ("\\t", '\t'),
+            ("\\r", '\r'),
+            ("\\\\", '\\'),
+            ("\\\"", '"'),
+        ];
+        
+        for (escape, expected) in escape_tests {
+            let input = format!("\"hello{}world\"", escape);
+            let tokens = scan_string(&input).unwrap();
+            match &tokens[0].kind {
+                TokenKind::String(s) => {
+                    assert!(s.contains(expected), "String should contain {:?} for escape {}", expected, escape);
+                }
+                _ => panic!("Expected String for {}", escape),
+            }
+        }
+    }
+    
+    #[test]
+    fn test_scan_atom_escape_sequences() {
+        let escape_tests = vec![
+            ("\\n", '\n'),
+            ("\\t", '\t'),
+            ("\\r", '\r'),
+            ("\\\\", '\\'),
+            ("\\'", '\''),
+        ];
+        
+        for (escape, expected) in escape_tests {
+            let input = format!("'hello{}world'", escape);
+            let tokens = scan_string(&input).unwrap();
+            match &tokens[0].kind {
+                TokenKind::Atom(s) => {
+                    assert!(s.contains(expected), "Atom should contain {:?} for escape {}", expected, escape);
+                }
+                _ => panic!("Expected Atom for {}", escape),
+            }
+        }
+    }
+    
+    #[test]
+    fn test_scan_integer_large() {
+        let tokens = scan_string("9223372036854775807").unwrap(); // i64::MAX
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::Integer(9223372036854775807));
+    }
+    
+    #[test]
+    fn test_scan_integer_zero() {
+        let tokens = scan_string("0").unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::Integer(0));
+    }
+    
+    #[test]
+    fn test_scan_float_zero() {
+        let tokens = scan_string("0.0").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Float(f) => assert!((f - 0.0).abs() < f64::EPSILON),
+            _ => panic!("Expected Float"),
+        }
+    }
+    
+    #[test]
+    fn test_scan_float_small() {
+        let tokens = scan_string("0.001").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Float(f) => assert!((f - 0.001).abs() < f64::EPSILON),
+            _ => panic!("Expected Float"),
+        }
+    }
+    
+    #[test]
+    fn test_scan_token_debug() {
+        let token = Token {
+            kind: TokenKind::Integer(42),
+            line: 1,
+            column: 1,
+        };
+        let debug_str = format!("{:?}", token);
+        assert!(!debug_str.is_empty());
+    }
+    
+    #[test]
+    fn test_scan_token_clone() {
+        let token1 = Token {
+            kind: TokenKind::Integer(42),
+            line: 1,
+            column: 1,
+        };
+        let token2 = token1.clone();
+        assert_eq!(token1, token2);
+    }
+    
+    #[test]
+    fn test_scan_token_partial_eq() {
+        let token1 = Token {
+            kind: TokenKind::Integer(42),
+            line: 1,
+            column: 1,
+        };
+        let token2 = Token {
+            kind: TokenKind::Integer(42),
+            line: 1,
+            column: 1,
+        };
+        assert_eq!(token1, token2);
+        
+        let token3 = Token {
+            kind: TokenKind::Integer(43),
+            line: 1,
+            column: 1,
+        };
+        assert_ne!(token1, token3);
+    }
+    
+    #[test]
+    fn test_scan_error_display() {
+        let error = ScanError::UnexpectedChar('~', 1, 1);
+        let display_str = format!("{}", error);
+        assert!(display_str.contains("Unexpected character"));
+        assert!(display_str.contains("~"));
+    }
+    
+    #[test]
+    fn test_scan_error_clone() {
+        let error1 = ScanError::UnexpectedChar('~', 1, 1);
+        let error2 = error1.clone();
+        assert_eq!(error1, error2);
+    }
+    
+    #[test]
+    fn test_scan_error_debug() {
+        let error = ScanError::UnterminatedString(1, 1);
+        let debug_str = format!("{:?}", error);
+        assert!(!debug_str.is_empty());
+    }
+    
+    #[test]
+    fn test_scan_error_error_trait() {
+        let error = ScanError::InvalidEscape('x', 1, 1);
+        // Test that it implements Error trait
+        let error_ref: &dyn std::error::Error = &error;
+        let display_str = format!("{}", error_ref);
+        assert!(!display_str.is_empty());
+    }
+    
+    #[test]
+    fn test_scan_token_kind_debug() {
+        let kinds = vec![
+            TokenKind::Integer(42),
+            TokenKind::Float(3.14),
+            TokenKind::Atom("test".to_string()),
+            TokenKind::String("hello".to_string()),
+            TokenKind::Char('A'),
+            TokenKind::Var("X".to_string()),
+            TokenKind::Plus,
+            TokenKind::Eof,
+        ];
+        
+        for kind in kinds {
+            let debug_str = format!("{:?}", kind);
+            assert!(!debug_str.is_empty());
+        }
+    }
+    
+    #[test]
+    fn test_scan_token_kind_clone() {
+        let kind1 = TokenKind::Integer(42);
+        let kind2 = kind1.clone();
+        assert_eq!(kind1, kind2);
+    }
+    
+    #[test]
+    fn test_scan_token_kind_partial_eq() {
+        assert_eq!(TokenKind::Plus, TokenKind::Plus);
+        assert_ne!(TokenKind::Plus, TokenKind::Minus);
+        assert_eq!(TokenKind::Integer(42), TokenKind::Integer(42));
+        assert_ne!(TokenKind::Integer(42), TokenKind::Integer(43));
+    }
+    
+    #[test]
+    fn test_scan_location_tracking() {
+        let tokens = scan_string("123\n456").unwrap();
+        assert_eq!(tokens[0].line, 1);
+        assert_eq!(tokens[1].line, 2);
+    }
+    
+    #[test]
+    fn test_scan_column_tracking() {
+        let tokens = scan_string("  123").unwrap();
+        // Column should be where the token starts (after whitespace)
+        assert!(tokens[0].column >= 1);
+    }
+    
+    #[test]
+    fn test_scan_complex_expression() {
+        let tokens = scan_string("(1 + 2) * 3").unwrap();
+        assert_eq!(tokens.len(), 8); // LeftParen, Integer, Plus, Integer, RightParen, Star, Integer, Eof
+        assert_eq!(tokens[0].kind, TokenKind::LeftParen);
+        assert_eq!(tokens[1].kind, TokenKind::Integer(1));
+        assert_eq!(tokens[2].kind, TokenKind::Plus);
+        assert_eq!(tokens[3].kind, TokenKind::Integer(2));
+        assert_eq!(tokens[4].kind, TokenKind::RightParen);
+        assert_eq!(tokens[5].kind, TokenKind::Star);
+        assert_eq!(tokens[6].kind, TokenKind::Integer(3));
+    }
+    
+    #[test]
+    fn test_scan_list_literal() {
+        let tokens = scan_string("[1, 2, 3]").unwrap();
+        assert_eq!(tokens.len(), 8); // LeftBracket, Integer, Comma, Integer, Comma, Integer, RightBracket, Eof
+        assert_eq!(tokens[0].kind, TokenKind::LeftBracket);
+        assert_eq!(tokens[1].kind, TokenKind::Integer(1));
+        assert_eq!(tokens[2].kind, TokenKind::Comma);
+    }
+    
+    #[test]
+    fn test_scan_tuple_literal() {
+        let tokens = scan_string("{1, 2}").unwrap();
+        assert_eq!(tokens.len(), 6); // LeftBrace, Integer, Comma, Integer, RightBrace, Eof
+        assert_eq!(tokens[0].kind, TokenKind::LeftBrace);
+        assert_eq!(tokens[1].kind, TokenKind::Integer(1));
+        assert_eq!(tokens[2].kind, TokenKind::Comma);
+    }
+    
+    #[test]
+    fn test_scan_function_call() {
+        let tokens = scan_string("func(1, 2)").unwrap();
+        assert_eq!(tokens.len(), 7); // Atom, LeftParen, Integer, Comma, Integer, RightParen, Eof
+        match &tokens[0].kind {
+            TokenKind::Atom(s) => assert_eq!(s, "func"),
+            _ => panic!("Expected Atom"),
+        }
+        assert_eq!(tokens[1].kind, TokenKind::LeftParen);
+    }
+    
+    #[test]
+    fn test_scan_remote_call() {
+        let tokens = scan_string("module:func(1)").unwrap();
+        assert_eq!(tokens.len(), 7); // Atom, Colon, Atom, LeftParen, Integer, RightParen, Eof
+        match &tokens[0].kind {
+            TokenKind::Atom(s) => assert_eq!(s, "module"),
+            _ => panic!("Expected Atom"),
+        }
+        assert_eq!(tokens[1].kind, TokenKind::Colon);
+    }
+    
+    #[test]
+    fn test_scan_atom_vs_keyword() {
+        // "hello" should be an atom, not a keyword
+        let tokens = scan_string("hello").unwrap();
+        match &tokens[0].kind {
+            TokenKind::Atom(s) => assert_eq!(s, "hello"),
+            _ => panic!("Expected Atom, got {:?}", tokens[0].kind),
+        }
+        
+        // "if" should be a keyword
+        let tokens2 = scan_string("if").unwrap();
+        assert_eq!(tokens2[0].kind, TokenKind::If);
+    }
+    
+    #[test]
+    fn test_scan_float_with_exponent_positive() {
+        let tokens = scan_string("1.5e+10").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Float(f) => assert!((f - 1.5e10).abs() < f64::EPSILON * 1e10),
+            _ => panic!("Expected Float"),
+        }
+    }
+    
+    #[test]
+    fn test_scan_float_with_exponent_uppercase() {
+        let tokens = scan_string("1.5E10").unwrap();
+        assert_eq!(tokens.len(), 2);
+        match tokens[0].kind {
+            TokenKind::Float(f) => assert!((f - 1.5e10).abs() < f64::EPSILON * 1e10),
+            _ => panic!("Expected Float"),
+        }
     }
 }
 

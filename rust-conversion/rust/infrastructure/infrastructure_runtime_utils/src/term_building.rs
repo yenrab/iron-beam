@@ -474,7 +474,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_atom() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let _atom_index = atom_table.put_index(b"test", AtomEncoding::SevenBitAscii, false).unwrap();
         
         let mut builder = HeapBuilder::new_size_calc();
@@ -561,7 +561,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_atom_new_atom() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut builder = HeapBuilder::new_size_calc();
         
         // Build atom that doesn't exist yet (should create it)
@@ -575,7 +575,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_atom_build_mode() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut builder = HeapBuilder::new_build(100);
         let term = erts_bld_atom(&mut builder, &atom_table, "test").unwrap();
         match term {
@@ -827,7 +827,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_atom_uword_2tup_list() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut builder = HeapBuilder::new_build(100);
         let atoms = vec!["atom1", "atom2"];
         let uwords = vec![10usize, 20usize];
@@ -840,7 +840,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_atom_uword_2tup_list_empty() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut builder = HeapBuilder::new_size_calc();
         let atoms = vec![];
         let uwords = vec![];
@@ -853,7 +853,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_atom_2uint_3tup_list() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut builder = HeapBuilder::new_build(100);
         let atoms = vec!["atom1", "atom2"];
         let uints1 = vec![10u64, 20u64];
@@ -867,7 +867,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_atom_2uint_3tup_list_empty() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut builder = HeapBuilder::new_size_calc();
         let atoms = vec![];
         let uints1 = vec![];
@@ -1001,7 +1001,7 @@ mod tests {
     
     #[test]
     fn test_erts_bld_list_with_atoms() {
-        let mut atom_table = AtomTable::new(100);
+        let mut atom_table = AtomTable::new();
         let mut builder = HeapBuilder::new_build(100);
         let atom1 = erts_bld_atom(&mut builder, &atom_table, "atom1").unwrap();
         let atom2 = erts_bld_atom(&mut builder, &atom_table, "atom2").unwrap();

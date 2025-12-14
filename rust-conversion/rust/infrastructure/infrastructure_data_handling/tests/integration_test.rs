@@ -116,7 +116,7 @@ fn test_decode_ei_term_small_integer() {
 fn test_print_term_atom() {
     use entities_data_handling::atom::AtomTable;
     
-    let mut atom_table = AtomTable::new(100);
+    let mut atom_table = AtomTable::new();
     let atom_index = atom_table.put_index(b"test", entities_data_handling::atom::AtomEncoding::SevenBitAscii, false).unwrap();
     let term = Term::Atom(atom_index as u32);
     
@@ -284,4 +284,5 @@ fn test_print_term_various_types() {
         assert!(!printed.is_empty());
     }
 }
+
 
