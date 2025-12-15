@@ -43,6 +43,7 @@ members = [
     # "infrastructure/infrastructure_bignum_encoding_gmp",  # Not needed - using malachite instead
     "infrastructure/infrastructure_trace_encoding",
     "infrastructure/infrastructure_nif_api",
+    "infrastructure/infrastructure_beamasm",
     
     # Frameworks layer
     "frameworks/frameworks_utilities",
