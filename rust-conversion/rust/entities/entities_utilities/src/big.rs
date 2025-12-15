@@ -373,7 +373,7 @@ impl BigNumber {
     /// use entities_utilities::BigNumber;
     ///
     /// let num = BigNumber::from_i32(12345);
-    /// assert_eq!(num.to_i32(), Some(12345));
+    /// assert_eq!(num.to_i64(), Some(12345));
     /// ```
     ///
     /// ## Negative Numbers

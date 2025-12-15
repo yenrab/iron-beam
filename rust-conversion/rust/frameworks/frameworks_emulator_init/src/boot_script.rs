@@ -1850,4 +1850,390 @@ mod tests {
         // Should add .boot extension
         let _ = result;
     }
+
+    // Error handling tests for load_boot_script
+    #[test]
+    fn test_load_boot_script_file_not_found() {
+        let result = load_boot_script("nonexistent", "/root", "/bin");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BootScriptError::NotFound(_) => {}
+            _ => panic!("Expected NotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_load_boot_script_io_error() {
+        // Try to load from a directory (should fail to read as file)
+        let result = load_boot_script("/", "/root", "/bin");
+        // May fail with NotFound or IoError depending on path resolution
+        assert!(result.is_err());
+    }
+
+    // Error handling tests for parse_boot_script
+    #[test]
+    fn test_parse_boot_script_empty_data() {
+        let data = vec![];
+        let result = parse_boot_script(&data);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BootScriptError::ParseError(_) => {}
+            _ => panic!("Expected ParseError"),
+        }
+    }
+
+    #[test]
+    fn test_parse_boot_script_invalid_binary() {
+        let data = vec![0xFF, 0xFF, 0xFF, 0xFF];
+        let result = parse_boot_script(&data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_boot_script_not_tuple() {
+        // Test with invalid binary data that doesn't decode to a tuple
+        let data = vec![131, 100, 0, 4, 116, 101, 115, 116]; // atom "test" in Erlang binary format
+        let result = parse_boot_script(&data);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BootScriptError::InvalidFormat(_) | BootScriptError::ParseError(_) => {}
+            _ => panic!("Expected InvalidFormat or ParseError"),
+        }
+    }
+
+    #[test]
+    fn test_parse_boot_script_wrong_tuple_length() {
+        // Test with binary data representing a tuple with wrong length
+        // This is a simplified test - actual binary format is complex
+        let data = vec![131, 104, 2, 100, 0, 6, 115, 99, 114, 105, 112, 116, 100, 0, 4, 110, 97, 109, 101];
+        let result = parse_boot_script(&data);
+        // May fail at parse or format validation
+        assert!(result.is_err());
+    }
+
+    // Error handling tests for parse_command
+    #[test]
+    fn test_parse_command_empty_tuple() {
+        let term = ErlangTerm::Tuple(vec![]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_not_atom_name() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Integer(42), // Not an atom
+            ErlangTerm::Atom("info".to_string()),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_progress_invalid_info() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("progress".to_string()),
+            ErlangTerm::Integer(42), // Not atom or binary
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_progress_wrong_arity() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("progress".to_string()),
+            // Missing second element
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_preloaded_not_list() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("preLoaded".to_string()),
+            ErlangTerm::Atom("not_a_list".to_string()),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_path_not_list() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("path".to_string()),
+            ErlangTerm::Integer(42),
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_kernel_process_wrong_arity() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("kernelProcess".to_string()),
+            ErlangTerm::Atom("name".to_string()),
+            // Missing third element
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_command_apply_wrong_arity() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("apply".to_string()),
+            // Missing second element
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    // Error handling tests for parse_module_list
+    #[test]
+    fn test_parse_module_list_invalid_element_type() {
+        let term = ErlangTerm::List(vec![
+            ErlangTerm::Atom("module1".to_string()),
+            ErlangTerm::Integer(42), // Invalid type
+            ErlangTerm::Atom("module2".to_string()),
+        ]);
+        let result = parse_module_list(&term);
+        assert!(result.is_err());
+    }
+
+    // Error handling tests for parse_mfa
+    #[test]
+    fn test_parse_mfa_not_tuple_duplicate() {
+        let term = ErlangTerm::Atom("not_a_tuple".to_string());
+        let result = parse_mfa(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_mfa_wrong_length() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("module".to_string()),
+            ErlangTerm::Atom("function".to_string()),
+            // Missing args element
+        ]);
+        let result = parse_mfa(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_mfa_args_not_list() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("module".to_string()),
+            ErlangTerm::Atom("function".to_string()),
+            ErlangTerm::Atom("not_a_list".to_string()),
+        ]);
+        let result = parse_mfa(&term);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_mfa_invalid_arg_type() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("module".to_string()),
+            ErlangTerm::Atom("function".to_string()),
+            ErlangTerm::List(vec![
+                ErlangTerm::Tuple(vec![]), // Cannot convert tuple to string
+            ]),
+        ]);
+        let result = parse_mfa(&term);
+        assert!(result.is_err());
+    }
+
+    // Error handling tests for term_to_string
+    #[test]
+    fn test_term_to_string_unsupported_type() {
+        let term = ErlangTerm::List(vec![]);
+        let result = term_to_string(&term);
+        assert!(result.is_err());
+    }
+
+    // Error handling tests for execute_command
+    #[test]
+    fn test_execute_command_preloaded_error() {
+        // This will fail if modules can't be marked as preloaded
+        let command = BootCommand::PreLoaded(vec!["nonexistent_module".to_string()]);
+        // Should not panic, may return error
+        let _ = execute_command(&command);
+    }
+
+    #[test]
+    fn test_execute_command_path_error() {
+        // Test with invalid paths
+        let command = BootCommand::Path(vec!["/nonexistent/path".to_string()]);
+        // Should not panic
+        let _ = execute_command(&command);
+    }
+
+    #[test]
+    fn test_execute_command_primload_error() {
+        // Test with modules that don't exist
+        let command = BootCommand::PrimLoad(vec!["nonexistent_module".to_string()]);
+        // Should not panic, may return error
+        let _ = execute_command(&command);
+    }
+
+    // Error handling tests for resolve_function_entry_point
+    #[test]
+    fn test_resolve_function_entry_point_module_not_found() {
+        let result = resolve_function_entry_point("nonexistent_module", "function", 0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_function_entry_point_function_not_found() {
+        let result = resolve_function_entry_point("erlang", "nonexistent_function", 0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_function_entry_point_wrong_arity() {
+        let result = resolve_function_entry_point("erlang", "length", 999);
+        assert!(result.is_err());
+    }
+
+    // Error handling tests for execute_boot_script
+    #[test]
+    fn test_execute_boot_script_with_failing_command() {
+        let script = BootScript {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            commands: vec![
+                BootCommand::Progress("test".to_string()),
+                BootCommand::PrimLoad(vec!["nonexistent_module".to_string()]),
+            ],
+        };
+        // Should handle errors gracefully
+        let _ = execute_boot_script(&script);
+    }
+
+    // Error handling tests for set_code_path
+    #[test]
+    fn test_set_code_path_empty() {
+        let result = set_code_path(&[]);
+        // Should not panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_set_code_path_multiple_paths() {
+        let paths = vec![
+            "/path1".to_string(),
+            "/path2".to_string(),
+            "/path3".to_string(),
+        ];
+        let result = set_code_path(&paths);
+        // Should not panic
+        let _ = result;
+    }
+
+    // Error handling tests for register_process_name
+    #[test]
+    fn test_register_process_name_invalid_name() {
+        let result = register_process_name("", 1);
+        // May succeed or fail depending on validation
+        let _ = result;
+    }
+
+    #[test]
+    fn test_register_process_name_duplicate() {
+        // Register same name twice
+        let _ = register_process_name("test_process", 1);
+        let result = register_process_name("test_process", 2);
+        // May succeed or fail depending on implementation
+        let _ = result;
+    }
+
+    // Error handling tests for mark_modules_preloaded
+    #[test]
+    fn test_mark_modules_preloaded_empty() {
+        let result = mark_modules_preloaded(&[]);
+        // Should not panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_mark_modules_preloaded_multiple() {
+        let modules = vec![
+            "module1".to_string(),
+            "module2".to_string(),
+            "module3".to_string(),
+        ];
+        let result = mark_modules_preloaded(&modules);
+        // Should not panic
+        let _ = result;
+    }
+
+    // Error handling tests for load_modules
+    #[test]
+    fn test_load_modules_empty() {
+        let result = load_modules(&[]);
+        // Should not panic
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_load_modules_nonexistent() {
+        let modules = vec!["nonexistent_module".to_string()];
+        let result = load_modules(&modules);
+        // Should handle gracefully (may return Ok with warnings)
+        let _ = result;
+    }
+
+    // Test error display formats
+    #[test]
+    fn test_boot_script_error_display_variants() {
+        let errors = vec![
+            BootScriptError::NotFound("test".to_string()),
+            BootScriptError::InvalidFormat("test".to_string()),
+            BootScriptError::ParseError("test".to_string()),
+            BootScriptError::IoError("test".to_string()),
+        ];
+        
+        for error in errors {
+            let display = format!("{}", error);
+            assert!(display.contains("test"));
+        }
+    }
+
+    // Test parse_boot_script with version as integer - tested via decode_term
+    // This is already covered by existing tests that use decode_term
+
+    // Test parse_command with invalid command that has wrong element count
+    #[test]
+    fn test_parse_command_kernel_load_completed_with_args() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("kernel_load_completed".to_string()),
+            ErlangTerm::Atom("extra".to_string()), // Should have no args
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    // Test parse_command with primLoad wrong arity
+    #[test]
+    fn test_parse_command_primload_wrong_arity() {
+        let term = ErlangTerm::Tuple(vec![
+            ErlangTerm::Atom("primLoad".to_string()),
+            // Missing second element
+        ]);
+        let result = parse_command(&term);
+        assert!(result.is_err());
+    }
+
+    // Test get_code_paths
+    #[test]
+    fn test_get_code_paths() {
+        let paths = get_code_paths();
+        // Should return at least default paths
+        assert!(!paths.is_empty());
+    }
+
+    // Test that parse_boot_script continues with other commands when one fails
+    // This is already tested by test_parse_boot_script_valid which includes multiple commands
 }

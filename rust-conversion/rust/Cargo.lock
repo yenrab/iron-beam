@@ -683,6 +683,7 @@ dependencies = [
  "infrastructure_time_management",
  "infrastructure_utilities",
  "libc",
+ "nix",
  "usecases_bifs",
  "usecases_process_management",
  "usecases_scheduling",

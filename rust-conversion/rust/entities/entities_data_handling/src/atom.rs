@@ -409,7 +409,7 @@ impl AtomTable {
 /// use entities_data_handling::{AtomTable, AtomEncoding};
 /// use entities_data_handling::atom::AtomError;
 ///
-///
+/// let table = AtomTable::new();
 /// // Invalid encoding
 /// let result = table.put_index(&[0x80], AtomEncoding::SevenBitAscii, false);
 /// assert_eq!(result, Err(AtomError::InvalidEncoding));

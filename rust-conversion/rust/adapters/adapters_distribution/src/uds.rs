@@ -92,11 +92,20 @@ impl UdsDistribution {
     ///
     /// # Examples
     ///
+    /// ```rust,no_run
+    /// use adapters_distribution::uds::UdsDistribution;
+    ///
+    /// // Connect to a Unix Domain Socket (socket must already be listening)
+    /// let connection = UdsDistribution::connect("/tmp/erlang/mynode")?;
+    /// # Ok::<(), adapters_distribution::uds::UdsError>(())
+    /// ```
+    ///
     /// ```rust
     /// use adapters_distribution::uds::UdsDistribution;
     ///
-    /// let connection = UdsDistribution::connect("/tmp/erlang/mynode")?;
-    /// # Ok::<(), adapters_distribution::uds::UdsError>(())
+    /// // Connecting to a non-existent socket returns an error
+    /// let result = UdsDistribution::connect("/tmp/nonexistent/socket");
+    /// assert!(result.is_err());
     /// ```
     #[cfg(unix)]
     pub fn connect(path: &str) -> Result<UdsConnection, UdsError> {

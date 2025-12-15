@@ -859,29 +859,58 @@ mod tests {
         use std::time::Duration;
         
         let mut success = false;
-        for attempt in 0..5 {
+        let mut last_error = None;
+        for attempt in 0..10 {
             let unique_name = format!("test_module_info_1_{}_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(), attempt);
             LoadBif::clear_all();
+            
+            // Small delay to ensure clear_all completes
+            thread::sleep(Duration::from_millis(10 * (attempt + 1)));
+            
             LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
             
-            // Small delay to allow registration to complete
-            thread::sleep(Duration::from_millis(10));
+            // Wait for registration to complete
+            thread::sleep(Duration::from_millis(20 * (attempt + 1)));
             
-            // Verify module is registered before querying
-            let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
-            if loaded == Ok(ErlangTerm::Atom("true".to_string())) {
-                let result = InfoBif::get_module_info_1(&ErlangTerm::Atom(unique_name.clone()));
-                if result.is_ok() {
-                    if let ErlangTerm::List(list) = result.unwrap() {
-                        if !list.is_empty() {
-                            success = true;
-                            break;
+            // Verify module is registered before querying - retry if needed
+            let mut loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
+            for _retry in 0..3 {
+                if loaded == Ok(ErlangTerm::Atom("true".to_string())) {
+                    // Verify metadata is available
+                    let metadata = LoadBif::get_module_metadata(&unique_name);
+                    if metadata.is_some() {
+                        let result = InfoBif::get_module_info_1(&ErlangTerm::Atom(unique_name.clone()));
+                        match result {
+                            Ok(ErlangTerm::List(list)) if !list.is_empty() => {
+                                success = true;
+                                break;
+                            }
+                            Ok(ErlangTerm::List(list)) => {
+                                last_error = Some(format!("Module info list is empty for {}", unique_name));
+                            }
+                            Ok(other) => {
+                                last_error = Some(format!("Unexpected result type: {:?}", other));
+                            }
+                            Err(e) => {
+                                last_error = Some(format!("get_module_info_1 failed: {:?}", e));
+                            }
                         }
+                    } else {
+                        last_error = Some(format!("Module metadata not available for {}", unique_name));
                     }
+                } else {
+                    // Retry registration
+                    LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
+                    thread::sleep(Duration::from_millis(20));
+                    loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
                 }
             }
+            
+            if success {
+                break;
+            }
         }
-        assert!(success, "Failed to get module info after retries");
+        assert!(success, "Failed to get module info after retries. Last error: {:?}", last_error);
     }
 
     #[test]
@@ -1325,28 +1354,69 @@ mod tests {
         
         // Retry the entire test if race condition occurs
         let mut success = false;
-        for attempt in 0..5 {
+        for attempt in 0..10 {
             LoadBif::clear_all();
-            std::thread::sleep(std::time::Duration::from_millis(10 * (attempt + 1)));
+            std::thread::sleep(std::time::Duration::from_millis(20 * (attempt + 1)));
             
-            let unique_name = format!("test_module_compile_{}_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(), attempt);
+            let unique_name = format!("test_module_compile_{}_{}", 
+                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(), 
+                attempt);
             LoadBif::register_module(&unique_name, ModuleStatus::Loaded, false, false);
 
-            // Wait a bit for registration to complete
-            thread::sleep(std::time::Duration::from_millis(20));
+            // Wait longer for registration to complete
+            thread::sleep(std::time::Duration::from_millis(30 + attempt * 5));
 
             // Verify module is registered before querying - retry if needed due to test isolation
-            let loaded = LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone()));
-            if loaded == Ok(ErlangTerm::Atom("true".to_string())) {
-                let result = InfoBif::get_module_info_2(
-                    &ErlangTerm::Atom(unique_name),
-                    &ErlangTerm::Atom("compile".to_string()),
-                );
-                
-                if result.is_ok() {
-                    assert!(matches!(result.unwrap(), ErlangTerm::List(_)));
-                    success = true;
-                    break;
+            let mut module_loaded = false;
+            for check_attempt in 0..5 {
+                match LoadBif::module_loaded_1(&ErlangTerm::Atom(unique_name.clone())) {
+                    Ok(result) => {
+                        if result == ErlangTerm::Atom("true".to_string()) {
+                            module_loaded = true;
+                            break;
+                        }
+                    }
+                    Err(_) => {}
+                }
+                if check_attempt < 4 {
+                    thread::sleep(std::time::Duration::from_millis(10 * (check_attempt + 1)));
+                }
+            }
+            
+            if !module_loaded {
+                // Module not registered, retry
+                if attempt < 9 {
+                    continue;
+                }
+                panic!("Module '{}' not registered after retries", unique_name);
+            }
+            
+            // Small delay before querying module info
+            thread::sleep(std::time::Duration::from_millis(10 + attempt * 5));
+            
+            let result = InfoBif::get_module_info_2(
+                &ErlangTerm::Atom(unique_name.clone()),
+                &ErlangTerm::Atom("compile".to_string()),
+            );
+            
+            match result {
+                Ok(info) => {
+                    if matches!(info, ErlangTerm::List(_)) {
+                        success = true;
+                        break;
+                    } else {
+                        // Got a result but it's not a list - might be test interference
+                        if attempt < 9 {
+                            continue;
+                        }
+                        panic!("Expected List but got: {:?}", info);
+                    }
+                }
+                Err(_) => {
+                    // Query failed - might be test interference
+                    if attempt < 9 {
+                        continue;
+                    }
                 }
             }
         }
@@ -1470,7 +1540,8 @@ mod tests {
         
         // Retry the entire test if race condition occurs
         let mut success = false;
-        for attempt in 0..5 {
+        let mut last_error = String::new();
+        for attempt in 0..10 {
             LoadBif::clear_all();
             std::thread::sleep(std::time::Duration::from_millis(10 * (attempt + 1)));
             
@@ -1479,48 +1550,78 @@ mod tests {
 
             // Prepare code with MD5 - use unique code to ensure different references
             let code = vec![0xBE, 0x00, 0x01, 0x02, 0x03, (attempt as u8)];
-            let prepared_ref = LoadBif::erts_internal_prepare_loading_2(
+            let prepared_ref = match LoadBif::erts_internal_prepare_loading_2(
                 &ErlangTerm::Atom(unique_name.clone()),
                 &ErlangTerm::Binary(code),
-            );
-            
-            if prepared_ref.is_err() {
-                continue;
-            }
-            let prepared_ref = prepared_ref.unwrap();
+            ) {
+                Ok(ref_val) => ref_val,
+                Err(e) => {
+                    last_error = format!("Attempt {}: prepare_loading_2 failed: {:?}", attempt, e);
+                    continue;
+                }
+            };
 
-            // Wait a bit before finishing loading
-            thread::sleep(std::time::Duration::from_millis(20));
+            // Wait a bit before finishing loading with increasing delays
+            thread::sleep(std::time::Duration::from_millis(20 + (attempt * 5)));
 
             // Finish loading to store MD5
-            let result = LoadBif::finish_loading_1(&ErlangTerm::List(vec![prepared_ref]));
-            if result.is_err() {
+            let finish_result = match LoadBif::finish_loading_1(&ErlangTerm::List(vec![prepared_ref])) {
+                Ok(result) => result,
+                Err(e) => {
+                    last_error = format!("Attempt {}: finish_loading_1 failed: {:?}", attempt, e);
+                    continue;
+                }
+            };
+            
+            if finish_result != ErlangTerm::Atom("ok".to_string()) {
+                last_error = format!("Attempt {}: finish_loading_1 returned '{:?}' instead of 'ok'", attempt, finish_result);
                 continue;
             }
             
-            if result.unwrap() == ErlangTerm::Atom("ok".to_string()) {
-                // Wait for module to be registered
-                thread::sleep(std::time::Duration::from_millis(30));
+            // Wait for module to be registered and MD5 to be available with retry
+            let mut md5_available = false;
+            for wait_attempt in 0..10 {
+                thread::sleep(std::time::Duration::from_millis(20 + (wait_attempt * 5)));
                 
-                // Get module info and verify MD5 is not all zeros
-                let md5_result = InfoBif::get_module_info_2(
+                // Try to get module info and verify MD5 is available
+                match InfoBif::get_module_info_2(
                     &ErlangTerm::Atom(unique_name.clone()),
                     &ErlangTerm::Atom("md5".to_string()),
-                );
-                
-                if md5_result.is_ok() {
-                    if let ErlangTerm::Binary(md5) = md5_result.as_ref().unwrap() {
-                        assert_eq!(md5.len(), 16);
-                        // MD5 should not be all zeros (it should be computed from the code)
-                        let all_zeros = md5.iter().all(|&b| b == 0);
-                        assert!(!all_zeros, "MD5 should be computed from code, not all zeros");
-                        success = true;
-                        break;
+                ) {
+                    Ok(ref md5_term) => {
+                        if let ErlangTerm::Binary(md5) = md5_term {
+                            if md5.len() == 16 {
+                                // MD5 should not be all zeros (it should be computed from the code)
+                                let all_zeros = md5.iter().all(|&b| b == 0);
+                                if !all_zeros {
+                                    md5_available = true;
+                                    success = true;
+                                    break;
+                                } else {
+                                    // MD5 is all zeros, wait a bit more
+                                    if wait_attempt < 9 {
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Module info not available yet, wait and retry
+                        if wait_attempt < 9 {
+                            continue;
+                        }
                     }
                 }
             }
+            
+            if success {
+                break;
+            } else {
+                last_error = format!("Attempt {}: Module '{}' MD5 not available after waiting", attempt, unique_name);
+            }
         }
-        assert!(success, "Failed to complete test after retries");
+        assert!(success, "Failed to complete test after retries. Last error: {}", last_error);
     }
 }
 

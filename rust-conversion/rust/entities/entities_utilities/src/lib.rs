@@ -40,7 +40,7 @@
 //!
 //! // Create big numbers from various types
 //! let a = BigNumber::from_i64(1234567890123456789);
-//! let b = BigNumber::from_i64(9876543210987654321);
+//! let b = BigNumber::from_i64(987654321098765432);
 //!
 //! // Perform arithmetic operations
 //! let sum = a.plus(&b);

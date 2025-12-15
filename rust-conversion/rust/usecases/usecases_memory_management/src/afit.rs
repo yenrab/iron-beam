@@ -13,6 +13,10 @@ use super::allocator::{safe_copy_memory, Allocator, AllocationError};
 use std::collections::VecDeque;
 use std::sync::{Mutex, LazyLock};
 
+// Test synchronization mutex to prevent interference between parallel tests
+#[cfg(test)]
+static TEST_MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
 /// Free block entry
 #[derive(Debug, Clone, Copy)]
 struct FreeBlock {
@@ -138,8 +142,12 @@ mod tests {
 
     #[test]
     fn test_afit_reuses_first() {
+        // Serialize this test to prevent interference from parallel execution
+        let _guard = TEST_MUTEX.lock().unwrap();
+        
         let allocator = AFitAllocator::new();
         allocator.clear(); // Ensure test isolation
+        
         let ptr1 = allocator.alloc(100).unwrap();
         allocator.dealloc(ptr1, 100);
         
@@ -209,6 +217,9 @@ mod tests {
 
     #[test]
     fn test_afit_exact_size_allocation() {
+        // Serialize this test to prevent interference from parallel execution
+        let _guard = TEST_MUTEX.lock().unwrap();
+        
         let allocator = AFitAllocator::new();
         allocator.clear();
         // Allocate and free a block
@@ -223,6 +234,9 @@ mod tests {
 
     #[test]
     fn test_afit_block_splitting() {
+        // Serialize this test to prevent interference from parallel execution
+        let _guard = TEST_MUTEX.lock().unwrap();
+        
         let allocator = AFitAllocator::new();
         allocator.clear();
         // Allocate a larger block

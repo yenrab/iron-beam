@@ -19,14 +19,15 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use entities_system_integration_common::MemoryMap;
 //!
-//! // Create a memory map
-//! let mmap = MemoryMap::new(size)?;
+//! // Map a file into memory
+//! let mmap = MemoryMap::map_file("data.bin")?;
 //!
 //! // Access the mapped memory
-//! let data = mmap.as_slice();
+//! let data = mmap.data();
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! ## See Also

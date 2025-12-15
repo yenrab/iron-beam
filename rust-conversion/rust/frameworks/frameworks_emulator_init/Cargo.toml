@@ -31,6 +31,7 @@ code_management_code_loading = { path = "../../code_management/code_management_c
 # External dependencies for binary
 clap = { version = "4.0", features = ["derive"] }
 libc = "0.2"
+nix = { version = "0.27", features = ["signal"] }
 
 [[bin]]
 name = "beam"

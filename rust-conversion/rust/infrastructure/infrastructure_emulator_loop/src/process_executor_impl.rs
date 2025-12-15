@@ -210,12 +210,20 @@ mod tests {
         // For now, let's test that the error mapping works correctly by checking
         // that other errors are properly converted to String errors.
         
-        // Create a process with a valid instruction pointer
-        let dummy: u8 = 42;
-        let instruction_ptr: ErtsCodePtr = &dummy as *const u8;
+        // Create a process with a valid RETURN instruction that will exit immediately
+        // This ensures the test completes quickly without hanging
+        use crate::instruction_decoder::opcodes;
+        let mut instruction_buffer = vec![0u8; 4];
+        let opcode = opcodes::RETURN;
+        instruction_buffer[0] = opcode;
+        instruction_buffer[1] = 0;
+        instruction_buffer[2] = 0;
+        instruction_buffer[3] = 0;
+        
+        let instruction_ptr = instruction_buffer.as_ptr() as ErtsCodePtr;
         let process = create_process_with_ip(1, instruction_ptr);
         
-        // Execute - this should either succeed or return an error
+        // Execute - RETURN should cause normal exit immediately
         let result = executor.execute(process);
         
         // Should return Ok or Err, but not panic

@@ -50,7 +50,7 @@ impl NifEnv {
     }
 
     /// Get or create an atom
-    fn get_atom(&self, name: &str) -> u32 {
+    pub fn get_atom(&self, name: &str) -> u32 {
         let mut atoms = self.atoms.lock().unwrap();
         let next_id = atoms.len() as u32;
         *atoms.entry(name.to_string()).or_insert(next_id)
@@ -78,15 +78,16 @@ impl Default for NifEnv {
 /// * `Ok(())` - Success
 /// * `Err(TraceError)` - Error during initialization
 ///
-/// # Examples
-///
-/// ```rust
-/// use adapters_debugging::trace_nif::{TraceNif, NifEnv};
-///
-/// let env = NifEnv::new();
-/// let result = TraceNif::load(&env, Term::Nil);
-/// assert!(result.is_ok());
-/// ```
+    /// # Examples
+    ///
+    /// ```rust
+    /// use adapters_debugging::trace_nif::{TraceNif, NifEnv};
+    /// use entities_data_handling::term_hashing::Term;
+    ///
+    /// let env = NifEnv::new();
+    /// let result = TraceNif::load(&env, Term::Nil);
+    /// assert!(result.is_ok());
+    /// ```
 impl TraceNif {
     /// Load the trace NIF library
     pub fn load(_env: &NifEnv, _load_info: Term) -> Result<(), TraceError> {

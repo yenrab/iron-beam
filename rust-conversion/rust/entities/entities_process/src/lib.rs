@@ -28,8 +28,9 @@
 //! ```rust
 //! use entities_process::{Process, ProcessState, ProcessId};
 //!
-//! // Create a new process
-//! let process = Process::new(process_id, initial_heap_size);
+//! // Create a new process with a process ID
+//! let process_id: ProcessId = 123;
+//! let process = Process::new(process_id);
 //!
 //! // Check process state
 //! let state = process.get_state();

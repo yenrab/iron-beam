@@ -445,6 +445,7 @@ impl NifLoader {
     ///
     /// let path = Path::new("/path/to/library.so");
     /// let library = NifLoader::load_nif_library(path, "my_module")?;
+    /// # Ok::<(), adapters_nifs::nif_loader::NifLoadError>(())
     /// ```
     pub fn load_nif_library(
         path: &Path,

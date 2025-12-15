@@ -18,7 +18,7 @@
 //!
 //! ## Examples
 //!
-//! ```rust
+//! ```rust,no_run
 //! use entities_system_integration_common::MemoryMap;
 //!
 //! // Map a file into memory
@@ -27,6 +27,7 @@
 //! // Access the mapped data
 //! let data = mmap.data();
 //! println!("File size: {} bytes", mmap.len());
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! ## See Also
@@ -68,17 +69,18 @@ use std::path::Path;
 /// efficient access to file contents without loading the entire file into
 /// memory at once. The mapped memory is read-only and backed by the file.
 ///
-/// ## Examples
-///
-/// ```rust
-/// use entities_system_integration_common::MemoryMap;
-///
-/// // Map a file
-/// let mmap = MemoryMap::map_file("large_file.bin")?;
-///
-/// // Access the data
-/// let first_byte = mmap.data()[0];
-/// ```
+    /// ## Examples
+    ///
+    /// ```rust,no_run
+    /// use entities_system_integration_common::MemoryMap;
+    ///
+    /// // Map a file
+    /// let mmap = MemoryMap::map_file("large_file.bin")?;
+    ///
+    /// // Access the data
+    /// let first_byte = mmap.data()[0];
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
 pub struct MemoryMap {
     data: Vec<u8>,
 }
@@ -99,12 +101,13 @@ impl MemoryMap {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use entities_system_integration_common::MemoryMap;
     ///
     /// // Map a configuration file
     /// let mmap = MemoryMap::map_file("config.bin")?;
     /// let config_data = mmap.data();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     ///
     /// # Errors
@@ -130,12 +133,13 @@ impl MemoryMap {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use entities_system_integration_common::MemoryMap;
     ///
     /// let mmap = MemoryMap::map_file("data.bin")?;
     /// let data = mmap.data();
     /// // Process the data...
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn data(&self) -> &[u8] {
         &self.data
@@ -151,11 +155,12 @@ impl MemoryMap {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use entities_system_integration_common::MemoryMap;
     ///
     /// let mmap = MemoryMap::map_file("data.bin")?;
     /// println!("File size: {} bytes", mmap.len());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn len(&self) -> usize {
         self.data.len()

@@ -27,7 +27,7 @@
 //! use entities_utilities::BigRational;
 //!
 //! // Encode a rational number
-//! let rational = BigRational::from(22, 7); // Approximation of π
+//! let rational = BigRational::from_fraction(22, 7).unwrap(); // Approximation of π
 //! let encoded = RationalCodec::encode(&rational).unwrap();
 //!
 //! // Decode a rational number

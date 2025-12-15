@@ -366,9 +366,11 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // This test requires interactive input and will hang in automated test environments
     fn test_keep_window_open() {
         // Test keep window open (should not panic)
-        // We can't easily test the interactive part, but we can verify it doesn't crash
+        // This test requires interactive input and is ignored by default
+        // Run with: cargo test -- --ignored
         FrameworkUtils::keep_window_open();
     }
 }
