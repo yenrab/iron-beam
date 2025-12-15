@@ -10,10 +10,6 @@ authors = ["Erlang/OTP Rust Conversion"]
 entities_utilities = { path = "../entities_utilities" }
 malachite = "0.4"
 
-[dev-dependencies]
-# Test coverage tool (install separately: cargo install cargo-tarpaulin)
-# cargo-tarpaulin = "0.27"
-
 [features]
 default = []
 

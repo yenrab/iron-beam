@@ -267,6 +267,7 @@ dependencies = [
  "entities_io_operations",
  "infrastructure_code_loading",
  "libc",
+ "region",
  "winapi",
 ]
 

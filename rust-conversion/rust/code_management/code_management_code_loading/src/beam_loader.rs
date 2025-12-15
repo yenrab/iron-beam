@@ -521,9 +521,9 @@ impl BeamLoader {
         // Update module instance with executable memory information
         let module_atom = module.module;
         let success = table.update_module_instance(module_atom, |instance| {
-            // Set executable and writable regions
-            instance.executable_region = Some(exec_ptr);
-            instance.writable_region = Some(writable_ptr);
+            // Set executable and writable regions (cast to *const () and *mut () to match ModuleInstance types)
+            instance.executable_region = Some(exec_ptr as *const ());
+            instance.writable_region = Some(writable_ptr as *mut ());
             
             // Set code length
             instance.code_length = code_size;
@@ -534,7 +534,7 @@ impl BeamLoader {
             // In a full implementation, we'd need to manage the lifetime differently.
             
             // Set code header pointer (points to start of executable region)
-            instance.code_hdr = Some(exec_ptr);
+            instance.code_hdr = Some(exec_ptr as *const ());
             
             // Initialize other fields
             instance.catches = 0;
