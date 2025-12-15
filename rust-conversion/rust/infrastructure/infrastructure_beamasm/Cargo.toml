@@ -1,0 +1,32 @@
+[package]
+name = "infrastructure_beamasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "infrastructure_beamasm"
+path = "src/lib.rs"
+
+[dependencies]
+# JIT code generation - using asmjit via FFI bindings
+# Note: asmjit is a C++ library, so we'll use bindgen to create Rust bindings
+# For now, we'll use a manual FFI approach with extern "C" functions
+
+# Memory management for executable code
+memmap2 = "0.9"
+region = "3.0"
+
+# Utilities
+thiserror = "1.0"
+log = "0.4"
+
+[build-dependencies]
+# For generating bindings to asmjit C++ library
+cc = "1.0"
+
+[features]
+default = []
+# Architecture-specific features
+x86_64 = []
+aarch64 = []
+

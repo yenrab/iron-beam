@@ -1,0 +1,372 @@
+//! asmjit wrapper
+//!
+//! Provides Rust bindings to the asmjit C++ library.
+//! This module wraps asmjit calls in safe Rust interfaces.
+
+use std::ffi::CString;
+use std::os::raw::{c_char, c_int};
+use thiserror::Error;
+
+/// Errors from asmjit operations
+#[derive(Debug, Error)]
+pub enum AsmjitError {
+    #[error("asmjit operation failed: {0}")]
+    OperationFailed(String),
+    #[error("Invalid label")]
+    InvalidLabel,
+    #[error("Code generation failed")]
+    CodeGenerationFailed,
+}
+
+/// Opaque pointer to asmjit CodeHolder
+#[repr(C)]
+pub struct AsmjitCodeHolder {
+    _private: [u8; 0],
+}
+
+/// Opaque pointer to asmjit Assembler
+#[repr(C)]
+pub struct AsmjitAssembler {
+    _private: [u8; 0],
+}
+
+/// Opaque pointer to asmjit Label
+#[repr(C)]
+pub struct AsmjitLabel {
+    _private: [u8; 0],
+}
+
+/// Opaque pointer to asmjit Section
+#[repr(C)]
+pub struct AsmjitSection {
+    _private: [u8; 0],
+}
+
+/// Error code from asmjit
+pub type AsmjitErrorCode = c_int;
+
+// FFI bindings to asmjit C++ library
+// These would be generated from the actual asmjit C++ headers
+// For now, we define the interface we need
+
+#[link(name = "asmjit_wrapper")]
+extern "C" {
+    // CodeHolder operations
+    fn asmjit_codeholder_new() -> *mut AsmjitCodeHolder;
+    fn asmjit_codeholder_delete(holder: *mut AsmjitCodeHolder);
+    fn asmjit_codeholder_init(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
+    fn asmjit_codeholder_reset(holder: *mut AsmjitCodeHolder);
+    fn asmjit_codeholder_flatten(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
+    fn asmjit_codeholder_resolve_unresolved_links(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
+    fn asmjit_codeholder_code_size(holder: *const AsmjitCodeHolder) -> usize;
+    fn asmjit_codeholder_base_address(holder: *const AsmjitCodeHolder) -> *const u8;
+    fn asmjit_codeholder_new_section(
+        holder: *mut AsmjitCodeHolder,
+        name: *const c_char,
+        size: usize,
+        flags: u32,
+        alignment: u32,
+    ) -> *mut AsmjitSection;
+    
+    // Assembler operations
+    // Note: Parameter names in Rust FFI don't need to match C++ exactly,
+    // but we use 'assembler' to match the C++ wrapper (which avoids 'asm' keyword)
+    fn asmjit_assembler_new(holder: *mut AsmjitCodeHolder) -> *mut AsmjitAssembler;
+    fn asmjit_assembler_delete(assembler: *mut AsmjitAssembler);
+    fn asmjit_assembler_offset(assembler: *const AsmjitAssembler) -> usize;
+    fn asmjit_assembler_new_label(assembler: *mut AsmjitAssembler) -> *mut AsmjitLabel;
+    fn asmjit_assembler_bind_label(assembler: *mut AsmjitAssembler, label: *mut AsmjitLabel) -> AsmjitErrorCode;
+    fn asmjit_assembler_label_id(label: *const AsmjitLabel) -> u32;
+    
+    // x86-64 specific operations
+    #[cfg(target_arch = "x86_64")]
+    fn asmjit_x86_assembler_emit_mov_reg_reg(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src: u32,
+    ) -> AsmjitErrorCode;
+    
+    #[cfg(target_arch = "x86_64")]
+    fn asmjit_x86_assembler_emit_ret(assembler: *mut AsmjitAssembler) -> AsmjitErrorCode;
+    
+    // aarch64 specific operations
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_mov_reg_reg(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src: u32,
+    ) -> AsmjitErrorCode;
+    
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_ret(assembler: *mut AsmjitAssembler) -> AsmjitErrorCode;
+}
+
+/// Wrapper for asmjit CodeHolder
+pub struct CodeHolder {
+    ptr: *mut AsmjitCodeHolder,
+}
+
+impl CodeHolder {
+    /// Create a new CodeHolder
+    pub fn new() -> Result<Self, AsmjitError> {
+        unsafe {
+            let ptr = asmjit_codeholder_new();
+            if ptr.is_null() {
+                return Err(AsmjitError::OperationFailed("Failed to create CodeHolder".to_string()));
+            }
+            
+            let holder = Self { ptr };
+            let err = asmjit_codeholder_init(holder.ptr);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to init CodeHolder: {}", err)));
+            }
+            
+            Ok(holder)
+        }
+    }
+
+    /// Reset the CodeHolder
+    pub fn reset(&mut self) {
+        unsafe {
+            asmjit_codeholder_reset(self.ptr);
+        }
+    }
+
+    /// Flatten the code (prepare for finalization)
+    pub fn flatten(&mut self) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_codeholder_flatten(self.ptr);
+            if err != 0 {
+                return Err(AsmjitError::CodeGenerationFailed);
+            }
+            Ok(())
+        }
+    }
+
+    /// Resolve unresolved links
+    pub fn resolve_unresolved_links(&mut self) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_codeholder_resolve_unresolved_links(self.ptr);
+            if err != 0 {
+                return Err(AsmjitError::CodeGenerationFailed);
+            }
+            Ok(())
+        }
+    }
+
+    /// Get the code size
+    pub fn code_size(&self) -> usize {
+        unsafe {
+            asmjit_codeholder_code_size(self.ptr)
+        }
+    }
+
+    /// Get the base address
+    pub fn base_address(&self) -> *const u8 {
+        unsafe {
+            asmjit_codeholder_base_address(self.ptr)
+        }
+    }
+
+    /// Create a new section
+    pub fn new_section(
+        &mut self,
+        name: &str,
+        size: usize,
+        flags: u32,
+        alignment: u32,
+    ) -> Result<*mut AsmjitSection, AsmjitError> {
+        unsafe {
+            let c_name = CString::new(name)
+                .map_err(|e| AsmjitError::OperationFailed(format!("Invalid section name: {}", e)))?;
+            let section = asmjit_codeholder_new_section(
+                self.ptr,
+                c_name.as_ptr(),
+                size,
+                flags,
+                alignment,
+            );
+            if section.is_null() {
+                return Err(AsmjitError::OperationFailed("Failed to create section".to_string()));
+            }
+            Ok(section)
+        }
+    }
+
+    /// Get the raw pointer (for advanced use)
+    pub fn as_ptr(&self) -> *mut AsmjitCodeHolder {
+        self.ptr
+    }
+}
+
+// Safety: CodeHolder contains a raw pointer to asmjit C++ object.
+// asmjit objects are not thread-safe by default, but we ensure single-threaded
+// access through the BeamAssembler trait. The pointer is only accessed when
+// the CodeHolder is mutably borrowed.
+unsafe impl Send for CodeHolder {}
+unsafe impl Sync for CodeHolder {}
+
+impl Drop for CodeHolder {
+    fn drop(&mut self) {
+        unsafe {
+            asmjit_codeholder_delete(self.ptr);
+        }
+    }
+}
+
+/// Wrapper for asmjit Assembler
+pub struct Assembler {
+    ptr: *mut AsmjitAssembler,
+    code_holder: CodeHolder, // Assembler references the CodeHolder
+}
+
+impl Assembler {
+    /// Create a new Assembler attached to a CodeHolder
+    pub fn new(code_holder: CodeHolder) -> Result<Self, AsmjitError> {
+        unsafe {
+            let ptr = asmjit_assembler_new(code_holder.as_ptr());
+            if ptr.is_null() {
+                return Err(AsmjitError::OperationFailed("Failed to create Assembler".to_string()));
+            }
+            Ok(Self {
+                ptr,
+                code_holder,
+            })
+        }
+    }
+
+    /// Get the current offset
+    pub fn offset(&self) -> usize {
+        unsafe {
+            asmjit_assembler_offset(self.ptr)
+        }
+    }
+
+    /// Create a new label
+    pub fn new_label(&mut self) -> Result<Label, AsmjitError> {
+        unsafe {
+            let label_ptr = asmjit_assembler_new_label(self.ptr);
+            if label_ptr.is_null() {
+                return Err(AsmjitError::InvalidLabel);
+            }
+            Ok(Label { ptr: label_ptr })
+        }
+    }
+
+    /// Bind a label at the current position
+    pub fn bind_label(&mut self, label: &mut Label) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_assembler_bind_label(self.ptr, label.ptr);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to bind label: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Get the raw pointer (for architecture-specific operations)
+    pub fn as_ptr(&mut self) -> *mut AsmjitAssembler {
+        self.ptr
+    }
+
+    /// Get the CodeHolder (mutable)
+    pub fn code_holder_mut(&mut self) -> &mut CodeHolder {
+        &mut self.code_holder
+    }
+    
+    /// Get the CodeHolder (immutable)
+    pub fn code_holder(&self) -> &CodeHolder {
+        &self.code_holder
+    }
+}
+
+// Safety: Assembler contains raw pointers to asmjit C++ objects.
+// asmjit objects are not thread-safe by default, but we ensure single-threaded
+// access through the BeamAssembler trait. The pointers are only accessed when
+// the Assembler is mutably borrowed.
+unsafe impl Send for Assembler {}
+unsafe impl Sync for Assembler {}
+
+impl Drop for Assembler {
+    fn drop(&mut self) {
+        unsafe {
+            asmjit_assembler_delete(self.ptr);
+        }
+    }
+}
+
+/// Wrapper for asmjit Label
+pub struct Label {
+    ptr: *mut AsmjitLabel,
+}
+
+impl Label {
+    /// Get the label ID
+    pub fn id(&self) -> u32 {
+        unsafe {
+            asmjit_assembler_label_id(self.ptr)
+        }
+    }
+
+    /// Get the raw pointer
+    pub fn as_ptr(&mut self) -> *mut AsmjitLabel {
+        self.ptr
+    }
+}
+
+/// x86-64 specific assembler operations
+#[cfg(target_arch = "x86_64")]
+pub mod x86 {
+    use super::*;
+
+    /// Emit mov instruction (register to register)
+    pub fn emit_mov_reg_reg(assembler: &mut Assembler, dst: u32, src: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_x86_assembler_emit_mov_reg_reg(assembler.as_ptr(), dst, src);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit mov: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit ret instruction
+    pub fn emit_ret(assembler: &mut Assembler) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_x86_assembler_emit_ret(assembler.as_ptr());
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit ret: {}", err)));
+            }
+            Ok(())
+        }
+    }
+}
+
+/// aarch64 specific assembler operations
+#[cfg(target_arch = "aarch64")]
+pub mod a64 {
+    use super::*;
+
+    /// Emit mov instruction (register to register)
+    pub fn emit_mov_reg_reg(assembler: &mut Assembler, dst: u32, src: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_mov_reg_reg(assembler.as_ptr(), dst, src);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit mov: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit ret instruction
+    pub fn emit_ret(assembler: &mut Assembler) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_ret(assembler.as_ptr());
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit ret: {}", err)));
+            }
+            Ok(())
+        }
+    }
+}
+
