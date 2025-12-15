@@ -176,6 +176,55 @@ impl Parser {
         Ok(exprs)
     }
     
+    /// Parse expressions for REPL mode - requires a dot terminator
+    /// In REPL mode, expressions must be terminated by '.' to indicate they should be parsed and executed
+    fn parse_repl_exprs(&mut self) -> Result<Vec<Expr>, ParseError> {
+        let mut exprs = Vec::new();
+        
+        // Parse at least one expression
+        if self.peek().map(|t| matches!(t.kind, TokenKind::Eof | TokenKind::Dot)).unwrap_or(true) {
+            return Err(ParseError::UnexpectedEof);
+        }
+        
+        loop {
+            exprs.push(self.parse_expr()?);
+            
+            // Check for comma (dependent clause) or semicolon (independent clause)
+            if let Some(tok) = self.peek() {
+                match tok.kind {
+                    TokenKind::Comma => {
+                        // Dependent clause - continue parsing
+                        self.advance();
+                        continue;
+                    }
+                    TokenKind::Semicolon => {
+                        // Independent clause - continue parsing
+                        self.advance();
+                        continue;
+                    }
+                    TokenKind::Dot => {
+                        // Function/expression terminator - consume and finish
+                        self.advance();
+                        break;
+                    }
+                    TokenKind::Eof => {
+                        // End of input - error in REPL mode (should have dot)
+                        return Err(ParseError::ExpectedToken(TokenKind::Dot, tok.clone()));
+                    }
+                    _ => {
+                        // Unexpected token - error
+                        return Err(ParseError::ExpectedToken(TokenKind::Dot, tok.clone()));
+                    }
+                }
+            } else {
+                // Unexpected EOF - should have dot
+                return Err(ParseError::UnexpectedEof);
+            }
+        }
+        
+        Ok(exprs)
+    }
+    
     fn parse_expr(&mut self) -> Result<Expr, ParseError> {
         // Pattern matching has lowest precedence
         let left = self.parse_or_expr()?;
@@ -617,6 +666,25 @@ impl Parser {
 pub fn parse_exprs(tokens: Vec<Token>) -> Result<Vec<Expr>, ParseError> {
     let mut parser = Parser::new(tokens);
     parser.parse_exprs()
+}
+
+/// Parse expressions from tokens for REPL mode
+///
+/// This function is specifically for REPL/shell mode where expressions
+/// must be terminated by a '.' character. In Erlang:
+/// - Dependent clauses are terminated by ','
+/// - Independent clauses are terminated by ';'
+/// - Functions/expressions are terminated by '.'
+///
+/// # Arguments
+/// * `tokens` - List of tokens from erl_scan
+///
+/// # Returns
+/// * `Ok(Vec<Expr>)` - List of parsed expressions
+/// * `Err(ParseError)` - Parse error (including if dot is missing)
+pub fn parse_repl_exprs(tokens: Vec<Token>) -> Result<Vec<Expr>, ParseError> {
+    let mut parser = Parser::new(tokens);
+    parser.parse_repl_exprs()
 }
 
 /// Parse a single expression from tokens
@@ -1135,6 +1203,65 @@ mod tests {
         assert_eq!(exprs[0], Expr::Integer(1));
         assert_eq!(exprs[1], Expr::Integer(2));
         assert_eq!(exprs[2], Expr::Integer(3));
+    }
+    
+    #[test]
+    fn test_parse_repl_exprs_with_dot() {
+        use crate::erl_scan::scan_until_dot;
+        let tokens = scan_until_dot("2+2.").unwrap();
+        let exprs = parse_repl_exprs(tokens).unwrap();
+        assert_eq!(exprs.len(), 1);
+        match &exprs[0] {
+            Expr::BinOp { op: BinOp::Add, .. } => {}
+            _ => panic!("Expected BinOp::Add"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_repl_exprs_without_dot() {
+        use crate::erl_scan::scan_until_dot;
+        let result = scan_until_dot("2+2");
+        assert!(result.is_err(), "scan_until_dot should require a dot");
+        // scan_until_dot will return an error before we even get to parsing
+    }
+    
+    #[test]
+    fn test_parse_repl_exprs_with_comma() {
+        use crate::erl_scan::scan_until_dot;
+        let tokens = scan_until_dot("1, 2.").unwrap();
+        let exprs = parse_repl_exprs(tokens).unwrap();
+        assert_eq!(exprs.len(), 2);
+        assert_eq!(exprs[0], Expr::Integer(1));
+        // "2." is parsed as Float(2.0) in Erlang, not Integer(2) + Dot
+        match &exprs[1] {
+            Expr::Float(f) => assert!((f - 2.0).abs() < f64::EPSILON),
+            _ => panic!("Expected Float(2.0), got {:?}", exprs[1]),
+        }
+    }
+    
+    #[test]
+    fn test_parse_repl_exprs_with_semicolon() {
+        use crate::erl_scan::scan_until_dot;
+        let tokens = scan_until_dot("1; 2.").unwrap();
+        let exprs = parse_repl_exprs(tokens).unwrap();
+        assert_eq!(exprs.len(), 2);
+        assert_eq!(exprs[0], Expr::Integer(1));
+        // "2." is parsed as Float(2.0) in Erlang, not Integer(2) + Dot
+        match &exprs[1] {
+            Expr::Float(f) => assert!((f - 2.0).abs() < f64::EPSILON),
+            _ => panic!("Expected Float(2.0), got {:?}", exprs[1]),
+        }
+    }
+    
+    #[test]
+    fn test_parse_repl_exprs_with_space_before_dot() {
+        use crate::erl_scan::scan_until_dot;
+        // When there's a space before the dot, it should be Integer + Dot
+        let tokens = scan_until_dot("1, 2 .").unwrap();
+        let exprs = parse_repl_exprs(tokens).unwrap();
+        assert_eq!(exprs.len(), 2);
+        assert_eq!(exprs[0], Expr::Integer(1));
+        assert_eq!(exprs[1], Expr::Integer(2)); // Space before dot makes it Integer, not Float
     }
     
     #[test]

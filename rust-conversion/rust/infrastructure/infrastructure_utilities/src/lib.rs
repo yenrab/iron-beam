@@ -59,7 +59,7 @@ pub use process_table::{ProcessTable, get_global_process_table, ProcessTableErro
 pub use atom_table::get_global_atom_table;
 pub use global_literals::init_global_literals;
 pub use erlang_term_decoder::{decode_term, ErlangTerm, DecoderError};
-pub use erl_scan::{scan_string, Token, TokenKind, ScanError};
-pub use erl_parse::{parse_exprs, parse_expr, Expr, BinOp, UnOp, ParseError};
+pub use erl_scan::{scan_string, scan_until_dot, Token, TokenKind, ScanError};
+pub use erl_parse::{parse_exprs, parse_repl_exprs, parse_expr, Expr, BinOp, UnOp, ParseError};
 pub use erl_eval::{exprs, expr, new_bindings, Bindings, EvalError};
 

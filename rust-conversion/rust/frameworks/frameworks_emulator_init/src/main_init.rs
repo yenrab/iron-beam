@@ -1187,58 +1187,82 @@ fn start_simple_repl() {
         print!("{}> ", line_count);
         io::stdout().flush().unwrap();
         
-        // Read line
-        let mut line = String::new();
-        match stdin.lock().read_line(&mut line) {
-            Ok(0) => {
-                // EOF
-                println!("\n");
-                break;
-            }
-            Ok(_) => {
-                let trimmed = line.trim();
-                
-                // Handle empty lines
-                if trimmed.is_empty() {
-                    continue;
+        // Read input until dot is found (multiline support, matching erl_scan:tokens behavior)
+        let mut input_buffer = String::new();
+        loop {
+            let mut line = String::new();
+            match stdin.lock().read_line(&mut line) {
+                Ok(0) => {
+                    // EOF
+                    println!("\n");
+                    return;
                 }
-                
-                // Handle special commands
-                match trimmed {
-                    "q()." | "quit()." | "halt()." => {
-                        println!("ok");
+                Ok(_) => {
+                    input_buffer.push_str(&line);
+                    let trimmed = input_buffer.trim();
+                    
+                    // Handle empty lines
+                    if trimmed.is_empty() {
                         break;
                     }
-                    "help()." => {
-                        println!("  This is a minimal REPL implementation.");
-                        println!("  Commands:");
-                        println!("    help().  - Show this help");
-                        println!("    q().     - Quit the emulator");
-                        println!("  You can assign variables:");
-                        println!("    X = 3.");
-                        println!("    Y = X + 2.");
+                    
+                    // Check if we have a complete expression (ends with dot)
+                    if trimmed.ends_with('.') {
+                        // We have a complete expression, process it
+                        break;
                     }
-                    _ => {
-                        // Use full parser and evaluator with persistent bindings
-                        match evaluate_erlang_expression_with_bindings(trimmed, &mut bindings) {
-                            Ok(result) => {
-                                // Format and print the result
-                                println!("{}", format_term(&result));
-                            }
-                            Err(e) => {
-                                println!("** {}", e);
-                            }
-                        }
-                    }
+                    
+                    // No dot yet - continue reading (multiline input)
+                    // Print continuation prompt (matching Erlang behavior)
+                    print!("  | ");
+                    io::stdout().flush().unwrap();
                 }
-                
-                line_count += 1;
-            }
-            Err(e) => {
-                eprintln!("Error reading input: {}", e);
-                break;
+                Err(e) => {
+                    eprintln!("Error reading input: {}", e);
+                    return;
+                }
             }
         }
+        
+        let trimmed = input_buffer.trim();
+        
+        // Handle empty lines
+        if trimmed.is_empty() {
+            continue;
+        }
+        
+        // Handle special commands (these must end with dot)
+        match trimmed {
+            "q()." | "quit()." | "halt()." => {
+                println!("ok");
+                break;
+            }
+            "help()." => {
+                println!("  This is a minimal REPL implementation.");
+                println!("  Commands:");
+                println!("    help().  - Show this help");
+                println!("    q().     - Quit the emulator");
+                println!("  You can assign variables:");
+                println!("    X = 3.");
+                println!("    Y = X + 2.");
+            }
+            _ => {
+                // Use scan_until_dot + parse_repl_exprs + evaluator with persistent bindings
+                // scan_until_dot will return an error if no dot is found (shouldn't happen here
+                // since we checked above, but good to handle anyway)
+                match evaluate_erlang_expression_with_bindings(trimmed, &mut bindings) {
+                    Ok(result) => {
+                        // Format and print the result
+                        println!("{}", format_term(&result));
+                    }
+                    Err(e) => {
+                        println!("** {}", e);
+                    }
+                }
+            }
+        }
+        
+        line_count += 1;
     }
     
     println!("Shutting down...");
@@ -1276,21 +1300,22 @@ fn evaluate_erlang_expression(input: &str) -> Result<entities_data_handling::ter
 /// Evaluate an Erlang expression with persistent bindings
 ///
 /// This version maintains bindings across multiple expressions (for REPL).
+/// Uses scan_until_dot() and parse_repl_exprs() to match Erlang behavior:
+/// - Scanner requires a dot before completing
+/// - Parser requires and consumes the dot token
 fn evaluate_erlang_expression_with_bindings(
     input: &str,
     bindings: &mut infrastructure_utilities::erl_eval::Bindings,
 ) -> Result<entities_data_handling::term_hashing::Term, String> {
-    use infrastructure_utilities::{scan_string, parse_exprs, exprs};
+    use infrastructure_utilities::{scan_until_dot, parse_repl_exprs, exprs};
     
-    // Remove trailing period if present (Erlang syntax)
-    let expr_str = input.trim_end_matches('.');
-    
-    // Step 1: Scan (tokenize)
-    let tokens = scan_string(expr_str)
+    // Step 1: Scan until dot (matches erl_scan:tokens behavior)
+    // This requires a dot before completing, matching Erlang REPL behavior
+    let tokens = scan_until_dot(input)
         .map_err(|e| format!("Scan error: {}", e))?;
     
-    // Step 2: Parse
-    let parsed_exprs = parse_exprs(tokens)
+    // Step 2: Parse expressions (requires dot, matches erl_eval:extended_parse_exprs behavior)
+    let parsed_exprs = parse_repl_exprs(tokens)
         .map_err(|e| format!("Parse error: {}", e))?;
     
     if parsed_exprs.is_empty() {

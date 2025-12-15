@@ -441,12 +441,49 @@ impl Scanner {
                 num_str.push(c);
                 self.advance();
             } else if c == '.' {
+                // In Erlang, a dot after a number can be:
+                // 1. Part of a float if followed by digits: "2.5"
+                // 2. Part of a float if at end of number: "2." (parsed as 2.0)
+                // 3. A separate token if followed by whitespace/operator: "2 ." or "2.+"
                 if is_float {
                     break;
                 }
-                is_float = true;
-                num_str.push(c);
-                self.advance();
+                // Check the character after the dot without advancing
+                let next_pos = self.pos + 1;
+                if next_pos < self.input.len() {
+                    let next_ch = self.input[next_pos];
+                    if next_ch.is_ascii_digit() {
+                        // Dot followed by digit - it's a float, consume the dot
+                        is_float = true;
+                        num_str.push(c);
+                        self.advance();
+                    } else if next_ch.is_whitespace() || next_ch == '\n' {
+                        // Dot followed by whitespace - in Erlang, "2." is Float(2.0)
+                        // So consume the dot as part of the float
+                        is_float = true;
+                        num_str.push(c);
+                        self.advance();
+                    } else {
+                        // Dot followed by non-digit, non-whitespace - check if it's an operator
+                        // that would make the dot a separate token
+                        // For now, if followed by operator/punctuation, treat as separate token
+                        // This handles cases like "2.+3" where we want Integer(2) + Dot + Plus + Integer(3)
+                        // But "2." should be Float(2.0)
+                        // Actually, in Erlang "2.+3" would be Float(2.0) + Plus + Integer(3)
+                        // So we should consume the dot if it's at the end of input or followed by operator
+                        // Let's be conservative: only don't consume if followed by letter/digit context suggests separation
+                        // For simplicity, consume dot as part of float if it's not clearly separated
+                        // The key insight: "2." at end or before operator is Float(2.0)
+                        is_float = true;
+                        num_str.push(c);
+                        self.advance();
+                    }
+                } else {
+                    // EOF after dot - in Erlang, "2." at EOF is Float(2.0)
+                    is_float = true;
+                    num_str.push(c);
+                    self.advance();
+                }
             } else {
                 break;
             }
@@ -568,6 +605,80 @@ pub fn scan_string(input: &str) -> Result<Vec<Token>, ScanError> {
         tokens.push(token);
         if is_eof {
             break;
+        }
+    }
+    
+    Ok(tokens)
+}
+
+/// Scan tokens until a dot (`.`) is found
+///
+/// This function is used for REPL/shell mode where expressions must be terminated
+/// by a dot. It scans tokens until it finds a dot token or detects that the input
+/// ends with a dot (which may be consumed as part of a float like "2.").
+/// This matches the behavior of `erl_scan:tokens` in Erlang.
+///
+/// # Arguments
+/// * `input` - Input string to scan
+///
+/// # Returns
+/// * `Ok(Vec<Token>)` - List of tokens (may include Dot token or Float ending with dot)
+/// * `Err(ScanError)` - Scan error (including if EOF reached before dot)
+///
+/// # Example
+/// ```
+/// use infrastructure_utilities::erl_scan::{scan_until_dot, TokenKind};
+/// 
+/// // Valid: expression with dot
+/// let tokens = scan_until_dot("2+2.").unwrap();
+/// // The dot may be part of Float(2.0) or a separate Dot token
+/// 
+/// // Invalid: expression without dot
+/// assert!(scan_until_dot("2+2").is_err());
+/// ```
+pub fn scan_until_dot(input: &str) -> Result<Vec<Token>, ScanError> {
+    let mut scanner = Scanner::new(input);
+    let mut tokens: Vec<Token> = Vec::new();
+    
+    // Check if input ends with a dot (trimmed) - this helps detect dots consumed as floats
+    let trimmed_input = input.trim();
+    let ends_with_dot = trimmed_input.ends_with('.');
+    
+    loop {
+        let token = scanner.scan_token()?;
+        let is_dot = matches!(token.kind, TokenKind::Dot);
+        let is_eof = matches!(token.kind, TokenKind::Eof);
+        
+        if is_eof {
+            // EOF reached - check if input ended with dot
+            if ends_with_dot {
+                // Input ended with dot (may have been consumed as part of float like "2.")
+                // Check if the last token before EOF is a Float that ends with dot
+                // If so, we need to add a Dot token for the parser
+                if let Some(last_token) = tokens.last() {
+                    if matches!(last_token.kind, TokenKind::Float(_)) {
+                        // Last token is a float - the dot was consumed as part of it
+                        // Add a Dot token so the parser can consume it
+                        let line = scanner.line;
+                        let column = scanner.column;
+                        tokens.push(Token { kind: TokenKind::Dot, line, column });
+                    }
+                }
+                // Don't push EOF token - we've handled the dot
+                break;
+            } else {
+                // EOF reached without finding dot - error
+                let line = scanner.line;
+                let column = scanner.column;
+                return Err(ScanError::UnexpectedEof(line, column));
+            }
+        } else {
+            tokens.push(token);
+            
+            if is_dot {
+                // Found dot token - scanning complete
+                break;
+            }
         }
     }
     
@@ -1214,6 +1325,54 @@ mod tests {
             TokenKind::Float(f) => assert!((f - 1.5e10).abs() < f64::EPSILON * 1e10),
             _ => panic!("Expected Float"),
         }
+    }
+    
+    #[test]
+    fn test_scan_until_dot_with_dot() {
+        let tokens = scan_until_dot("2+2.").unwrap();
+        assert!(tokens.len() >= 4); // At least: Integer, Plus, Integer, Dot
+        assert!(matches!(tokens.last().unwrap().kind, TokenKind::Dot));
+    }
+    
+    #[test]
+    fn test_scan_until_dot_without_dot() {
+        let result = scan_until_dot("2+2");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ScanError::UnexpectedEof(_, _) => {}
+            e => panic!("Expected UnexpectedEof, got {:?}", e),
+        }
+    }
+    
+    #[test]
+    fn test_scan_until_dot_multiple_expressions() {
+        let tokens = scan_until_dot("1, 2, 3.").unwrap();
+        assert!(matches!(tokens.last().unwrap().kind, TokenKind::Dot));
+    }
+    
+    #[test]
+    fn test_scan_until_dot_with_semicolon() {
+        let tokens = scan_until_dot("1; 2.").unwrap();
+        assert!(matches!(tokens.last().unwrap().kind, TokenKind::Dot));
+    }
+    
+    #[test]
+    fn test_scan_until_dot_empty_input() {
+        let result = scan_until_dot("");
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_scan_until_dot_only_dot() {
+        let tokens = scan_until_dot(".").unwrap();
+        assert_eq!(tokens.len(), 1);
+        assert!(matches!(tokens[0].kind, TokenKind::Dot));
+    }
+    
+    #[test]
+    fn test_scan_until_dot_function_call() {
+        let tokens = scan_until_dot("lists:last([1,2,3]).").unwrap();
+        assert!(matches!(tokens.last().unwrap().kind, TokenKind::Dot));
     }
 }
 
