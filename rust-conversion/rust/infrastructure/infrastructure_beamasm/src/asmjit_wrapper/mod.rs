@@ -370,3 +370,219 @@ pub mod a64 {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::error::Error;
+
+    // ==================== AsmjitError Tests ====================
+
+    #[test]
+    fn test_asmjit_error_operation_failed_display() {
+        let error = AsmjitError::OperationFailed("test operation".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("asmjit operation failed"));
+        assert!(display.contains("test operation"));
+    }
+
+    #[test]
+    fn test_asmjit_error_invalid_label_display() {
+        let error = AsmjitError::InvalidLabel;
+        let display = format!("{}", error);
+        assert!(display.contains("Invalid label"));
+    }
+
+    #[test]
+    fn test_asmjit_error_code_generation_failed_display() {
+        let error = AsmjitError::CodeGenerationFailed;
+        let display = format!("{}", error);
+        assert!(display.contains("Code generation failed"));
+    }
+
+    #[test]
+    fn test_asmjit_error_debug() {
+        let error = AsmjitError::OperationFailed("debug test".to_string());
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("OperationFailed"));
+        assert!(debug.contains("debug test"));
+    }
+
+    #[test]
+    fn test_asmjit_error_is_std_error() {
+        let error: Box<dyn Error> = Box::new(AsmjitError::InvalidLabel);
+        let _ = error.to_string();
+    }
+
+    #[test]
+    fn test_asmjit_error_variants() {
+        // Test all variants can be created
+        let _op_failed = AsmjitError::OperationFailed(String::new());
+        let _invalid_label = AsmjitError::InvalidLabel;
+        let _codegen_failed = AsmjitError::CodeGenerationFailed;
+    }
+
+    #[test]
+    fn test_asmjit_error_operation_failed_with_empty_message() {
+        let error = AsmjitError::OperationFailed(String::new());
+        let display = format!("{}", error);
+        assert!(display.contains("asmjit operation failed"));
+    }
+
+    #[test]
+    fn test_asmjit_error_operation_failed_with_special_chars() {
+        let error = AsmjitError::OperationFailed("error: <test> \"special\" chars!".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("error: <test> \"special\" chars!"));
+    }
+
+    // ==================== Type Definition Tests ====================
+
+    #[test]
+    fn test_asmjit_error_code_type() {
+        // Verify AsmjitErrorCode is an alias for c_int
+        let code: AsmjitErrorCode = 0;
+        let _: c_int = code; // Should compile if types are compatible
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn test_opaque_struct_sizes() {
+        // Opaque structs should have minimal size (just markers)
+        // They contain [u8; 0] which is a zero-sized array
+        assert_eq!(std::mem::size_of::<[u8; 0]>(), 0);
+    }
+
+    // ==================== Label Tests ====================
+
+    #[test]
+    fn test_label_struct_exists() {
+        // Just verify the Label struct can be referenced
+        // We can't create one without FFI, but we can test the type exists
+        fn _takes_label_ptr(_: *mut AsmjitLabel) {}
+    }
+
+    // ==================== CodeHolder Tests (type system) ====================
+
+    #[test]
+    fn test_codeholder_send_sync() {
+        // Verify CodeHolder implements Send and Sync
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+        assert_send::<CodeHolder>();
+        assert_sync::<CodeHolder>();
+    }
+
+    // ==================== Assembler Tests (type system) ====================
+
+    #[test]
+    fn test_assembler_send_sync() {
+        // Verify Assembler implements Send and Sync
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+        assert_send::<Assembler>();
+        assert_sync::<Assembler>();
+    }
+
+    // ==================== Error Conversion Tests ====================
+
+    #[test]
+    fn test_asmjit_error_into_box_dyn_error() {
+        let error = AsmjitError::InvalidLabel;
+        let boxed: Box<dyn Error> = Box::new(error);
+        assert!(boxed.to_string().contains("Invalid label"));
+    }
+
+    #[test]
+    fn test_asmjit_error_source() {
+        // AsmjitError doesn't wrap other errors, so source should be None
+        let error = AsmjitError::InvalidLabel;
+        assert!(error.source().is_none());
+    }
+
+    // ==================== Architecture-specific module tests ====================
+
+    #[cfg(target_arch = "x86_64")]
+    mod x86_tests {
+        #[test]
+        fn test_x86_module_exists() {
+            // Verify the x86 module is accessible on x86_64
+            use super::super::x86;
+            let _ = x86::emit_mov_reg_reg;
+            let _ = x86::emit_ret;
+        }
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    mod a64_tests {
+        #[test]
+        fn test_a64_module_exists() {
+            // Verify the a64 module is accessible on aarch64
+            use super::super::a64;
+            let _ = a64::emit_mov_reg_reg;
+            let _ = a64::emit_ret;
+        }
+    }
+
+    // ==================== CString handling tests ====================
+
+    #[test]
+    fn test_cstring_from_valid_str() {
+        let result = CString::new("test_section");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cstring_from_str_with_null() {
+        let result = CString::new("test\0section");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cstring_from_empty_str() {
+        let result = CString::new("");
+        assert!(result.is_ok());
+    }
+
+    // ==================== Error message formatting tests ====================
+
+    #[test]
+    fn test_error_format_with_error_code() {
+        // Test the format used in actual error handling
+        let err_code = 42;
+        let error = AsmjitError::OperationFailed(format!("Failed to init CodeHolder: {}", err_code));
+        assert!(error.to_string().contains("42"));
+    }
+
+    #[test]
+    fn test_error_format_bind_label() {
+        let err_code = 123;
+        let error = AsmjitError::OperationFailed(format!("Failed to bind label: {}", err_code));
+        assert!(error.to_string().contains("Failed to bind label"));
+        assert!(error.to_string().contains("123"));
+    }
+
+    #[test]
+    fn test_error_format_emit_mov() {
+        let err_code = 456;
+        let error = AsmjitError::OperationFailed(format!("Failed to emit mov: {}", err_code));
+        assert!(error.to_string().contains("Failed to emit mov"));
+        assert!(error.to_string().contains("456"));
+    }
+
+    #[test]
+    fn test_error_format_emit_ret() {
+        let err_code = 789;
+        let error = AsmjitError::OperationFailed(format!("Failed to emit ret: {}", err_code));
+        assert!(error.to_string().contains("Failed to emit ret"));
+        assert!(error.to_string().contains("789"));
+    }
+
+    #[test]
+    fn test_error_format_invalid_section_name() {
+        // Create a NulError by trying to create a CString with an embedded null
+        let nul_error = CString::new("test\0section").unwrap_err();
+        let error = AsmjitError::OperationFailed(format!("Invalid section name: {}", nul_error));
+        assert!(error.to_string().contains("Invalid section name"));
+    }
+}
+

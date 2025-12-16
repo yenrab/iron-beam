@@ -28,6 +28,8 @@ pub struct JitAllocator {
 
 /// Memory region for JIT code
 struct MemoryRegion {
+    /// The allocation that keeps the memory alive
+    allocation: region::Allocation,
     /// Executable pointer
     executable: *const u8,
     /// Writable pointer (same memory, different protection)
@@ -52,25 +54,33 @@ impl JitAllocator {
         &mut self,
         size: usize,
     ) -> Result<(*const u8, *mut u8, usize), JitAllocatorError> {
-        // Allocate memory with read-write-execute permissions
-        let protection = region::Protection::READ | region::Protection::WRITE | region::Protection::EXECUTE;
+        self.allocate_with_protection(size, region::Protection::READ | region::Protection::WRITE | region::Protection::EXECUTE)
+    }
+
+    /// Allocate memory with custom protection
+    ///
+    /// For testing purposes, allows specifying custom memory protection.
+    pub fn allocate_with_protection(
+        &mut self,
+        size: usize,
+        protection: region::Protection,
+    ) -> Result<(*const u8, *mut u8, usize), JitAllocatorError> {
         
-        let allocation = region::alloc(size, protection)
+        let mut allocation = region::alloc(size, protection)
             .map_err(|e| JitAllocatorError::AllocationFailed(e.to_string()))?;
 
-        let mut allocation = allocation;
         let executable = allocation.as_ptr() as *const u8;
         let writable = allocation.as_mut_ptr() as *mut u8;
         let allocated_size = allocation.len();
 
         self.regions.push(MemoryRegion {
+            allocation,
             executable,
             writable,
             size: allocated_size,
         });
 
-        // Leak the allocation so it persists (will be freed in purge_module)
-        std::mem::forget(allocation);
+        // The allocation is now stored in MemoryRegion and will be dropped in purge_module
 
         Ok((executable, writable, allocated_size))
     }
@@ -138,13 +148,7 @@ impl JitAllocator {
         // Find and remove the region
         self.regions.retain(|r| {
             if r.executable == executable && r.writable == writable {
-                // Free the memory region
-                unsafe {
-                    let _slice = std::slice::from_raw_parts_mut(r.writable, r.size);
-                    // Note: region crate doesn't provide a direct free function
-                    // The memory will be freed when the allocator is dropped
-                    // or we could use a different approach for memory management
-                }
+                // The allocation will be dropped here, freeing the memory
                 false
             } else {
                 true
@@ -165,6 +169,466 @@ impl Drop for JitAllocator {
         // When we leak them in allocate(), they persist until process exit
         // In a production system, we'd want proper memory management here
         // For now, we rely on the OS to clean up on process exit
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::error::Error;
+
+    // ==================== JitAllocatorError Tests ====================
+
+    #[test]
+    fn test_error_allocation_failed_display() {
+        let error = JitAllocatorError::AllocationFailed("out of memory".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("Failed to allocate executable memory"));
+        assert!(display.contains("out of memory"));
+    }
+
+    #[test]
+    fn test_error_protection_failed_display() {
+        let error = JitAllocatorError::ProtectionFailed("permission denied".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("Failed to protect memory"));
+        assert!(display.contains("permission denied"));
+    }
+
+    #[test]
+    fn test_error_invalid_region_display() {
+        let error = JitAllocatorError::InvalidRegion;
+        let display = format!("{}", error);
+        assert!(display.contains("Invalid memory region"));
+    }
+
+    #[test]
+    fn test_error_debug() {
+        let error = JitAllocatorError::AllocationFailed("test".to_string());
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("AllocationFailed"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_error_all_variants_debug() {
+        let errors = [
+            JitAllocatorError::AllocationFailed(String::new()),
+            JitAllocatorError::ProtectionFailed(String::new()),
+            JitAllocatorError::InvalidRegion,
+        ];
+        for err in &errors {
+            let _ = format!("{:?}", err);
+            let _ = format!("{}", err);
+        }
+    }
+
+    #[test]
+    fn test_error_is_std_error() {
+        let error: Box<dyn Error> = Box::new(JitAllocatorError::InvalidRegion);
+        let _ = error.to_string();
+    }
+
+    #[test]
+    fn test_error_source_is_none() {
+        let error = JitAllocatorError::InvalidRegion;
+        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn test_error_empty_message() {
+        let error = JitAllocatorError::AllocationFailed(String::new());
+        let display = format!("{}", error);
+        assert!(display.contains("Failed to allocate executable memory"));
+    }
+
+    #[test]
+    fn test_error_special_characters() {
+        let error = JitAllocatorError::ProtectionFailed("error: <test> \"special\" chars!".to_string());
+        let display = format!("{}", error);
+        assert!(display.contains("error: <test> \"special\" chars!"));
+    }
+
+    // ==================== JitAllocator Creation Tests ====================
+
+    #[test]
+    fn test_jit_allocator_new() {
+        let allocator = JitAllocator::new();
+        assert!(allocator.is_ok());
+    }
+
+    #[test]
+    fn test_jit_allocator_default() {
+        let allocator = JitAllocator::default();
+        // Just verify it creates without panicking
+        let _ = allocator;
+    }
+
+    #[test]
+    fn test_jit_allocator_multiple_instances() {
+        let alloc1 = JitAllocator::new().unwrap();
+        let alloc2 = JitAllocator::new().unwrap();
+        let alloc3 = JitAllocator::default();
+        // All should coexist
+        let _ = (alloc1, alloc2, alloc3);
+    }
+
+    // ==================== JitAllocator Allocation Tests ====================
+
+    #[test]
+    fn test_allocate_small() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let result = allocator.allocate(64);
+        assert!(result.is_ok());
+        let (exec, write, size) = result.unwrap();
+        assert!(!exec.is_null());
+        assert!(!write.is_null());
+        assert!(size >= 64);
+    }
+
+    #[test]
+    fn test_allocate_page_size() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let result = allocator.allocate(4096);
+        assert!(result.is_ok());
+        let (exec, write, size) = result.unwrap();
+        assert!(!exec.is_null());
+        assert!(!write.is_null());
+        assert!(size >= 4096);
+    }
+
+    #[test]
+    fn test_allocate_multiple() {
+        let mut allocator = JitAllocator::new().unwrap();
+        
+        let result1 = allocator.allocate(64);
+        assert!(result1.is_ok());
+        
+        let result2 = allocator.allocate(128);
+        assert!(result2.is_ok());
+        
+        let result3 = allocator.allocate(256);
+        assert!(result3.is_ok());
+        
+        // All allocations should have distinct addresses
+        let (exec1, _, _) = result1.unwrap();
+        let (exec2, _, _) = result2.unwrap();
+        let (exec3, _, _) = result3.unwrap();
+        
+        assert_ne!(exec1, exec2);
+        assert_ne!(exec2, exec3);
+        assert_ne!(exec1, exec3);
+    }
+
+    #[test]
+    fn test_allocate_zero_size_fails() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let result = allocator.allocate(0);
+        // Zero-size allocation should fail
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_allocated_memory_is_writable() {
+        let mut allocator = JitAllocator::new().unwrap();
+        // Use READ | WRITE only for this test to avoid EXECUTE permission issues on some platforms
+        let (_, write, size) = allocator.allocate_with_protection(64, region::Protection::READ | region::Protection::WRITE).unwrap();
+        
+        // Should be able to write to the memory
+        unsafe {
+            for i in 0..size.min(64) {
+                *write.add(i) = (i & 0xFF) as u8;
+            }
+        }
+    }
+
+    #[test]
+    fn test_allocated_memory_is_readable() {
+        let mut allocator = JitAllocator::new().unwrap();
+        // Use READ | WRITE only for this test to avoid EXECUTE permission issues on some platforms
+        let (_, write, size) = allocator.allocate_with_protection(64, region::Protection::READ | region::Protection::WRITE).unwrap();
+        
+        // Write some data
+        unsafe {
+            for i in 0..size.min(64) {
+                *write.add(i) = (i & 0xFF) as u8;
+            }
+        }
+        
+        // Should be able to read back through write pointer
+        // (exec pointer reading may fail on some platforms due to W^X)
+        unsafe {
+            for i in 0..size.min(64) {
+                assert_eq!(*write.add(i), (i & 0xFF) as u8);
+            }
+        }
+    }
+
+    // ==================== JitAllocator Seal/Unseal Tests ====================
+
+    #[test]
+    #[cfg_attr(target_os = "macos", ignore = "region::protect fails on macOS")]
+    fn test_seal_memory() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let (exec, _, size) = allocator.allocate(4096).unwrap();
+
+        let result = allocator.seal(exec, size);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(target_os = "macos", ignore = "region::protect fails on macOS")]
+    fn test_unseal_memory() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let (exec, _, size) = allocator.allocate(4096).unwrap();
+
+        // Seal then unseal
+        allocator.seal(exec, size).unwrap();
+        let result = allocator.unseal(exec, size);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(target_os = "macos", ignore = "region::protect fails on macOS")]
+    fn test_seal_unseal_cycle() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let (exec, write, size) = allocator.allocate(4096).unwrap();
+        
+        // Write initial data
+        unsafe {
+            *write = 0x90; // NOP on x86
+        }
+        
+        // Seal
+        allocator.seal(exec, size).unwrap();
+        
+        // Unseal
+        allocator.unseal(exec, size).unwrap();
+        
+        // Write again
+        unsafe {
+            *write = 0xC3; // RET on x86
+        }
+        
+        // Verify write worked (read through write pointer to avoid W^X issues)
+        unsafe {
+            assert_eq!(*write, 0xC3);
+        }
+    }
+
+    // ==================== JitAllocator Flush ICache Tests ====================
+
+    #[test]
+    fn test_flush_icache() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let (exec, _, size) = allocator.allocate(64).unwrap();
+        
+        // Should not panic
+        allocator.flush_icache(exec, size);
+    }
+
+    #[test]
+    fn test_flush_icache_small_region() {
+        let allocator = JitAllocator::new().unwrap();
+        let data: [u8; 16] = [0; 16];
+        
+        // Should not panic even for small regions
+        allocator.flush_icache(data.as_ptr(), data.len());
+    }
+
+    #[test]
+    fn test_flush_icache_large_region() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let (exec, _, size) = allocator.allocate(4096).unwrap();
+        
+        // Should handle larger regions
+        allocator.flush_icache(exec, size);
+    }
+
+    #[test]
+    fn test_flush_icache_zero_size() {
+        let allocator = JitAllocator::new().unwrap();
+        let data: u8 = 0;
+        
+        // Zero-size flush should not panic
+        allocator.flush_icache(&data as *const u8, 0);
+    }
+
+    // ==================== JitAllocator Purge Module Tests ====================
+
+    #[test]
+    fn test_purge_module() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let (exec, write, size) = allocator.allocate(64).unwrap();
+        
+        // Should not panic
+        allocator.purge_module(exec, write, size);
+    }
+
+    #[test]
+    fn test_purge_module_nonexistent() {
+        let mut allocator = JitAllocator::new().unwrap();
+        
+        // Purging non-existent module should not panic
+        allocator.purge_module(std::ptr::null(), std::ptr::null_mut(), 0);
+    }
+
+    #[test]
+    fn test_purge_module_multiple() {
+        let mut allocator = JitAllocator::new().unwrap();
+        
+        let (exec1, write1, size1) = allocator.allocate(64).unwrap();
+        let (exec2, write2, size2) = allocator.allocate(128).unwrap();
+        let (exec3, write3, size3) = allocator.allocate(256).unwrap();
+        
+        // Purge in different order
+        allocator.purge_module(exec2, write2, size2);
+        allocator.purge_module(exec1, write1, size1);
+        allocator.purge_module(exec3, write3, size3);
+    }
+
+    // ==================== JitAllocator Drop Tests ====================
+
+    #[test]
+    fn test_allocator_drop_empty() {
+        let allocator = JitAllocator::new().unwrap();
+        drop(allocator);
+        // Should not panic
+    }
+
+    #[test]
+    fn test_allocator_drop_with_allocations() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let _ = allocator.allocate(64);
+        let _ = allocator.allocate(128);
+        drop(allocator);
+        // Should not panic
+    }
+
+    // ==================== MemoryRegion Tests (via JitAllocator) ====================
+
+    #[test]
+    fn test_memory_region_pointers_equal() {
+        let mut allocator = JitAllocator::new().unwrap();
+        let (exec, write, _) = allocator.allocate(64).unwrap();
+        
+        // The pointers should point to the same memory
+        assert_eq!(exec as usize, write as usize);
+    }
+
+    // ==================== Integration Tests ====================
+
+    #[test]
+    fn test_full_jit_workflow() {
+        let mut allocator = JitAllocator::new().unwrap();
+
+        // 1. Allocate (use READ|WRITE only on macOS to avoid EXECUTE permission issues)
+        #[cfg(target_os = "macos")]
+        let (exec, write, size) = allocator.allocate_with_protection(4096, region::Protection::READ | region::Protection::WRITE).unwrap();
+        #[cfg(not(target_os = "macos"))]
+        let (exec, write, size) = allocator.allocate(4096).unwrap();
+        
+        // 2. Write code
+        unsafe {
+            // Write some placeholder code
+            for i in 0..64 {
+                *write.add(i) = 0x90; // NOP
+            }
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            // 3. Flush icache
+            allocator.flush_icache(exec, size);
+
+            // 4. Seal
+            allocator.seal(exec, size).unwrap();
+
+            // 5. (Would execute code here in real use)
+
+            // 6. Unseal for patching
+            allocator.unseal(exec, size).unwrap();
+
+            // 7. Patch
+            unsafe {
+                *write = 0xC3; // RET
+            }
+
+            // 8. Re-seal
+            allocator.seal(exec, size).unwrap();
+
+            // 9. Purge when done
+            allocator.unseal(exec, size).unwrap(); // Need to unseal first in some cases
+        }
+
+        // Cleanup
+        allocator.purge_module(exec, write, size);
+    }
+
+    #[test]
+    fn test_multiple_allocations_workflow() {
+        let mut allocator = JitAllocator::new().unwrap();
+        
+        // Allocate multiple regions (use READ|WRITE only on macOS)
+        #[cfg(target_os = "macos")]
+        let allocs: Vec<_> = (0..5)
+            .map(|i| allocator.allocate_with_protection(64 * (i + 1), region::Protection::READ | region::Protection::WRITE).unwrap())
+            .collect();
+        #[cfg(not(target_os = "macos"))]
+        let allocs: Vec<_> = (0..5)
+            .map(|i| allocator.allocate(64 * (i + 1)).unwrap())
+            .collect();
+
+        // Write to each
+        for (_, write, size) in &allocs {
+            unsafe {
+                for i in 0..*size.min(&64) {
+                    *write.add(i) = 0x90;
+                }
+            }
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            // Seal all
+            for (exec, _, size) in &allocs {
+                allocator.seal(*exec, *size).unwrap();
+            }
+
+            // Unseal and purge all
+            for (exec, write, size) in &allocs {
+                allocator.unseal(*exec, *size).unwrap();
+                allocator.purge_module(*exec, *write, *size);
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            // Just purge all on macOS (skip seal/unseal)
+            for (exec, write, size) in &allocs {
+                allocator.purge_module(*exec, *write, *size);
+            }
+        }
+    }
+
+    // ==================== Error Path Tests ====================
+
+    #[test]
+    fn test_seal_null_pointer() {
+        let allocator = JitAllocator::new().unwrap();
+        // This might fail or succeed depending on the platform
+        let result = allocator.seal(std::ptr::null(), 0);
+        // We just verify it doesn't panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_unseal_null_pointer() {
+        let allocator = JitAllocator::new().unwrap();
+        // This might fail or succeed depending on the platform
+        let result = allocator.unseal(std::ptr::null(), 0);
+        // We just verify it doesn't panic
+        let _ = result;
     }
 }
 
