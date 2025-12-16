@@ -1246,24 +1246,24 @@ const IHASH_CONST_BETA: u64 = 0x38495AB5;
 
 // Hash type constants (matching C enum)
 const IHASH_TYPE_IMMEDIATE: u64 = 1;
-const IHASH_TYPE_ARRAY_ELEMENT: u64 = 2;
+const _IHASH_TYPE_ARRAY_ELEMENT: u64 = 2;
 const IHASH_TYPE_CAR: u64 = 3;
 const IHASH_TYPE_CDR: u64 = 4;
 const IHASH_TYPE_STRING: u64 = 5;
 const IHASH_TYPE_TUPLE: u64 = 6;
 const IHASH_TYPE_FLATMAP: u64 = 7;
-const IHASH_TYPE_HASHMAP_HEAD_ARRAY: u64 = 8;
-const IHASH_TYPE_HASHMAP_HEAD_BITMAP: u64 = 9;
-const IHASH_TYPE_HASHMAP_NODE: u64 = 10;
+const _IHASH_TYPE_HASHMAP_HEAD_ARRAY: u64 = 8;
+const _IHASH_TYPE_HASHMAP_HEAD_BITMAP: u64 = 9;
+const _IHASH_TYPE_HASHMAP_NODE: u64 = 10;
 const IHASH_TYPE_BINARY: u64 = 11;
 const IHASH_TYPE_LOCAL_FUN: u64 = 12;
 const IHASH_TYPE_EXTERNAL_FUN: u64 = 13;
 const IHASH_TYPE_NEG_BIGNUM: u64 = 14;
 const IHASH_TYPE_POS_BIGNUM: u64 = 15;
 const IHASH_TYPE_LOCAL_REF: u64 = 16;
-const IHASH_TYPE_EXTERNAL_REF: u64 = 17;
-const IHASH_TYPE_EXTERNAL_PID: u64 = 18;
-const IHASH_TYPE_EXTERNAL_PORT: u64 = 19;
+const _IHASH_TYPE_EXTERNAL_REF: u64 = 17;
+const _IHASH_TYPE_EXTERNAL_PID: u64 = 18;
+const _IHASH_TYPE_EXTERNAL_PORT: u64 = 19;
 const IHASH_TYPE_FLOAT: u64 = 20;
 
 /// Rotate left 64-bit value
@@ -2332,7 +2332,7 @@ const HASH_MULT_POSITIVE: u32 = 268435459;       // positive numbers, nil
 const HASH_MULT_NEGATIVE: u32 = 268436141;       // negative numbers, binary final
 const HASH_MULT_PID_BYTE: u32 = 268438633;       // PIDs (byte-wise hashing)
 const HASH_MULT_PID_FINAL: u32 = 268437017;      // PIDs (final), floats
-const HASH_MULT_7: u32 = 268438039;              // unused
+const _HASH_MULT_7: u32 = 268438039;              // unused
 const HASH_MULT_LIST_END: u32 = 268437511;       // list end marker
 const HASH_MULT_TUPLE_ARITY: u32 = 268439627;   // tuple arity, ports/refs (byte-wise)
 const HASH_MULT_PORT_REF_FINAL: u32 = 268440479; // ports/refs (final), local functions

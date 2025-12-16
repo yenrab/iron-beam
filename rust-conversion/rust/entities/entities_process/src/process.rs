@@ -386,7 +386,7 @@ impl Process {
     /// * `None` - Stack is empty
     pub fn stack_pop(&self) -> Option<Eterm> {
         // LOCK ORDER: heap_data -> stack_top_index (see LOCKING.md)
-        let mut heap_data = self.heap_data.lock().unwrap();
+        let heap_data = self.heap_data.lock().unwrap();
         let mut stack_top_guard = self.stack_top_index.lock().unwrap();
         
         let stack_top = match *stack_top_guard {

@@ -150,7 +150,7 @@ fn verify_latin1(data: &[u8]) -> bool {
 }
 
 /// Fast track for ASCII atoms (7-bit ASCII)
-fn ascii_fast_track(data: &[u8]) -> bool {
+fn _ascii_fast_track(data: &[u8]) -> bool {
     data.iter().all(|&b| b < 128)
 }
 

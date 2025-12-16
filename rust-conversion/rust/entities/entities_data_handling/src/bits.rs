@@ -235,7 +235,7 @@ pub fn make_mask(n: usize) -> u64 {
     if n >= 64 {
         u64::MAX
     } else {
-        ((1u64 << n) - 1)
+        (1u64 << n) - 1
     }
 }
 
