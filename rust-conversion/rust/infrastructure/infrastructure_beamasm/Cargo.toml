@@ -20,6 +20,12 @@ region = "3.0"
 thiserror = "1.0"
 log = "0.4"
 
+# BEAM file loading
+code_management_code_loading = { path = "../../code_management/code_management_code_loading" }
+
+# Byte order for BEAM parsing
+byteorder = "1.5"
+
 [build-dependencies]
 # For generating bindings to asmjit C++ library
 cc = "1.0"

@@ -17,6 +17,7 @@ num_cpus = "1.16"
 flate2 = "1.0"
 zstd = "0.13"
 code_management_code_loading = { path = "../../code_management/code_management_code_loading" }
+infrastructure_beamasm = { path = "../infrastructure_beamasm" }
 # Note: num-rational removed - now using BigRational from entities_utilities
 # Note: ruzstd removed - using zstd crate for both compression and decompression
 # Note: infrastructure_bif_dispatcher dependency removed to avoid circular dependency

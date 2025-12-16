@@ -112,20 +112,19 @@ impl BeamAsmLoader {
     pub fn finish_emit(
         &mut self,
         state: &mut LoaderState,
-    ) -> Result<(*const u8, *mut u8, usize), LoaderError> {
+    ) -> Result<(*const u8, *mut u8, usize, Vec<(*const u8, usize)>), LoaderError> {
         // Generate code using the assembler
-        let (executable, writable) = state.assembler.codegen(&mut self.allocator)
+        let (executable, writable, size, label_mappings) = state.assembler.codegen(&mut self.allocator)
             .map_err(LoaderError::AssemblerError)?;
 
-        // Update label code pointers
-        for label in &mut state.labels {
-            label.code_ptr = state.assembler.get_code(label.index).ok();
+        // Update label code pointers from assembler mappings
+        for (code_ptr, label_index) in &label_mappings {
+            if *label_index < state.labels.len() {
+                state.labels[*label_index].code_ptr = Some(*code_ptr);
+            }
         }
 
-        // Get code size (would need to be tracked in assembler)
-        let size = 0; // Placeholder - needs actual size tracking
-
-        Ok((executable, writable, size))
+        Ok((executable, writable, size, label_mappings))
     }
 
     /// Patch code

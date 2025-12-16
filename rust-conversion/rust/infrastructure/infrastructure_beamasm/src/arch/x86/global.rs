@@ -181,11 +181,12 @@ pub fn get_global_assembler() -> Option<&'static mut X86BeamGlobalAssembler> {
 /// and returns the function pointer.
 pub fn generate_process_main(allocator: &mut JitAllocator) -> Result<JitProcessMain, BeamAssemblerError> {
     init_global_assembler(allocator)?;
-    
+
     let global_assembler = get_global_assembler()
         .ok_or_else(|| BeamAssemblerError::CodeGenerationFailed(
             "Global assembler not initialized".to_string()
         ))?;
-    
-    global_assembler.codegen(allocator)
+
+    let (executable, _writable, _size) = global_assembler.codegen(allocator)?;
+    Ok(unsafe { std::mem::transmute(executable) })
 }

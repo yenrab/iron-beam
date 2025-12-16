@@ -42,7 +42,7 @@ pub trait BeamAssembler: Send + Sync {
     fn codegen(
         &mut self,
         allocator: &mut JitAllocator,
-    ) -> Result<(*const u8, *mut u8), BeamAssemblerError>;
+    ) -> Result<(*const u8, *mut u8, usize, Vec<(*const u8, usize)>), BeamAssemblerError>;
 
     /// Get code pointer for a label
     fn get_code(&self, label: usize) -> Result<*const u8, BeamAssemblerError>;
