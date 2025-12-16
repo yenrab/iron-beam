@@ -1618,7 +1618,7 @@ impl OpBif {
     /// use entities_utilities::BigRational;
     ///
     /// // Check rational
-    /// let rational = BigRational::from_integer(1) / BigRational::from_integer(3);
+    /// let rational = BigRational::from_fraction(1, 3).unwrap();
     /// let result = OpBif::is_rational(&ErlangTerm::Rational(rational));
     /// assert_eq!(result, ErlangTerm::Atom("true".to_string()));
     ///

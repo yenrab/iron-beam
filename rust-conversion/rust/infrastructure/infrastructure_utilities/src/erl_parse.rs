@@ -1232,11 +1232,9 @@ mod tests {
         let exprs = parse_repl_exprs(tokens).unwrap();
         assert_eq!(exprs.len(), 2);
         assert_eq!(exprs[0], Expr::Integer(1));
-        // "2." is parsed as Float(2.0) in Erlang, not Integer(2) + Dot
-        match &exprs[1] {
-            Expr::Float(f) => assert!((f - 2.0).abs() < f64::EPSILON),
-            _ => panic!("Expected Float(2.0), got {:?}", exprs[1]),
-        }
+        // "2." is parsed as Integer(2) + Dot (dot is REPL terminator)
+        // The parser consumes the Dot token, leaving Integer(2) as the expression
+        assert_eq!(exprs[1], Expr::Integer(2));
     }
     
     #[test]
@@ -1246,11 +1244,9 @@ mod tests {
         let exprs = parse_repl_exprs(tokens).unwrap();
         assert_eq!(exprs.len(), 2);
         assert_eq!(exprs[0], Expr::Integer(1));
-        // "2." is parsed as Float(2.0) in Erlang, not Integer(2) + Dot
-        match &exprs[1] {
-            Expr::Float(f) => assert!((f - 2.0).abs() < f64::EPSILON),
-            _ => panic!("Expected Float(2.0), got {:?}", exprs[1]),
-        }
+        // "2." is parsed as Integer(2) + Dot (dot is REPL terminator)
+        // The parser consumes the Dot token, leaving Integer(2) as the expression
+        assert_eq!(exprs[1], Expr::Integer(2));
     }
     
     #[test]

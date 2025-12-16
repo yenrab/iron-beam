@@ -578,6 +578,7 @@ version = "0.1.0"
 dependencies = [
  "entities_data_handling",
  "entities_process",
+ "infrastructure_beamasm",
  "infrastructure_bif_dispatcher",
  "infrastructure_utilities",
  "usecases_scheduling",

@@ -124,16 +124,16 @@ fn test_metadata_operations() {
 
 #[test]
 fn test_arg_val_creation() {
-    use infrastructure_beamasm::args::ArgVal;
+    use infrastructure_beamasm::{ArgVal, ArgType};
     
     // Test creating different argument types
     let word = ArgVal::word(42);
     assert_eq!(word.value(), 42);
-    assert!(word.tag_type() == infrastructure_beamasm::args::ArgType::Word);
+    assert!(word.tag_type() == ArgType::Word);
     
     let x_reg = ArgVal::x_reg(5);
     assert_eq!(x_reg.value(), 5);
-    assert!(x_reg.tag_type() == infrastructure_beamasm::args::ArgType::XReg);
+    assert!(x_reg.tag_type() == ArgType::XReg);
     
     let label = ArgVal::label(10);
     assert_eq!(label.value(), 10);

@@ -23,8 +23,11 @@
 //! use infrastructure_data_handling::decode_binary;
 //!
 //! // Decode a binary from EI-encoded buffer
-//! let (data, new_index) = decode_binary(&buf, 0)?;
+//! let buf = vec![109, 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o']; // BINARY_EXT tag, length, data
+//! let (data, new_index) = decode_binary(&buf, 0).unwrap();
 //! println!("Decoded {} bytes", data.len());
+//! assert_eq!(data, b"hello");
+//! assert_eq!(new_index, 10);
 //! ```
 //!
 //! ## See Also

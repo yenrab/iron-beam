@@ -36,14 +36,17 @@
 //!
 //! ```rust
 //! use usecases_nif_compilation::{NifCompiler, SafeRustVerifier, CompileOptions};
+//! use std::path::Path;
 //!
 //! // Verify Rust code is safe
 //! let verifier = SafeRustVerifier::new();
-//! let result = verifier.verify("path/to/nif.rs")?;
+//! // Note: verify_file returns a Result - handle errors appropriately
+//! let _result = verifier.verify_file(Path::new("path/to/nif.rs"));
 //!
 //! // Compile NIF
 //! let compiler = NifCompiler::new();
-//! let compile_result = compiler.compile("path/to/nif.rs", CompileOptions::default())?;
+//! // Note: compile returns a Result - handle errors appropriately
+//! let _compile_result = compiler.compile(Path::new("path/to/nif.rs"), CompileOptions::default());
 //! ```
 //!
 //! ## See Also

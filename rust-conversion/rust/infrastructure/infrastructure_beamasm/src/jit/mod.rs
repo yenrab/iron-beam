@@ -103,10 +103,10 @@ impl JitAllocator {
     ///
     /// Ensures that instruction cache is synchronized after code generation.
     pub fn flush_icache(&self, ptr: *const u8, size: usize) {
-        unsafe {
-            // Use platform-specific cache flush
-            #[cfg(target_arch = "x86_64")]
-            {
+        // Use platform-specific cache flush
+        #[cfg(target_arch = "x86_64")]
+        {
+            unsafe {
                 use std::arch::x86_64::_mm_clflush;
                 let mut current = ptr;
                 let end = ptr.add(size);
@@ -115,17 +115,19 @@ impl JitAllocator {
                     current = current.add(64); // Cache line size
                 }
             }
-            #[cfg(target_arch = "aarch64")]
-            {
-                // Use inline assembly for cache operations on aarch64
-                // This is a simplified version - actual implementation would use proper intrinsics
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
-            }
-            #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-            {
-                // No-op for unsupported architectures
-                let _ = (ptr, size);
-            }
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
+            // Use inline assembly for cache operations on aarch64
+            // This is a simplified version - actual implementation would use proper intrinsics
+            // Parameters are part of the API but not used on aarch64 yet
+            let _ = (ptr, size);
+            std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+        }
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            // No-op for unsupported architectures
+            let _ = (ptr, size);
         }
     }
 

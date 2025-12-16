@@ -27,11 +27,13 @@
 //! let mut buf = Vec::new();
 //!
 //! // Encode a simple atom
-//! let bytes = encode_atom(&mut buf, "hello", AtomEncoding::Latin1)?;
+//! let bytes = encode_atom(&mut buf, "hello", AtomEncoding::Latin1).unwrap();
+//! assert!(bytes > 0);
 //!
 //! // Encode with explicit length
 //! let name_bytes = b"world";
-//! let bytes = encode_atom_len(&mut buf, name_bytes, AtomEncoding::Utf8)?;
+//! let bytes = encode_atom_len(&mut buf, name_bytes, AtomEncoding::Utf8).unwrap();
+//! assert!(bytes > 0);
 //! ```
 //!
 //! ## See Also

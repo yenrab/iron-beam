@@ -143,6 +143,7 @@ impl ProcessTable {
     /// ```
     /// use infrastructure_utilities::process_table::ProcessTable;
     /// use entities_process::Process;
+    /// use std::sync::Arc;
     ///
     /// let table = ProcessTable::new();
     /// let process = Arc::new(Process::new(123));
@@ -150,7 +151,7 @@ impl ProcessTable {
     ///
     /// let found = table.lookup(123);
     /// assert!(found.is_some());
-    /// assert_eq!(found.unwrap().get_id(), 123);
+    /// assert_eq!(found.unwrap().id(), 123);
     /// ```
     pub fn lookup(&self, id: ProcessId) -> Option<Arc<Process>> {
         let table = self.table.read().unwrap();
@@ -211,7 +212,7 @@ impl ProcessTable {
     ///
     /// let removed = table.remove(123);
     /// assert!(removed.is_some());
-    /// assert_eq!(table.lookup(123), None);
+    /// assert!(table.lookup(123).is_none());
     /// ```
     pub fn remove(&self, id: ProcessId) -> Option<Arc<Process>> {
         let mut table = self.table.write().unwrap();
@@ -444,7 +445,7 @@ static GLOBAL_PROCESS_TABLE: std::sync::OnceLock<ProcessTable> = std::sync::Once
 /// # Examples
 /// ```
 /// use infrastructure_utilities::process_table::get_global_process_table;
-/// use entities_process_port::Process;
+/// use entities_process::Process;
 /// use std::sync::Arc;
 ///
 /// let table = get_global_process_table();

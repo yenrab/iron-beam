@@ -89,8 +89,8 @@ impl ModuleCodeArea {
 ///
 /// let mod_start = 0x1000 as *const u8;
 /// let mod_size = 4096;
-/// let ptr_in = 0x2000 as *const u8;
-/// let ptr_out = 0x6000 as *const u8;
+/// let ptr_in = 0x1500 as *const u8; // Within module area (0x1000 to 0x2000, exclusive end)
+/// let ptr_out = 0x6000 as *const u8; // Outside module area
 ///
 /// assert!(pointer_in_module_area(ptr_in, mod_start, mod_size));
 /// assert!(!pointer_in_module_area(ptr_out, mod_start, mod_size));

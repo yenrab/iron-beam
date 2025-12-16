@@ -26,8 +26,10 @@
 //!
 //! // Decode a small atom (SMALL_ATOM_EXT)
 //! let buf = vec![115, 5, b'h', b'e', b'l', b'l', b'o']; // tag, len, "hello"
-//! let (atom_name, new_index) = decode_atom(&buf, 0)?;
-//! assert_eq!(atom_name, "atom_<hash>");
+//! let (atom_name, new_index) = decode_atom(&buf, 0).unwrap();
+//! // decode_atom returns a hash-based atom name like "atom_<hash>"
+//! assert!(atom_name.starts_with("atom_"));
+//! assert_eq!(new_index, 7);
 //! ```
 //!
 //! ## See Also

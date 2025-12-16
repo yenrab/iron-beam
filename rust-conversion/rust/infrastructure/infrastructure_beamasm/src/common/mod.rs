@@ -3,6 +3,8 @@
 //! Base functionality shared across all architecture-specific assemblers.
 //! Converted from C++ `BeamAssemblerCommon` class.
 
+pub mod args;
+
 use thiserror::Error;
 
 use crate::jit::JitAllocator;
@@ -61,7 +63,7 @@ pub trait BeamAssembler: Send + Sync {
     fn emit(
         &mut self,
         opcode: u32,
-        args: &[crate::args::ArgVal],
+        args: &[args::ArgVal],
     ) -> Result<(), BeamAssemblerError>;
 
     /// Patch catch handlers
@@ -121,10 +123,13 @@ pub struct AssemblerState {
     /// Labels map (label index -> asmjit label ID)
     labels: std::collections::HashMap<usize, u32>,
     /// Lambda entries
+    #[allow(dead_code)]
     lambdas: Vec<LambdaEntry>,
     /// Read-only data section
+    #[allow(dead_code)]
     rodata: std::collections::HashMap<String, Vec<u8>>,
     /// BSS section
+    #[allow(dead_code)]
     bss: std::collections::HashMap<String, usize>,
 }
 
@@ -148,7 +153,7 @@ impl AssemblerState {
 
     /// Create a new label
     pub fn new_label(&mut self, index: usize) -> Result<u32, BeamAssemblerError> {
-        let mut label = self.assembler.new_label()
+        let label = self.assembler.new_label()
             .map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
         let label_id = label.id();
         self.labels.insert(index, label_id);
@@ -178,6 +183,7 @@ impl AssemblerState {
 
 /// Lambda entry structure
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LambdaEntry {
     pub trampoline: usize,
     pub arity: u32,

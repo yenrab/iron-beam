@@ -3,8 +3,7 @@
 //! Main assembler for x86-64 architecture.
 //! Converted from C++ BeamAssembler class in beam_asm.hpp.
 
-use crate::common::{BeamAssembler, BeamAssemblerError, AssemblerState, Export, FunEntry};
-use crate::args::ArgVal;
+use crate::common::{BeamAssembler, BeamAssemblerError, AssemblerState, Export, FunEntry, args::ArgVal};
 use crate::jit::JitAllocator;
 
 /// x86-64 BeamAssembler
@@ -14,10 +13,13 @@ pub struct X86BeamAssembler {
     /// Common assembler state
     state: AssemblerState,
     /// Module atom
+    #[allow(dead_code)]
     module: u64, // Eterm
     /// Number of labels
+    #[allow(dead_code)]
     num_labels: usize,
     /// Number of functions
+    #[allow(dead_code)]
     num_functions: usize,
 }
 

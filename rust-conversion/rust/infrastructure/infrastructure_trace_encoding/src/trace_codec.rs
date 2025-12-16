@@ -26,11 +26,24 @@
 //! use infrastructure_code_loading::encode_pid::ErlangPid;
 //!
 //! // Encode a trace
-//! let trace = ErlangTrace { /* ... */ };
+//! let trace = ErlangTrace {
+//!     flags: 1,
+//!     label: 2,
+//!     serial: 3,
+//!     from: ErlangPid {
+//!         node: "node@host".to_string(),
+//!         num: 123,
+//!         serial: 456,
+//!         creation: 1,
+//!     },
+//!     prev: 4,
+//! };
 //! let encoded = TraceCodec::encode(&trace).unwrap();
 //!
 //! // Decode a trace
 //! let decoded = TraceCodec::decode(&encoded).unwrap();
+//! assert_eq!(decoded.flags, trace.flags);
+//! assert_eq!(decoded.label, trace.label);
 //! ```
 //!
 //! ## See Also

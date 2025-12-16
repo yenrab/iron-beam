@@ -25,9 +25,11 @@
 //! use infrastructure_code_loading::decode_skip;
 //!
 //! // Skip over a term without decoding it
+//! let buf = vec![115, 3, b'f', b'o', b'o']; // Small atom "foo"
 //! let mut index = 0;
-//! decode_skip::skip_term(&buf, &mut index)?;
+//! decode_skip::skip_term(&buf, &mut index).unwrap();
 //! // index now points past the skipped term
+//! assert_eq!(index, 5);
 //! ```
 //!
 //! ## See Also

@@ -4,11 +4,11 @@
 //! Converted from C++ code in erts/emulator/beam/jit/x86/.
 
 mod assembler;
-mod global;
+pub mod global;
 mod module;
 mod instructions;
 
 pub use assembler::X86BeamAssembler;
-pub use global::X86BeamGlobalAssembler;
+pub use global::{X86BeamGlobalAssembler, generate_process_main};
 pub use module::X86BeamModuleAssembler;
 

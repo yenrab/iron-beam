@@ -44,8 +44,37 @@
 #include "erl_process_dict.h"
 #include "erl_unicode.h"
 #include "beam_file.h"
+#include "beam_debug_log.h"
 
 Uint erts_total_code_size;
+
+/* Define the debug log file pointer - shared across all compilation units */
+FILE *beam_debug_log = NULL;
+
+void beam_debug_log_init(void) {
+    if (beam_debug_log == NULL) {
+        const char *log_path = getenv("BEAM_DEBUG_LOG");
+        if (log_path == NULL) {
+            log_path = "/tmp/beam_debug.log";
+        }
+        beam_debug_log = fopen(log_path, "w");
+        if (beam_debug_log == NULL) {
+            /* Fallback to stderr if file open fails */
+            beam_debug_log = stderr;
+        } else {
+            /* Write a marker to confirm file was opened */
+            fprintf(beam_debug_log, "[Decoder] Debug logging initialized, log file: %s\n", log_path);
+            fflush(beam_debug_log);
+        }
+    }
+}
+
+void beam_debug_log_close(void) {
+    if (beam_debug_log != NULL && beam_debug_log != stderr) {
+        fclose(beam_debug_log);
+        beam_debug_log = NULL;
+    }
+}
 
 static int load_code(LoaderState *stp);
 
@@ -58,6 +87,8 @@ void init_load(void)
     erts_total_code_size = 0;
     beam_catches_init();
     erts_init_ranges();
+    beam_debug_log_init();  /* Initialize debug logging */
+    BEAM_DEBUG_LOG("init_load() called - BEAM loader initialized");
 
 #ifdef DEBUG
     {

@@ -21,7 +21,8 @@
 //! ## Examples
 //!
 //! ```rust
-//! use usecases_memory_management::{Allocator, AllocatorType, GoodFitAllocator};
+//! use usecases_memory_management::{Allocator, AllocatorType};
+//! use usecases_memory_management::goodfit::GoodFitAllocator;
 //!
 //! let allocator = GoodFitAllocator::new();
 //! let ptr = allocator.alloc(1024).unwrap();
@@ -78,6 +79,7 @@ pub enum AllocationError {
 ///
 /// ```rust
 /// use usecases_memory_management::Allocator;
+/// use usecases_memory_management::goodfit::GoodFitAllocator;
 ///
 /// let allocator = GoodFitAllocator::new();
 /// let ptr = allocator.alloc(1024).unwrap();
@@ -106,9 +108,10 @@ pub trait Allocator {
     ///
     /// ```rust
     /// use usecases_memory_management::Allocator;
+    /// use usecases_memory_management::goodfit::GoodFitAllocator;
     ///
     /// let allocator = GoodFitAllocator::new();
-    /// let ptr = allocator.alloc(1024)?;
+    /// let ptr = allocator.alloc(1024).unwrap();
     /// // ptr is valid for at least 1024 bytes
     /// ```
     fn alloc(&self, size: usize) -> Result<*mut u8, AllocationError>;

@@ -23,12 +23,12 @@
 //! let mut compressed = vec![0u8; data.len() * 2];
 //! let mut compressed_len = compressed.len();
 //!
-//! compress2(&mut compressed, &mut compressed_len, data, CompressionLevel::Default)?;
+//! compress2(&mut compressed, &mut compressed_len, data, CompressionLevel::Default).unwrap();
 //! compressed.truncate(compressed_len);
 //!
 //! let mut decompressed = vec![0u8; data.len()];
 //! let mut decompressed_len = decompressed.len();
-//! uncompress(&mut decompressed, &mut decompressed_len, &compressed)?;
+//! uncompress(&mut decompressed, &mut decompressed_len, &compressed).unwrap();
 //! decompressed.truncate(decompressed_len);
 //! assert_eq!(&decompressed, data);
 //! ```
@@ -36,15 +36,16 @@
 //! ### Chunked compression
 //!
 //! ```rust
-//! use infrastructure_utilities::compression::{DeflateStream, CompressionLevel};
+//! use infrastructure_utilities::compression::{DeflateStream, CompressionLevel, ChunkResult};
 //!
-//! let mut stream = DeflateStream::new(data, CompressionLevel::Default)?;
+//! let data = b"Hello, world!";
+//! let mut stream = DeflateStream::new(data, CompressionLevel::Default).unwrap();
 //! let mut output = Vec::new();
 //!
 //! loop {
 //!     let mut chunk = vec![0u8; 1024];
 //!     let mut chunk_len = chunk.len();
-//!     match stream.deflate_chunk(&mut chunk, &mut chunk_len)? {
+//!     match stream.deflate_chunk(&mut chunk, &mut chunk_len).unwrap() {
 //!         ChunkResult::More => {
 //!             output.extend_from_slice(&chunk[..chunk_len]);
 //!         }

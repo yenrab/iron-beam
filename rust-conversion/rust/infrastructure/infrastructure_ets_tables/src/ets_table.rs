@@ -19,8 +19,11 @@
 //! use infrastructure_ets_tables::EtsTable;
 //!
 //! let mut table = EtsTable::new();
+//! let key = 42u64;
+//! let value = 100u64;
 //! table.insert(key, value);
 //! let result = table.lookup(key);
+//! assert_eq!(result, Some(value));
 //! ```
 //!
 //! ## See Also

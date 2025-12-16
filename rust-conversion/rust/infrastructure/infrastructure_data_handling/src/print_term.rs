@@ -24,17 +24,17 @@
 //! ## Examples
 //!
 //! ```rust
-//! use infrastructure_data_handling::print_term;
+//! use infrastructure_data_handling::{print_term, s_print_term};
 //! use entities_data_handling::term_hashing::Term;
 //!
 //! // Print a term to stdout
 //! let term = Term::Small(42);
-//! print_term(&term)?;
+//! print_term(&term).unwrap();
 //! // Output: 42
 //!
 //! // Get string representation
 //! let term = Term::Tuple(vec![Term::Small(1), Term::Small(2)]);
-//! let s = s_print_term(&term)?;
+//! let s = s_print_term(&term).unwrap();
 //! assert_eq!(s, "{1,2}");
 //! ```
 //!

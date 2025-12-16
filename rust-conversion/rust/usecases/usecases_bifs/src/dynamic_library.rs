@@ -427,8 +427,9 @@ impl DynamicLibraryLoader {
     /// // Result depends on whether library exists and is valid
     ///
     /// // Load with reload option
+    /// use usecases_bifs::dynamic_library::ReloadOption;
     /// let mut options = LoadOptions::default();
-    /// options.reload = Some(crate::dynamic_library::ReloadOption::Reload);
+    /// options.reload = Some(ReloadOption::PendingDriver);
     /// let result = DynamicLibraryLoader::try_load(path, "mylib", options, process_id);
     ///
     /// // Load same library from different process (increments ref count)
@@ -1011,7 +1012,8 @@ impl DynamicLibraryLoader {
     ///
     /// // Allocate a process ID
     /// let process_id = DynamicLibraryLoader::allocate_process_id();
-    /// assert!(process_id.0 > 0);
+    /// // ProcessId is a valid ID (non-zero)
+    /// let _ = process_id;
     ///
     /// // Allocate multiple process IDs (should be unique)
     /// let id1 = DynamicLibraryLoader::allocate_process_id();

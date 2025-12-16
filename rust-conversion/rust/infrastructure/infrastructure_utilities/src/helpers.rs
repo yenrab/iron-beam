@@ -43,8 +43,8 @@ impl HelperFunctions {
     /// ```
     /// use infrastructure_utilities::HelperFunctions;
     ///
-    /// assert_eq!(HelperFunctions::result_to_option(Ok(42)), Some(42));
-    /// assert_eq!(HelperFunctions::result_to_option(Err("error")), None);
+    /// assert_eq!(HelperFunctions::result_to_option::<i32, &str>(Ok(42)), Some(42));
+    /// assert_eq!(HelperFunctions::result_to_option::<i32, &str>(Err("error")), None);
     /// ```
     pub fn result_to_option<T, E>(result: Result<T, E>) -> Option<T> {
         result.ok()

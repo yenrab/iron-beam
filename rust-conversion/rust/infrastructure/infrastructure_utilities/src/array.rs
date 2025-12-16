@@ -15,7 +15,7 @@
 //! ## Examples
 //!
 //! ```rust
-//! use infrastructure_utilities::array::ArrayUtils;
+//! use infrastructure_utilities::ArrayUtils;
 //!
 //! let arr = vec![1, 2, 3, 4, 5];
 //!

@@ -118982,6 +118982,32 @@
       "note": "BeamAsm JIT implementation. Provides load-time conversion of BEAM instructions to native code. Includes code loading (asm_load.c), code generation (beam_asm_module.cpp, beam_asm_global.cpp), and instruction emitters for x86-64 and aarch64 architectures. Replaces interpreter-based execution (beam_emu.c removed)."
     },
     {
+      "@id": "ex:BehaviorGroup_infrastructure_emulator_loop",
+      "name": "infrastructure_emulator_loop",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "emulator_execution_loop",
+      "clearLayerOrder": 2,
+      "implementationPriority": 2,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/emulator/beam/emu/beam_emu.c",
+        "erts/emulator/beam/emu/emu_load.c"
+      ],
+      "rustFiles": [
+        "rust-conversion/rust/infrastructure/infrastructure_emulator_loop/src/lib.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_emulator_loop/src/emulator_loop.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_emulator_loop/src/instruction_execution.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_emulator_loop/src/instruction_decoder.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_emulator_loop/src/registers.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_emulator_loop/src/process_executor_impl.rs"
+      ],
+      "functions": [],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_beamasm"
+      ],
+      "note": "Emulator execution loop. Provides process_main() function that executes BEAM instructions for Erlang processes. Unlike the C implementation which has a build switch between interpreter (beam_emu.c) and JIT (beamasm), the Rust implementation uses ONLY BeamAsm JIT execution. All BEAM instructions are compiled to native code at load time by infrastructure_beamasm, and this crate calls the JIT-compiled code directly. Based on beam_emu.c but uses JIT execution exclusively. The REPL (Read-Eval-Print Loop) uses this crate for execution in the same way as the C version: REPL expressions are compiled to BEAM bytecode, JIT-compiled via infrastructure_beamasm, and executed via process_main() in this crate."
+    },
+    {
       "@id": "ex:BehaviorGroup_usecases_scheduling",
       "name": "usecases_scheduling",
       "cleanLayer": "usecases",

@@ -32,6 +32,7 @@
 #include "erl_version.h"
 #include "beam_bp.h"
 #include "erl_debugger.h"
+#include "beam_debug_log.h"
 
 #define CodeNeed(w) do {                                                \
     ASSERT(ci <= codev_size);                                           \
@@ -890,6 +891,24 @@ int beam_load_emit_op(LoaderState *stp, BeamOp *tmp_op) {
     code[ci++] = BeamOpCodeAddr(stp->specific_op);
     sign = opc[stp->specific_op].sign;
 
+    /* Debug: Log instruction being loaded */
+    {
+        Uint opcode = stp->specific_op;
+        BeamInstr instr_word = BeamOpCodeAddr(opcode);
+        const GenOpEntry *genop = stp->genop;
+        
+        BEAM_DEBUG_LOG("Loading instruction: opcode=%u (0x%02x), genop_name=%s, arity=%d, ci=%u", 
+                       opcode, opcode, genop->name ? genop->name : "unknown", genop->arity, ci);
+        
+        /* Log instruction word (first 32-bit word) */
+        BEAM_DEBUG_LOG("  Instruction word at ci=%u: 0x%08x", ci - 1, (Uint32)instr_word);
+        
+        /* Log 64-bit view if available */
+        if (sizeof(BeamInstr) == 8) {
+            BEAM_DEBUG_LOG("  Instruction word (64-bit): 0x%016" PRIx64, (Uint64)instr_word);
+        }
+    }
+
     ASSERT(sign != NULL);
     arg = 0;
     while (*sign) {
@@ -904,11 +923,21 @@ int beam_load_emit_op(LoaderState *stp, BeamOp *tmp_op) {
             break;
         case 'x':        /* x(N) */
             BeamLoadVerifyTag(stp, tag_to_letter[tag], *sign);
-            code[ci++] = (tmp_op->a[arg].val & REG_MASK) * sizeof(Eterm);
+            {
+                Uint byte_offset = (tmp_op->a[arg].val & REG_MASK) * sizeof(Eterm);
+                BEAM_DEBUG_LOG("  Operand %d: sign='%c' (XRegister), tag=%u, reg_index=%" PRIu64 ", byte_offset=%u, writing to ci=%u", 
+                              arg, *sign, tag, (Uint64)(tmp_op->a[arg].val & REG_MASK), byte_offset, ci);
+                code[ci++] = byte_offset;
+            }
             break;
         case 'y':        /* y(N) */
             BeamLoadVerifyTag(stp, tag_to_letter[tag], *sign);
-            code[ci++] = ((tmp_op->a[arg].val & REG_MASK) + CP_SIZE) * sizeof(Eterm);
+            {
+                Uint byte_offset = ((tmp_op->a[arg].val & REG_MASK) + CP_SIZE) * sizeof(Eterm);
+                BEAM_DEBUG_LOG("  Operand %d: sign='%c' (YRegister), tag=%u, reg_index=%" PRIu64 ", byte_offset=%u, writing to ci=%u", 
+                              arg, *sign, tag, (Uint64)(tmp_op->a[arg].val & REG_MASK), byte_offset, ci);
+                code[ci++] = byte_offset;
+            }
             break;
         case 'a':                /* Tagged atom */
             BeamLoadVerifyTag(stp, tag_to_letter[tag], *sign);
@@ -1006,14 +1035,23 @@ int beam_load_emit_op(LoaderState *stp, BeamOp *tmp_op) {
         }
 #endif
             BeamLoadVerifyTag(stp, tag, TAG_u);
+            /* Debug: Log operand being written */
+            BEAM_DEBUG_LOG("  Operand %d: sign='%c', tag=%u, val=0x%016" PRIx64 " (%" PRIu64 "), writing to ci=%u", 
+                          arg, *sign, tag, (Uint64)tmp_op->a[arg].val, (Uint64)tmp_op->a[arg].val, ci);
             code[ci++] = tmp_op->a[arg].val;
             break;
         case 'A':        /* Arity value. */
             BeamLoadVerifyTag(stp, tag, TAG_u);
+            /* Debug: Log arity operand */
+            BEAM_DEBUG_LOG("  Operand %d: sign='%c' (Arity), tag=%u, val=%" PRIu64 ", writing to ci=%u", 
+                          arg, *sign, tag, (Uint64)tmp_op->a[arg].val, ci);
             code[ci++] = make_arityval_unchecked(tmp_op->a[arg].val);
             break;
         case 'f':                /* Destination label */
             BeamLoadVerifyTag(stp, tag_to_letter[tag], *sign);
+            /* Debug: Log label operand */
+            BEAM_DEBUG_LOG("  Operand %d: sign='%c' (Label), tag=%u, label_num=%" PRIu64 ", writing to ci=%u (will be patched)", 
+                          arg, *sign, tag, (Uint64)tmp_op->a[arg].val, ci);
             register_label_patch(stp, tmp_op->a[arg].val, ci,
                                  -last_instr_start);
             ci++;

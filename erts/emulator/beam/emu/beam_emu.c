@@ -44,6 +44,9 @@
 #include "dtrace-wrapper.h"
 #include "erl_proc_sig_queue.h"
 #include "beam_common.h"
+#include "beam_debug_log.h"
+#include "beam_load.h"  /* For gen_opc */
+#include "beam_debug_log.h"
 
 /* #define HARDDEBUG 1 */
 
@@ -394,6 +397,12 @@ void process_main(ErtsSchedulerData *esdp)
 	 */
 
 	SET_I(c_p->i);
+	
+	/* Debug: Log instruction pointer being set */
+	if (c_p) {
+	    BEAM_DEBUG_LOG("Starting execution of process %d with instruction pointer %p", 
+	                   c_p->id, (void*)I);
+	}
 
 	REDS_IN(c_p) = reds = c_p->fcalls;
 #ifdef DEBUG
@@ -436,12 +445,70 @@ void process_main(ErtsSchedulerData *esdp)
             DTRACE2(process_scheduled, process_buf, fun_buf);
         }
 #endif
+	/* Debug: Log before scheduling next process */
+	BEAM_DEBUG_LOG("Scheduler: about to schedule next process, next=%p", (void*)next);
 	Goto(next);
     }
 
 #if defined(DEBUG) || defined(NO_JUMP_TABLE)
  emulator_loop:
 #endif
+
+    /* Debug: Log instruction being decoded at emulator loop entry */
+    /* Always log at least once to verify we're in the emulator loop */
+    {
+        static int first_log = 1;
+        if (first_log) {
+            BEAM_DEBUG_LOG("Emulator loop entered for the first time, c_p=%p", (void*)c_p);
+            first_log = 0;
+        }
+    }
+    if (c_p) {
+        BeamInstr instr_word = *I;
+        BeamInstr code_addr = BeamCodeAddr(instr_word);
+        int is_generic = (instr_word & 0xFFFFFF00) == 0;
+        Uint opcode;
+        
+        if (is_generic) {
+            opcode = instr_word & 0xFF;
+        } else {
+            opcode = (Uint)(code_addr & 0xFF);
+        }
+        
+        BEAM_DEBUG_LOG("Decoding instruction at %p: word=0x%016" PRIx64 ", generic=%s, opcode=%u (0x%02x)", 
+                      (void*)I, (Uint64)instr_word, is_generic ? "true" : "false", opcode, opcode);
+        
+        /* Log raw bytes */
+        {
+            Uint8 *bytes = (Uint8*)I;
+            BEAM_DEBUG_LOG("  Raw bytes (8 bytes): [%02x %02x %02x %02x %02x %02x %02x %02x]",
+                          bytes[0], bytes[1], bytes[2], bytes[3],
+                          bytes[4], bytes[5], bytes[6], bytes[7]);
+        }
+        
+        /* Log first 32-bit word */
+        {
+            Uint32 first_word = (Uint32)instr_word;
+            BEAM_DEBUG_LOG("  first_word (32-bit): 0x%08x", first_word);
+        }
+        
+        /* For specific instructions, log operands (read next few words) */
+        if (!is_generic) {
+            /* Log up to 4 operand words following the instruction */
+            BeamInstr *operand_ptr = (BeamInstr*)I + 1;
+            for (int i = 0; i < 4; i++) {
+                BeamInstr operand_word = operand_ptr[i];
+                Uint8 *bytes = (Uint8*)&operand_word;
+                
+                BEAM_DEBUG_LOG("  Opcode %u operand %d: reading from %p (offset %zu), "
+                              "raw_bytes=[%02x %02x %02x %02x], u32=0x%08x (%d)",
+                              opcode, i, (void*)operand_ptr, 
+                              (size_t)((char*)operand_ptr - (char*)I),
+                              bytes[0], bytes[1], bytes[2], bytes[3],
+                              (Uint32)operand_word, (Sint32)operand_word);
+            }
+        }
+    }
 
 #ifdef NO_JUMP_TABLE
     switch (Go) {
@@ -567,6 +634,9 @@ void process_main(ErtsSchedulerData *esdp)
 
  OpCase(i_func_info_IaaI): {
      ErtsCodeInfo *ci = (ErtsCodeInfo*)I;
+     /* Debug: Log function entry */
+     BEAM_DEBUG_LOG("Function entry: module=%T, function=%T, arity=%d, I=%p", 
+                   ci->mfa.module, ci->mfa.function, ci->mfa.arity, (void*)I);
      c_p->freason = EXC_FUNCTION_CLAUSE;
      c_p->current = &ci->mfa;
      goto handle_error;
@@ -687,9 +757,11 @@ init_emulator_finish(void)
 
     beam_run_process_[0]       = BeamOpCodeAddr(op_i_apply_only);
     beam_run_process = (ErtsCodePtr)&beam_run_process_[0];
+    BEAM_DEBUG_LOG("beam_run_process initialized at %p", (void*)beam_run_process);
 
     beam_normal_exit_[0]       = BeamOpCodeAddr(op_normal_exit);
     beam_normal_exit = (ErtsCodePtr)&beam_normal_exit_[0];
+    BEAM_DEBUG_LOG("beam_normal_exit initialized at %p", (void*)beam_normal_exit);
 
     beam_exit_[0]              = BeamOpCodeAddr(op_error_action_code);
     beam_exit = (ErtsCodePtr)&beam_exit_[0];

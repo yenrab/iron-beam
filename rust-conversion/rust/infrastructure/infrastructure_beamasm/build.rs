@@ -9,16 +9,6 @@ use std::path::PathBuf;
 fn main() {
     // Get paths
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    // manifest_dir is: rust-conversion/rust/infrastructure/infrastructure_beamasm
-    // We need to go up to project root where erts/ is located
-    // From infrastructure_beamasm -> infrastructure -> rust -> rust-conversion -> project root
-    let project_root = manifest_dir
-        .parent() // infrastructure_beamasm
-        .and_then(|p| p.parent()) // infrastructure
-        .and_then(|p| p.parent()) // rust
-        .and_then(|p| p.parent()) // rust-conversion
-        .and_then(|p| p.parent()) // project root (iron-beam)
-        .unwrap();
     
     // Try to find asmjit directory - go up 4 levels from manifest_dir
     let asmjit_dir = manifest_dir

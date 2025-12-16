@@ -13,6 +13,18 @@
 //! - Code loading and module management
 //! - Metadata tracking for debugging and tracing
 //!
+//! ## REPL Integration
+//!
+//! The REPL (Read-Eval-Print Loop) uses this crate for JIT compilation in the same way
+//! as the C version, but reengineered for Rust:
+//!
+//! 1. REPL expressions are scanned and parsed (`infrastructure_utilities::erl_scan`, `erl_parse`)
+//! 2. Parsed expressions are compiled to BEAM bytecode
+//! 3. BEAM bytecode is JIT-compiled via `BeamAsmLoader` in this crate
+//! 4. JIT-compiled code is executed via `infrastructure_emulator_loop::process_main()`
+//!
+//! This ensures the REPL uses the same JIT execution path as regular Erlang code.
+//!
 //! ## Architecture
 //!
 //! This crate is based on the C++ implementation in `erts/emulator/beam/jit/`. It uses
@@ -35,8 +47,8 @@ pub mod jit;
 pub mod loader;
 pub mod metadata;
 pub mod types;
-pub mod args;
 pub mod asmjit_wrapper;
+pub mod scheduler_data;
 
 #[cfg(target_arch = "x86_64")]
 pub mod arch {
@@ -50,9 +62,14 @@ pub mod arch {
 
 // Re-export main types
 pub use common::{BeamAssembler, BeamAssemblerError};
+pub use common::args::{ArgVal, ArgType};
 pub use jit::{JitAllocator, JitAllocatorError};
 pub use loader::{BeamAsmLoader, LoaderState};
 pub use metadata::BeamAsmMetadata;
+pub use scheduler_data::{ErtsSchedulerData, ErtsSchedulerRegisters, JitProcessMain, JitBeamFunction};
+
+#[cfg(target_arch = "x86_64")]
+pub use arch::x86::global::generate_process_main;
 
 /// Initialize the BeamAsm JIT system
 ///

@@ -25,8 +25,9 @@
 //!
 //! let mut buf = Vec::new();
 //! let data = b"Hello, world!";
-//! let bytes_written = encode_binary(&mut buf, data)?;
+//! let bytes_written = encode_binary(&mut buf, data).unwrap();
 //! // buf now contains: [109, 0, 0, 0, 13, ...data...]
+//! assert_eq!(bytes_written, 18); // 1 tag + 4 length + 13 data
 //! ```
 //!
 //! ## See Also

@@ -94,7 +94,8 @@
         "Generate safe Rust only - never use unsafe blocks. Use Rust versions of system calls (e.g., std::fs, std::thread) instead of unsafe FFI",
         "Test coverage: 100% critical path, 85% non-critical path",
         "Each behavior group becomes a separate Rust crate",
-        "Interactive mode: User confirms before processing each layer"
+        "Interactive mode: User confirms before processing each layer",
+        "REPL (Read-Eval-Print Loop) functionality must use code from infrastructure_beamasm, not the emulator code in emu"
       ],
       "prohibitions": [
         {
@@ -134,6 +135,12 @@
           "action": "Maintain conversion log",
           "details": "MANDATORY: Maintain a conversion log tracking which layers and groups are complete, dependencies satisfied, and progress through the conversion process.",
           "appliesTo": ["progress tracking", "conversion log"]
+        },
+        {
+          "severity": "critical",
+          "action": "Use infrastructure_beamasm for REPL functionality",
+          "details": "MANDATORY: When implementing REPL (Read-Eval-Print Loop) functionality, use code from infrastructure_beamasm crate, not the emulator code in emu. The REPL must reference and use infrastructure_beamasm modules, not infrastructure_emulator_loop or other emu-based code.",
+          "appliesTo": ["code generation", "Rust design", "REPL implementation"]
         }
       ]
     },
@@ -527,6 +534,7 @@
         "Validate that Rust design matches C behavior - verify functional equivalence between C and Rust designs",
         "If C behavior contains patterns that cannot be safely re-engineered to Rust, document the issue, escalate to user with explanation, and request guidance on acceptable behavior changes",
         "Handle conflicts if multiple Rust patterns are valid - document all valid options with pros/cons, choose most idiomatic Rust pattern based on Rust community best practices, or escalate to user if no clear best choice exists",
+        "For REPL (Read-Eval-Print Loop) functionality: design to use code from infrastructure_beamasm crate, not the emulator code in emu. Ensure REPL implementations reference infrastructure_beamasm modules, not infrastructure_emulator_loop or other emu-based code",
         "Send Rust design to ex:CodeGeneratorPersona",
         "When asking user questions, follow ex:UserQuestionProtocol (see index.jsonld ex:UserQuestionProtocol - read complete protocol definition and execute all steps)"
       ],
@@ -558,6 +566,7 @@
         "For Cargo.toml dependencies, use latest stable versions from crates.io unless specific version requirements are known from design files. Document dependency choices and versions in generated Cargo.toml comments",
         "Organize code by CLEAN layer with exact directory structure: rust-conversion/rust/entities/, rust-conversion/rust/usecases/, rust-conversion/rust/adapters/, rust-conversion/rust/infrastructure/, rust-conversion/rust/frameworks/",
         "Generate one Rust crate per behavior group",
+        "For REPL (Read-Eval-Print Loop) functionality: generate code that uses infrastructure_beamasm crate, not the emulator code in emu. Ensure REPL implementations import and use infrastructure_beamasm modules, not infrastructure_emulator_loop or other emu-based code",
         "Write generated code to files in appropriate directory structure",
         "Send generated code information to ex:TestGeneratorPersona",
         "When asking user questions, follow ex:UserQuestionProtocol (see index.jsonld ex:UserQuestionProtocol - read complete protocol definition and execute all steps)"
