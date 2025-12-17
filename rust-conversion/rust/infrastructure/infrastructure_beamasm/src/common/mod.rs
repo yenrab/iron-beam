@@ -179,6 +179,28 @@ impl AssemblerState {
     pub fn code_holder(&self) -> &CodeHolder {
         self.assembler.code_holder()
     }
+
+    /// Finalize code generation
+    pub fn finalize_code(&mut self) -> Result<(), BeamAssemblerError> {
+        eprintln!("[DEBUG] AssemblerState: Flattening code");
+        self.code_holder_mut().flatten()
+            .map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+        eprintln!("[DEBUG] AssemblerState: Resolving unresolved links");
+        self.code_holder_mut().resolve_unresolved_links()
+            .map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+        eprintln!("[DEBUG] AssemblerState: Code finalization completed");
+        Ok(())
+    }
+
+    /// Get the code size
+    pub fn code_size(&self) -> usize {
+        self.code_holder().code_size()
+    }
+
+    /// Get the base address of the generated code
+    pub fn base_address(&self) -> *const u8 {
+        self.code_holder().base_address()
+    }
 }
 
 /// Lambda entry structure

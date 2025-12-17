@@ -58,6 +58,7 @@ extern "C" {
     fn asmjit_codeholder_reset(holder: *mut AsmjitCodeHolder);
     fn asmjit_codeholder_flatten(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
     fn asmjit_codeholder_resolve_unresolved_links(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
+    fn asmjit_codeholder_relocate_to_base(holder: *mut AsmjitCodeHolder, base_address: *mut u8) -> AsmjitErrorCode;
     fn asmjit_codeholder_code_size(holder: *const AsmjitCodeHolder) -> usize;
     fn asmjit_codeholder_base_address(holder: *const AsmjitCodeHolder) -> *const u8;
     fn asmjit_codeholder_new_section(
@@ -158,6 +159,17 @@ impl CodeHolder {
     pub fn code_size(&self) -> usize {
         unsafe {
             asmjit_codeholder_code_size(self.ptr)
+        }
+    }
+
+    /// Relocate code to a specific base address
+    pub fn relocate_to_base(&mut self, base_address: *mut u8) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_codeholder_relocate_to_base(self.ptr, base_address);
+            if err != 0 {
+                return Err(AsmjitError::CodeGenerationFailed);
+            }
+            Ok(())
         }
     }
 

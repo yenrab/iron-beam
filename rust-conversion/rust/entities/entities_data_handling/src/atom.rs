@@ -227,7 +227,8 @@ impl AtomTable {
         let mut atoms = self.atoms.write().unwrap();
         let mut index_to_name = self.index_to_name.write().unwrap();
 
-        let index = atoms.len();
+        // Use 1-based indexing (Erlang atoms are 1-based, 0 is reserved)
+        let index = atoms.len() + 1;
         atoms.insert(validated_name.clone(), index);
         if index >= index_to_name.len() {
             index_to_name.resize(index + 1, None);
@@ -990,19 +991,20 @@ mod tests {
     #[test]
     fn test_index_to_name_resize() {
         let table = AtomTable::new();
-        
+
         // Add atoms to trigger resize of index_to_name vector
-        // First atom at index 0
+        // First atom at index 1 (1-based indexing)
         let index1 = table.put_index(b"atom1", AtomEncoding::SevenBitAscii, false).unwrap();
-        assert_eq!(index1, 0);
-        
-        // Second atom at index 1
+        assert_eq!(index1, 1);
+
+        // Second atom at index 2 (1-based indexing)
         let index2 = table.put_index(b"atom2", AtomEncoding::SevenBitAscii, false).unwrap();
-        assert_eq!(index2, 1);
+        assert_eq!(index2, 2);
         
-        // Verify both can be retrieved
-        assert_eq!(table.get_name(0), Some(b"atom1".to_vec()));
-        assert_eq!(table.get_name(1), Some(b"atom2".to_vec()));
+        // Verify both can be retrieved (1-based indexing)
+        assert_eq!(table.get_name(0), None); // Index 0 is reserved
+        assert_eq!(table.get_name(1), Some(b"atom1".to_vec()));
+        assert_eq!(table.get_name(2), Some(b"atom2".to_vec()));
     }
 
     #[test]

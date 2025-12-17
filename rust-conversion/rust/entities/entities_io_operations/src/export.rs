@@ -289,7 +289,14 @@ impl ExportTable {
         let mfa = Mfa::new(module, function, arity);
         let hash = mfa.hash();
         let exports = self.exports.read().unwrap();
-        exports.get(&hash).cloned()
+
+        // Debug: Print all keys in the export table before get
+        let all_keys: Vec<u64> = exports.keys().cloned().collect();
+        eprintln!("    [DEBUG] ExportTable::get - all keys in table before retrieval: {:?}", all_keys);
+
+        let result = exports.get(&hash).cloned();
+        eprintln!("    [DEBUG] ExportTable::get - key: MFA({},{},{}) hash={} -> found={}", module, function, arity, hash, result.is_some());
+        result
     }
 
     /// Create or get export entry for MFA
@@ -307,6 +314,7 @@ impl ExportTable {
     pub fn put(&self, module: u32, function: u32, arity: u32) -> Export {
         let mfa = Mfa::new(module, function, arity);
         let hash = mfa.hash();
+        eprintln!("    [DEBUG] ExportTable::put - storing MFA({},{},{}) hash={}", module, function, arity, hash);
 
         let mut exports = self.exports.write().unwrap();
         let mut export_list = self.export_list.write().unwrap();
@@ -314,6 +322,7 @@ impl ExportTable {
 
         // Check if already exists
         if let Some(existing) = exports.get(&hash) {
+            eprintln!("    [DEBUG] ExportTable::put - export already exists for hash={}, is_stub={}", hash, existing.is_stub);
             // If it's already a regular export (not a stub), return it
             if !existing.is_stub {
                 return existing.clone();
@@ -331,12 +340,16 @@ impl ExportTable {
         if is_new_entry && *size >= self.limit {
             // Limit reached and export doesn't exist - cannot add new entry
             // Return the export we would have created (caller should handle limit error)
+            eprintln!("    [DEBUG] ExportTable::put - limit reached, cannot add new entry");
             return export;
         }
 
         // Insert or replace the export
         if is_new_entry {
             *size += 1;
+            eprintln!("    [DEBUG] ExportTable::put - inserted new export with hash={}", hash);
+        } else {
+            eprintln!("    [DEBUG] ExportTable::put - replaced existing export with hash={}", hash);
         }
         exports.insert(hash, export.clone());
         export_list.push(export.clone());
@@ -386,18 +399,26 @@ impl ExportTable {
     pub fn update_export_code_ptr(&self, module: u32, function: u32, arity: u32, code_ptr: ErtsCodePtr) -> bool {
         let mfa = Mfa::new(module, function, arity);
         let hash = mfa.hash();
-        
+        eprintln!("    [DEBUG] ExportTable::update_export_code_ptr - storing with key: MFA({},{},{}) hash={}", module, function, arity, hash);
+
         let mut exports = self.exports.write().unwrap();
         if let Some(existing) = exports.get_mut(&hash) {
             existing.code_ptr = Some(code_ptr);
-            
+
             // Also update in the list
             let mut export_list = self.export_list.write().unwrap();
             if let Some(list_entry) = export_list.iter_mut().find(|e| e.mfa == mfa) {
                 list_entry.code_ptr = Some(code_ptr);
             }
+            eprintln!("    [DEBUG] ExportTable::update_export_code_ptr - successfully updated export with key hash={}", hash);
+
+            // Debug: Print all keys in the export table after update
+            let all_keys: Vec<u64> = exports.keys().cloned().collect();
+            eprintln!("    [DEBUG] ExportTable::update_export_code_ptr - all keys in table after update: {:?}", all_keys);
+
             true
         } else {
+            eprintln!("    [DEBUG] ExportTable::update_export_code_ptr - export not found for key hash={}", hash);
             false
         }
     }

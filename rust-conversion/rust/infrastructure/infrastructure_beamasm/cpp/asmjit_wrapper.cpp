@@ -122,6 +122,16 @@ int asmjit_codeholder_resolve_unresolved_links(AsmjitCodeHolder* holder) {
     }
 }
 
+int asmjit_codeholder_relocate_to_base(AsmjitCodeHolder* holder, uint8_t* base_address) {
+    if (!holder) return -1;
+    try {
+        Error err = holder->holder.relocateToBase((uintptr_t)base_address);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
 size_t asmjit_codeholder_code_size(const AsmjitCodeHolder* holder) {
     if (!holder) return 0;
     return holder->holder.codeSize();

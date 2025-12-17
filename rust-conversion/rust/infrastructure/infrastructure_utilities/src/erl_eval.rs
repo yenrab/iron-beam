@@ -10,6 +10,288 @@ use entities_data_handling::term_hashing::Term;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Result of JIT compilation
+pub struct JitResult {
+    /// Executable code pointer (read-execute memory)
+    pub executable_ptr: *const u8,
+    /// Writable code pointer (same memory, writable mapping)
+    pub writable_ptr: *mut u8,
+    /// Size of allocated code memory
+    pub code_size: usize,
+    /// Label to code pointer mappings (label_index -> code_ptr)
+    pub label_mappings: Vec<(*const u8, usize)>,
+    /// BEAM loader (leaked for lifetime management)
+    pub loader: &'static mut infrastructure_beamasm::BeamAsmLoader,
+    /// Loader state (leaked for lifetime management)
+    pub loader_state: &'static mut infrastructure_beamasm::LoaderState,
+}
+
+/// JIT compile a BEAM module
+///
+/// This function performs the complete JIT compilation sequence for a BEAM module,
+/// including code generation, memory allocation, and export table updates.
+///
+/// # Arguments
+/// * `beam_data` - Raw BEAM file data (must not be empty)
+/// * `beam_file` - Parsed BEAM file structure (must contain valid exports and atoms)
+/// * `module_name` - Name of the module being compiled (must not be empty)
+/// * `module_atom_index` - Global atom index for the module (must be valid)
+///
+/// # Returns
+/// Result containing JitResult on success, error string on failure
+///
+/// # Errors
+/// This function can fail if:
+/// - Input validation fails (empty data, invalid module name, etc.)
+/// - JIT loader creation fails
+/// - BEAM parsing fails
+/// - Code generation fails
+/// - Memory allocation fails
+/// - Export table updates fail
+pub fn jit_compile_module(
+    beam_data: &[u8],
+    beam_file: &code_management_code_loading::BeamFile,
+    module_name: &str,
+    module_atom_index: usize,
+) -> Result<JitResult, String> {
+    use entities_io_operations::export::get_global_export_table;
+    use super::atom_table::get_global_atom_table;
+    use entities_data_handling::AtomEncoding;
+
+    // Comprehensive input validation
+    if beam_data.is_empty() {
+        return Err("BEAM data is empty".to_string());
+    }
+
+    if module_name.is_empty() {
+        return Err("Module name is empty".to_string());
+    }
+
+    if module_atom_index == 0 {
+        return Err("Invalid module atom index (must be non-zero)".to_string());
+    }
+
+    if beam_file.code_data.is_empty() {
+        return Err(format!("No code data available for module {}", module_name));
+    }
+
+    if beam_file.exports.is_empty() {
+        return Err(format!("No exports found in module {} (cannot JIT compile module with no exports)", module_name));
+    }
+
+    // Validate atom table if exports exist
+    for (beam_function_atom_idx, _, _) in &beam_file.exports {
+        if *beam_function_atom_idx == 0 {
+            return Err(format!("Invalid function atom index 0 in module {} (atoms are 1-based)", module_name));
+        }
+        if beam_file.atoms.is_empty() {
+            return Err(format!("Atom table is empty in module {} but exports exist", module_name));
+        }
+        if *beam_function_atom_idx as usize >= beam_file.atoms.len() {
+            return Err(format!("Function atom index {} out of bounds in module {} (atom table size: {})",
+                              beam_function_atom_idx, module_name, beam_file.atoms.len()));
+        }
+    }
+
+    let atom_table = get_global_atom_table();
+
+    eprintln!("[DEBUG] JIT compiling BEAM code for module {} (code size: {} bytes, {} exports)",
+             module_name, beam_file.code_data.len(), beam_file.exports.len());
+
+    // Use infrastructure_beamasm to JIT compile the BEAM code
+    use infrastructure_beamasm::BeamAsmLoader;
+
+    // Create loader with proper error handling
+    let mut loader = BeamAsmLoader::new()
+        .map_err(|e| format!("Failed to create BeamAsmLoader for module {}: {:?}", module_name, e))?;
+
+    // Prepare for emission - pass the code data from the BEAM file
+    // We need module atom, num_labels, num_functions, and the code data
+    let module_atom = module_atom_index as u64;
+    let num_labels = beam_file.exports.len(); // One label per export
+    let num_functions = beam_file.exports.len(); // One function per export
+
+    if num_labels == 0 || num_functions == 0 {
+        return Err(format!("Invalid export/function counts for module {}: labels={}, functions={}",
+                          module_name, num_labels, num_functions));
+    }
+
+    let mut loader_state = loader.prepare_emit(
+        module_atom,
+        num_labels,
+        num_functions,
+        beam_data, // Pass entire BEAM file, assembler will parse it
+    ).map_err(|e| format!("JIT prepare_emit failed for module {}: {:?}", module_name, e))?;
+
+    // Generate code
+    let (executable_ptr, writable_ptr, code_size, label_mappings) = loader.finish_emit(&mut loader_state)
+        .map_err(|e| format!("JIT finish_emit failed for module {}: {:?}", module_name, e))?;
+
+    // Validate the generated code
+    if executable_ptr.is_null() {
+        return Err(format!("JIT compilation produced null executable pointer for module {}", module_name));
+    }
+    if writable_ptr.is_null() {
+        return Err(format!("JIT compilation produced null writable pointer for module {}", module_name));
+    }
+    if code_size == 0 {
+        return Err(format!("JIT compilation produced zero-sized code for module {}", module_name));
+    }
+
+    eprintln!("[DEBUG] ✓ JIT compilation successful for module {} - executable: {:p}, size: {}",
+             module_name, executable_ptr, code_size);
+    eprintln!("[DEBUG] Label mappings: {}", label_mappings.len());
+
+    // Ensure all referenced labels have mappings
+    // Collect all labels that are referenced in exports
+    let mut referenced_labels = std::collections::HashSet::new();
+    for (_, _, label) in &beam_file.exports {
+        referenced_labels.insert(*label as usize);
+    }
+
+    // Add any missing label mappings for referenced labels
+    let mut additional_mappings = Vec::new();
+    for &label_idx in &referenced_labels {
+        if !label_mappings.iter().any(|(_, mapped_label)| *mapped_label == label_idx) {
+            additional_mappings.push((executable_ptr, label_idx));
+            eprintln!("[DEBUG] Added missing mapping for referenced label {} to {:p}", label_idx, executable_ptr);
+        }
+    }
+
+    let additional_count = additional_mappings.len();
+
+    // Extend the label mappings with any missing ones
+    let mut extended_mappings = label_mappings;
+    extended_mappings.extend(additional_mappings);
+
+    eprintln!("[DEBUG] Final label mappings: {} (added {} for referenced labels)",
+             extended_mappings.len(), additional_count);
+
+    // Patch the code (imports, literals, etc.)
+    // Note: We continue even if patching fails, as some functionality may still work
+    if let Err(e) = loader.patch(&mut loader_state, writable_ptr) {
+        eprintln!("[DEBUG] ⚠ JIT patch failed for module {} (continuing anyway): {:?}", module_name, e);
+    }
+
+    // Update export table with JIT-compiled code pointers
+    // Use the extended label mappings that include all referenced labels
+    let export_table = get_global_export_table();
+    let mut updated_exports = 0;
+    let mut failed_exports = 0;
+
+    for (i, (beam_function_atom_idx, arity, label)) in beam_file.exports.iter().enumerate() {
+        // Additional validation for this specific export
+        if *beam_function_atom_idx == 0 || beam_file.atoms.is_empty() {
+            eprintln!("[DEBUG] ⚠ Skipping export {} with invalid atom index {}", i, beam_function_atom_idx);
+            failed_exports += 1;
+            continue;
+        }
+
+        let atom_idx = *beam_function_atom_idx as usize;
+        if atom_idx >= beam_file.atoms.len() {
+            eprintln!("[DEBUG] ⚠ Skipping export {} with out-of-bounds atom index {}", i, beam_function_atom_idx);
+            failed_exports += 1;
+            continue;
+        }
+
+        let function_name = &beam_file.atoms[atom_idx];
+        if function_name.is_empty() {
+            eprintln!("[DEBUG] ⚠ Skipping export {} with empty function name", i);
+            failed_exports += 1;
+            continue;
+        }
+
+        // Get function atom index with error handling
+        let function_atom_index = match atom_table.put_index(
+            function_name.as_bytes(),
+            AtomEncoding::SevenBitAscii,
+            false
+        ) {
+            Ok(idx) => idx,
+            Err(e) => {
+                eprintln!("[DEBUG] ⚠ Failed to create atom for function {} in module {}: {:?}",
+                         function_name, module_name, e);
+                failed_exports += 1;
+                continue;
+            }
+        };
+
+        let func_atom_idx = function_atom_index as u32;
+
+        // Get the native code pointer for this function/label
+        // Find the mapping for this label in the extended mappings
+        let label_idx = *label as usize;
+        let code_ptr = extended_mappings.iter()
+            .find(|(_, mapped_label)| *mapped_label == label_idx)
+            .map(|(ptr, _)| *ptr);
+
+        if let Some(code_ptr) = code_ptr {
+            // Validate the code pointer
+            if code_ptr.is_null() {
+                eprintln!("[DEBUG] ⚠ Null code pointer for {}/{}:{} (label {})",
+                         module_name, function_name, arity, label_idx);
+                failed_exports += 1;
+                continue;
+            }
+
+            // Update export with native code pointer
+            eprintln!("[DEBUG] Updating export table for {}/{}:{} with atom indices ({}, {}, {})",
+                     module_name, function_name, arity, module_atom_index, func_atom_idx, *arity);
+            let updated = export_table.update_export_code_ptr(
+                module_atom_index as u32,
+                func_atom_idx,
+                *arity,
+                code_ptr
+            );
+            if updated {
+                eprintln!("[DEBUG] ✓ Updated export {}/{}:{} with JIT-compiled code pointer {:p} (label {}, mfa: {},{},{})",
+                         module_name, function_name, arity, code_ptr, label_idx,
+                         module_atom_index, func_atom_idx, *arity);
+                updated_exports += 1;
+            } else {
+                eprintln!("[DEBUG] ⚠ Failed to update export {}/{}:{} (mfa: {},{},{}) - export not found",
+                         module_name, function_name, arity, module_atom_index, func_atom_idx, *arity);
+                failed_exports += 1;
+            }
+        } else {
+            eprintln!("[DEBUG] ⚠ No code pointer found for {}/{}:{} (label {})",
+                     module_name, function_name, arity, label_idx);
+            failed_exports += 1;
+        }
+    }
+
+    // Summary of export updates
+    eprintln!("[DEBUG] Export table update summary for module {}: {} updated, {} failed",
+             module_name, updated_exports, failed_exports);
+
+    // Require at least one successful export update for the module to be considered loaded
+    if updated_exports == 0 {
+        return Err(format!("JIT compilation failed for module {}: no exports could be updated with code pointers",
+                          module_name));
+    }
+
+    // Leak the loader and state for lifetime management
+    // They need to live for the entire program duration
+    let loader_box = Box::new(loader);
+    let loader_static = Box::leak(loader_box);
+    let state_box = Box::new(loader_state);
+    let state_static = Box::leak(state_box);
+
+    let result = JitResult {
+        executable_ptr,
+        writable_ptr,
+        code_size,
+        label_mappings: extended_mappings,
+        loader: loader_static,
+        loader_state: state_static,
+    };
+
+    eprintln!("[DEBUG] ✓ JIT compilation completed successfully for module {} ({} bytes executable code)",
+             module_name, result.code_size);
+
+    Ok(result)
+}
+
 /// Get or create the "true" atom
 fn get_true_atom() -> u32 {
     use super::atom_table::get_global_atom_table;
@@ -973,117 +1255,16 @@ fn try_load_module(module_name: &str) -> Result<(), String> {
                             }
                         }
                         
-                        // JIT compile the BEAM file using infrastructure_beamasm
-                        eprintln!("[DEBUG] Beam file loaded - code_data length: {}, atoms length: {}, exports: {}",
-                                 beam_file.code_data.len(), beam_file.atoms.len(), beam_file.exports.len());
-                        eprintln!("[DEBUG] About to check if code_data is empty: {}", beam_file.code_data.is_empty());
-                        if !beam_file.code_data.is_empty() {
-                            eprintln!("[DEBUG] JIT compiling BEAM code for module {} (code size: {} bytes)",
-                                     module_name, beam_file.code_data.len());
+                        // JIT compile the BEAM file using the extracted function
+                        eprintln!("[DEBUG] Starting JIT compilation for module {}", module_name);
+                        let jit_result = jit_compile_module(&beam_data, &beam_file, module_name, module_atom_index)
+                            .map_err(|e| format!("JIT compilation failed for module {}: {}", module_name, e))?;
 
-                            // Use infrastructure_beamasm to JIT compile the BEAM code
-                            use infrastructure_beamasm::BeamAsmLoader;
-
-                            // Create loader
-                            let mut loader = match BeamAsmLoader::new() {
-                                Ok(loader) => loader,
-                                Err(e) => {
-                                    eprintln!("[DEBUG] ✗ Failed to create BeamAsmLoader: {:?}", e);
-                                    return Err(format!("Failed to create JIT loader: {:?}", e));
-                                }
-                            };
-
-                            // Prepare for emission - pass the code data from the BEAM file
-                            // We need module atom, num_labels, num_functions, and the code data
-                            let module_atom = module_atom_index as u64;
-                            let num_labels = beam_file.exports.len(); // One label per export
-                            let num_functions = beam_file.exports.len(); // One function per export
-
-                            let mut loader_state = match loader.prepare_emit(
-                                module_atom,
-                                num_labels,
-                                num_functions,
-                                &beam_data, // Pass entire BEAM file, assembler will parse it
-                            ) {
-                            Ok(state) => state,
-                            Err(e) => {
-                                eprintln!("[DEBUG] ✗ JIT prepare_emit failed: {:?}", e);
-                                return Err(format!("JIT prepare_emit failed: {:?}", e));
-                            }
-                        };
-
-                            // Generate code
-                            let (executable_ptr, writable_ptr, size, label_mappings) = match loader.finish_emit(&mut loader_state) {
-                                Ok(result) => result,
-                                Err(e) => {
-                                    eprintln!("[DEBUG] ✗ JIT finish_emit failed: {:?}", e);
-                                    return Err(format!("JIT finish_emit failed: {:?}", e));
-                                }
-                            };
-
-                            eprintln!("[DEBUG] ✓ JIT compilation successful for module {} - executable: {:p}, size: {}",
-                                     module_name, executable_ptr, size);
-                            eprintln!("[DEBUG] Label mappings: {}", label_mappings.len());
-
-                        // Patch the code (imports, literals, etc.)
-                        if let Err(e) = loader.patch(&mut loader_state, writable_ptr) {
-                            eprintln!("[DEBUG] ⚠ JIT patch failed (continuing anyway): {:?}", e);
-                        }
-
-                        // Update export table with JIT-compiled code pointers
-                        // Use the label mappings from the assembler
-                        let export_table = get_global_export_table();
-                        for (i, (beam_function_atom_idx, arity, label)) in beam_file.exports.iter().enumerate() {
-                            // Look up function name
-                            if *beam_function_atom_idx == 0 || beam_file.atoms.is_empty() {
-                                continue;
-                            }
-
-                            let atom_idx = *beam_function_atom_idx as usize;
-                            if atom_idx >= beam_file.atoms.len() {
-                                continue;
-                            }
-
-                            let function_name = &beam_file.atoms[atom_idx];
-
-                            // Get function atom index
-                            if let Ok(function_atom_index) = atom_table.put_index(
-                                function_name.as_bytes(),
-                                AtomEncoding::SevenBitAscii,
-                                false
-                            ) {
-                                let func_atom_idx = function_atom_index as u32;
-
-                                // Get the native code pointer for this function/label
-                                // Find the mapping for this label
-                                let label_idx = *label as usize;
-                                let code_ptr = label_mappings.iter()
-                                    .find(|(_, mapped_label)| *mapped_label == label_idx)
-                                    .map(|(ptr, _)| *ptr);
-
-                                if let Some(code_ptr) = code_ptr {
-                                    // Update export with native code pointer
-                                    export_table.update_export_code_ptr(
-                                        module_atom_index as u32,
-                                        func_atom_idx,
-                                        *arity,
-                                        code_ptr
-                                    );
-                                        eprintln!("[DEBUG] ✓ Updated export {}/{}:{} with JIT-compiled code pointer {:p} (label {})",
-                                                 module_name, function_name, arity, code_ptr, label_idx);
-                                    } else {
-                                        eprintln!("[DEBUG] ⚠ No code pointer for {}/{}:{} (label {})", module_name, function_name, arity, label_idx);
-                                    }
-                            }
-                        }
-
-                        // Store the loader state for cleanup/lifetime management
-                        // For now, we'll leak it since it needs to live for the program duration
-                        let loader_box = Box::new(loader);
-                        let _loader_static = Box::leak(loader_box);
-                        let state_box = Box::new(loader_state);
-                        let _state_static = Box::leak(state_box);
-                        }
+                        eprintln!("[DEBUG] ✓ JIT compilation completed for module {} ({} exports processed)",
+                                 module_name, beam_file.exports.len());
+                        eprintln!("[DEBUG] JIT result: executable={:p}, writable={:p}, code_size={}, labels={}",
+                                 jit_result.executable_ptr, jit_result.writable_ptr,
+                                 jit_result.code_size, jit_result.label_mappings.len());
 
                         eprintln!("      ✓ Loaded and JIT-compiled module {} on-demand (from {}), registered {} exports",
                                  module_name, beam_path.display(), beam_file.exports.len());
@@ -3447,6 +3628,7 @@ mod tests {
         // Should fail with error
         assert!(result.is_err());
     }
+
 
     #[test]
     fn test_eval_function_call_remote_module_not_found() {
