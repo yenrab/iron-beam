@@ -23,6 +23,14 @@ pub enum BeamAssemblerError {
     InvalidLabel,
     #[error("Invalid function index")]
     InvalidFunctionIndex,
+    #[error("Assembler error: {0}")]
+    AssemblerError(String),
+}
+
+impl From<crate::asmjit_wrapper::AsmjitError> for BeamAssemblerError {
+    fn from(error: crate::asmjit_wrapper::AsmjitError) -> Self {
+        BeamAssemblerError::AssemblerError(format!("{:?}", error))
+    }
 }
 
 /// Trait for architecture-specific assemblers

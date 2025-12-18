@@ -357,6 +357,287 @@ int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler) {
     return -1; // Not aarch64
     #endif
 }
+
+int asmjit_a64_assembler_emit_ldr_reg_offset(AsmjitAssembler* assembler, uint32_t dst, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        a64::GpX base_reg(base);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->ldr(dst_reg, a64::ptr(base_reg, offset));
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)base; (void)offset;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_str_reg_offset(AsmjitAssembler* assembler, uint32_t src, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX src_reg(src);
+        a64::GpX base_reg(base);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->str(src_reg, a64::ptr(base_reg, offset));
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)src; (void)base; (void)offset;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_add_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        a64::GpX src1_reg(src1);
+        a64::GpX src2_reg(src2);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->add(dst_reg, src1_reg, src2_reg);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src1; (void)src2;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_sub_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        a64::GpX src1_reg(src1);
+        a64::GpX src2_reg(src2);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->sub(dst_reg, src1_reg, src2_reg);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src1; (void)src2;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_stp_pre_idx(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX reg1_gpx(reg1);
+        a64::GpX reg2_gpx(reg2);
+        a64::GpX base_reg(base);
+        // STP with pre-index addressing: stp reg1, reg2, [base, offset]!
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->stp(reg1_gpx, reg2_gpx, a64::ptr(base_reg, offset).pre());
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)reg1; (void)reg2; (void)base; (void)offset;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_ldp_post_idx(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX reg1_gpx(reg1);
+        a64::GpX reg2_gpx(reg2);
+        a64::GpX base_reg(base);
+        // LDP with post-index addressing: ldp reg1, reg2, [base], offset
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->ldp(reg1_gpx, reg2_gpx, a64::ptr(base_reg).post(offset));
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)reg1; (void)reg2; (void)base; (void)offset;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_blr(AsmjitAssembler* assembler, uint32_t reg) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX reg_gpx(reg);
+        // BLR (branch with link to register) for function calls
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->blr(reg_gpx);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)reg;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_mov_imm(AsmjitAssembler* assembler, uint32_t dst, uint64_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        // MOV immediate
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->mov(dst_reg, imm);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)imm;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_add_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        a64::GpX src_reg(src);
+        // ADD immediate
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->add(dst_reg, src_reg, imm);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src; (void)imm;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_sub_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        a64::GpX src_reg(src);
+        // SUB immediate
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->sub(dst_reg, src_reg, imm);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src; (void)imm;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_cmp_reg_reg(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX reg1_gpx(reg1);
+        a64::GpX reg2_gpx(reg2);
+        // CMP (compare)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->cmp(reg1_gpx, reg2_gpx);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)reg1; (void)reg2;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_b_eq(AsmjitAssembler* assembler, uint32_t label_id) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        Label label(label_id);
+        // B.EQ (branch if equal)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->b_eq(label);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)label_id;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_b_ne(AsmjitAssembler* assembler, uint32_t label_id) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        Label label(label_id);
+        // B.NE (branch if not equal)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->b_ne(label);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)label_id;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_b_lt(AsmjitAssembler* assembler, uint32_t label_id) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        Label label(label_id);
+        // B.LT (branch if less than)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->b_lt(label);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)label_id;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_b_ge(AsmjitAssembler* assembler, uint32_t label_id) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        Label label(label_id);
+        // B.GE (branch if greater than or equal)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->b_ge(label);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)label_id;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_b(AsmjitAssembler* assembler, uint32_t label_id) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        Label label(label_id);
+        // B (unconditional branch)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->b(label);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)label_id;
+    return -1; // Not aarch64
+    #endif
+}
 #else
 int asmjit_a64_assembler_emit_mov_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src) {
     (void)assembler; (void)dst; (void)src;

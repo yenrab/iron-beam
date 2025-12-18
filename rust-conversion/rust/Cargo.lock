@@ -522,6 +522,7 @@ dependencies = [
  "byteorder",
  "cc",
  "code_management_code_loading",
+ "entities_io_operations",
  "log",
  "memmap2",
  "region",
