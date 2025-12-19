@@ -28,24 +28,33 @@ pub fn copy_in_registers(process: &Arc<Process>, reg_array: &mut [Eterm]) {
     // Get the process heap data
     let heap_data = process.heap_slice();
     let heap_start = process.heap_start_index();
-    
+
+    eprintln!("[DEBUG] copy_in_registers: heap_start={}, heap_data.len()={}, arity={}",
+             heap_start, heap_data.len(), process.arity());
+
     // Copy X registers from process heap to register array
     // In the C implementation, X registers are stored in the process heap
     // at specific offsets. For now, we'll copy from the heap starting position.
     // The actual implementation would need to know the exact layout of X registers
     // in the process heap.
-    
+
     let arity = process.arity() as usize;
     let max_copy = arity.min(MAX_X_REGS).min(reg_array.len());
-    
+
+    eprintln!("[DEBUG] copy_in_registers: max_copy={}, copying registers...", max_copy);
+
     // Copy argument registers (arg_reg) to X registers
     // In the C code, arg_reg is copied to x_reg_array
     // For now, we'll copy from the heap starting at heap_start
     for i in 0..max_copy {
         if heap_start + i < heap_data.len() {
             reg_array[i] = heap_data[heap_start + i];
+            eprintln!("[DEBUG] copy_in_registers: x[{}] = heap[{}] = 0x{:016x}",
+                     i, heap_start + i, reg_array[i]);
         } else {
             reg_array[i] = 0; // Default value for uninitialized registers
+            eprintln!("[DEBUG] copy_in_registers: x[{}] = 0 (heap index {} out of bounds)",
+                     i, heap_start + i);
         }
     }
     

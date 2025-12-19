@@ -8,6 +8,40 @@ use crate::jit::JitAllocator;
 use crate::beam_instructions::{BeamParser, BeamInstruction, BeamArg, BeamOpcode, BeamFunction};
 use crate::asmjit_wrapper::a64;
 use code_management_code_loading::BeamLoader;
+use capstone::prelude::*;
+
+/// ARM64 instruction disassembler using Capstone for debugging
+fn disassemble_arm64_instructions(code: &[u8]) -> Vec<String> {
+    let mut disassembly = Vec::new();
+
+    // Create Capstone disassembler for ARM64
+    let cs = Capstone::new()
+        .arm64()
+        .mode(arch::arm64::ArchMode::Arm)
+        .detail(true)
+        .build()
+        .expect("Failed to create Capstone disassembler");
+
+    // Disassemble the code
+    match cs.disasm_all(code, 0x1000) {  // Start address 0x1000 (arbitrary)
+        Ok(instructions) => {
+            for instr in instructions.as_ref() {
+                let mnemonic = cs.insn_name(instr.id()).map(|s| s.to_string()).unwrap_or_else(|| "UNKNOWN".to_string());
+                let op_str = instr.op_str().map(|s| s.to_string()).unwrap_or_else(|| "".to_string());
+                let addr = instr.address();
+                let bytes: Vec<String> = instr.bytes().iter().map(|b| format!("{:02x}", b)).collect();
+
+                disassembly.push(format!("{:08x}: {:<8} {} {}",
+                    addr, bytes.join(""), mnemonic, op_str));
+            }
+        }
+        Err(e) => {
+            disassembly.push(format!("DISASSEMBLY ERROR: {:?}", e));
+        }
+    }
+
+    disassembly
+}
 
 /// aarch64 BeamAssembler
 ///
@@ -136,11 +170,59 @@ impl BeamAssembler for ArmBeamAssembler {
         let asmjit_code_ptr = self.state.base_address();
         eprintln!("[DEBUG] ARM Assembler: Copying code from asmjit {:p} to executable memory {:p}", asmjit_code_ptr, writable);
 
+        // DEBUG: Dump raw bytes and disassemble generated code
+        eprintln!("[JIT DEBUG] About to dump raw bytes and disassemble generated code");
+        unsafe {
+            let code_slice = std::slice::from_raw_parts(asmjit_code_ptr, code_size);
+            eprintln!("[JIT DEBUG] Raw machine code bytes ({} bytes):", code_size);
+
+            // Dump hex bytes
+            for (i, chunk) in code_slice.chunks(16).enumerate() {
+                eprint!("[JIT DEBUG] {:04x}: ", i * 16);
+                for &byte in chunk {
+                    eprint!("{:02x} ", byte);
+                }
+                // Pad to align
+                for _ in chunk.len()..16 {
+                    eprint!("   ");
+                }
+                eprintln!();
+            }
+
+            // Disassemble with Capstone
+            eprintln!("[JIT DEBUG] About to call Capstone disassembly for {} bytes", code_slice.len());
+            let disassembly = disassemble_arm64_instructions(code_slice);
+            eprintln!("[JIT DEBUG] Capstone disassembly ({} instructions):", disassembly.len());
+            for line in disassembly {
+                eprintln!("[JIT DEBUG]   {}", line);
+            }
+            eprintln!("[JIT DEBUG] Capstone disassembly completed");
+        }
+
         if code_size <= allocated_size {
             unsafe {
                 std::ptr::copy_nonoverlapping(asmjit_code_ptr, writable, code_size);
             }
             eprintln!("[DEBUG] ARM Assembler: Code copy completed");
+
+            // DEBUG: Verify copied code matches original
+            eprintln!("[JIT DEBUG] Verifying copied code ({} bytes):", code_size);
+            let mut matches = true;
+            for i in 0..code_size {
+                unsafe {
+                    let original = *asmjit_code_ptr.add(i);
+                    let copied = *writable.add(i);
+                    if original != copied {
+                        eprintln!("[JIT DEBUG] MISMATCH at offset {}: original={:02x}, copied={:02x}", i, original, copied);
+                        matches = false;
+                    }
+                }
+            }
+            if matches {
+                eprintln!("[JIT DEBUG] ✓ Code copy verification passed");
+            } else {
+                eprintln!("[JIT DEBUG] ❌ Code copy verification FAILED");
+            }
         } else {
             eprintln!("[DEBUG] ARM Assembler: Code too large: {} > {}", code_size, allocated_size);
             return Err(BeamAssemblerError::CodeGenerationFailed(
@@ -497,6 +579,7 @@ impl ArmBeamAssembler {
             Some(BeamOpcode::Move) => {
                 // Move {src} {dst} - move value between registers or from literal to register
                 eprintln!("[DEBUG] ARM Assembler: Processing Move instruction with {} args", instruction.args.len());
+                eprintln!("[JIT DEBUG] Generating Move instruction: args = {:?}", instruction.args);
 
                 if instruction.args.len() >= 2 {
                     match (&instruction.args[0], &instruction.args[1]) {
@@ -725,6 +808,7 @@ impl ArmBeamAssembler {
             Some(BeamOpcode::Return) => {
                 // Return - return from function with value in x(0)
                 eprintln!("[DEBUG] ARM Assembler: Processing Return instruction");
+                eprintln!("[JIT DEBUG] Generating Return instruction - function exit point");
 
                 #[cfg(target_arch = "aarch64")]
                 {
@@ -783,6 +867,7 @@ impl ArmBeamAssembler {
             Some(BeamOpcode::Add) => {
                 // Add {src1} {src2} {dst} - add two integers
                 eprintln!("[DEBUG] ARM Assembler: Processing Add instruction");
+                eprintln!("[JIT DEBUG] Generating Add instruction: args = {:?}", instruction.args);
 
                 if instruction.args.len() >= 3 {
                     match (&instruction.args[0], &instruction.args[1], &instruction.args[2]) {
@@ -1438,6 +1523,7 @@ impl ArmBeamAssembler {
             _ => {
                 // Unknown executable instruction - print debug and generate NOP to maintain code flow
                 eprintln!("[DEBUG] ARM Assembler: Unknown executable opcode {}, generating NOP", instruction.opcode);
+                eprintln!("[JIT DEBUG] WARNING: Unknown opcode {} encountered - this may cause execution issues!", instruction.opcode);
                 // In a full implementation, this would generate appropriate ARM code
                 code.extend_from_slice(&[0x1f, 0x20, 0x03, 0xd5]); // nop
             }

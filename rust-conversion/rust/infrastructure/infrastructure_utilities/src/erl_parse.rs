@@ -62,6 +62,11 @@ pub enum Expr {
         left: Box<Expr>,
         right: Box<Expr>,
     },
+    /// Fun expression: fun(Params) -> Body end
+    Fun {
+        params: Vec<String>,
+        body: Box<Expr>,
+    },
 }
 
 /// Binary operators
@@ -548,6 +553,9 @@ impl Parser {
             TokenKind::LeftBrace => {
                 self.parse_tuple()
             }
+            TokenKind::Fun => {
+                self.parse_fun()
+            }
             _ => Err(ParseError::UnexpectedToken(tok)),
         }
     }
@@ -585,7 +593,44 @@ impl Parser {
             })
         }
     }
-    
+
+    fn parse_fun(&mut self) -> Result<Expr, ParseError> {
+        // We've already consumed 'fun', now parse: fun(Params) -> Body end
+        self.expect(TokenKind::LeftParen)?;
+
+        // Parse parameters: comma-separated list of variables
+        let mut params = Vec::new();
+        if !self.peek().map(|t| t.kind == TokenKind::RightParen).unwrap_or(false) {
+            loop {
+                // Each parameter should be a variable
+                let tok = self.peek().ok_or(ParseError::UnexpectedEof)?;
+                match &tok.kind {
+                    TokenKind::Var(var_name) => {
+                        params.push(var_name.clone());
+                        self.advance();
+                    }
+                    _ => return Err(ParseError::UnexpectedToken(tok.clone())),
+                }
+
+                if self.peek().map(|t| t.kind == TokenKind::Comma).unwrap_or(false) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect(TokenKind::RightParen)?;
+        self.expect(TokenKind::Arrow)?;
+
+        // Parse body expression
+        let body = Box::new(self.parse_expr()?);
+
+        self.expect(TokenKind::End)?;
+
+        Ok(Expr::Fun { params, body })
+    }
+
     fn parse_list(&mut self) -> Result<Expr, ParseError> {
         self.expect(TokenKind::LeftBracket)?;
         
@@ -1186,7 +1231,40 @@ mod tests {
             _ => panic!("Expected BinOp::Mul"),
         }
     }
-    
+
+    #[test]
+    fn test_parse_fun_simple() {
+        let tokens = scan_string("fun() -> ok end").unwrap();
+        let expr = parse_expr(tokens).unwrap();
+        match expr {
+            Expr::Fun { params, body } => {
+                assert_eq!(params.len(), 0);
+                assert_eq!(*body, Expr::Atom("ok".to_string()));
+            }
+            _ => panic!("Expected Fun expression"),
+        }
+    }
+
+    #[test]
+    fn test_parse_fun_with_param() {
+        let tokens = scan_string("fun(X) -> X * 2 end").unwrap();
+        let expr = parse_expr(tokens).unwrap();
+        match expr {
+            Expr::Fun { params, body } => {
+                assert_eq!(params.len(), 1);
+                assert_eq!(params[0], "X");
+                match &*body {
+                    Expr::BinOp { op: BinOp::Mul, left, right } => {
+                        assert_eq!(*left, Expr::Var("X".to_string()));
+                        assert_eq!(*right, Expr::Integer(2));
+                    }
+                    _ => panic!("Expected multiplication in fun body"),
+                }
+            }
+            _ => panic!("Expected Fun expression"),
+        }
+    }
+
     #[test]
     fn test_parse_exprs_single() {
         let tokens = scan_string("42").unwrap();

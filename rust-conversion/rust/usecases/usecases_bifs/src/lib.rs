@@ -25,6 +25,7 @@
 //! - **[`persistent`](persistent/index.html)**: Persistent term storage operations
 //! - **[`load`](load/index.html)**: Module loading and code management
 //! - **[`info`](info/index.html)**: System information queries
+//! - **[`init`](init/index.html)**: Initialization and process management
 //!
 //! ## Architecture
 //!
@@ -77,6 +78,7 @@ pub mod lists;
 pub mod persistent;
 pub mod load;
 pub mod info;
+pub mod init;
 
 pub use regex::{RegexBif, CompiledRegex, MatchResult, Capture, RegexError as RegexErr};
 pub use checksum::ChecksumBif;

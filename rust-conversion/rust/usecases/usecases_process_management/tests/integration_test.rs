@@ -415,3 +415,5 @@ fn test_module_code_area_edge_cases() {
     assert!(!pointer_in_module_area(ptr_just_after, mod_start, 100));
 }
 
+
+

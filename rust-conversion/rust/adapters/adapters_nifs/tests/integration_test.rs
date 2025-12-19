@@ -381,3 +381,5 @@ fn test_buffer_nif_error_eq() {
     assert_ne!(BufferNifError::BadArg, BufferNifError::NotImplemented);
 }
 
+
+

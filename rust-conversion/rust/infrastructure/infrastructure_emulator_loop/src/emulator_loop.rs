@@ -370,6 +370,13 @@ pub fn process_main(
         eprintln!("[Emulator] Calling JIT function at {:p} with process {:p}, regs {:p}",
                  instruction_ptr, process_ptr, x_regs_ptr);
 
+        // DEBUG: Log register state before JIT execution
+        eprintln!("[Emulator] DEBUG: Register state before JIT execution:");
+        for i in 0..6 { // Log first 6 registers
+            eprintln!("[Emulator] DEBUG: x[{}] = 0x{:016x}", i, x_regs[i]);
+        }
+        eprintln!("[Emulator] DEBUG: Process state before: i={:p}, fcalls={}", process.i(), process.fcalls());
+
         // Call the JIT-compiled BEAM function entry point
         // The JIT code will execute the function and:
         // - Update process.i (instruction pointer) to jump to next function
@@ -377,7 +384,16 @@ pub fn process_main(
         // - Update process.fcalls (reductions)
         // - May call runtime functions (BIFs, exports) which handle scheduling
         // BEAM functions don't return - they either jump to another function or call runtime
+        eprintln!("[Emulator] DEBUG: About to call JIT function...");
         jit_func(process_ptr, x_regs_ptr);
+        eprintln!("[Emulator] DEBUG: JIT function call completed successfully");
+
+        // DEBUG: Log register state after JIT execution
+        eprintln!("[Emulator] DEBUG: Register state after JIT execution:");
+        for i in 0..6 { // Log first 6 registers
+            eprintln!("[Emulator] DEBUG: x[{}] = 0x{:016x}", i, x_regs[i]);
+        }
+        eprintln!("[Emulator] DEBUG: Process state after: i={:p}, fcalls={}", process.i(), process.fcalls());
 
         eprintln!("[Emulator] JIT function returned, x_regs[0] = 0x{:016x}", x_regs[0]);
 

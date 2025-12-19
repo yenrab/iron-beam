@@ -23,6 +23,8 @@ pub struct EarlyInitResult {
     pub no_dirty_cpu_schedulers_online: usize,
     /// Number of dirty IO schedulers
     pub no_dirty_io_schedulers: usize,
+    /// Whether to start the shell (false for -noshell)
+    pub start_shell: bool,
 }
 
 /// Global flag to track if early init is complete
@@ -50,7 +52,21 @@ pub fn early_init(argc: &mut usize, argv: &mut Vec<String>) -> Result<EarlyInitR
     if EARLY_INIT_DONE.load(Ordering::Acquire) {
         return Err("Early initialization already completed".to_string());
     }
-    
+
+    // Parse command line arguments to detect -noshell
+    let mut start_shell = true;
+    let mut i = 0;
+    while i < argv.len() {
+        if argv[i] == "-noshell" {
+            start_shell = false;
+            // Remove the -noshell argument from argv
+            argv.remove(i);
+            *argc -= 1;
+        } else {
+            i += 1;
+        }
+    }
+
     // Save emulator arguments (for later retrieval)
     // In C: erts_save_emu_args(*argc, argv);
     
@@ -85,6 +101,7 @@ pub fn early_init(argc: &mut usize, argv: &mut Vec<String>) -> Result<EarlyInitR
         no_dirty_cpu_schedulers,
         no_dirty_cpu_schedulers_online,
         no_dirty_io_schedulers,
+        start_shell,
     })
 }
 
@@ -117,6 +134,7 @@ mod tests {
             no_dirty_cpu_schedulers: 0,
             no_dirty_cpu_schedulers_online: 0,
             no_dirty_io_schedulers: 0,
+            start_shell: true,
         };
         let debug_str = format!("{:?}", result);
         assert!(!debug_str.is_empty());
@@ -132,6 +150,7 @@ mod tests {
             no_dirty_cpu_schedulers: 0,
             no_dirty_cpu_schedulers_online: 0,
             no_dirty_io_schedulers: 0,
+            start_shell: true,
         };
         let result2 = result1.clone();
         assert_eq!(result1.ncpu, result2.ncpu);
@@ -153,6 +172,7 @@ mod tests {
             no_dirty_cpu_schedulers: 1,
             no_dirty_cpu_schedulers_online: 1,
             no_dirty_io_schedulers: 1,
+            start_shell: true,
         };
         assert_eq!(result.ncpu, 8);
         assert_eq!(result.no_schedulers, 8);

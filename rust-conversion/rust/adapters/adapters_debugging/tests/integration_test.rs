@@ -18,3 +18,5 @@ fn test_trace_nif_operations() {
     // Should not panic
 }
 
+
+

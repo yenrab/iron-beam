@@ -54,6 +54,7 @@ pub fn jit_compile_module(
     module_name: &str,
     module_atom_index: usize,
 ) -> Result<JitResult, String> {
+    eprintln!("[JIT DEBUG] Starting JIT compilation for module: {}", module_name);
     use entities_io_operations::export::get_global_export_table;
     use super::atom_table::get_global_atom_table;
     use entities_data_handling::AtomEncoding;
@@ -124,8 +125,10 @@ pub fn jit_compile_module(
     ).map_err(|e| format!("JIT prepare_emit failed for module {}: {:?}", module_name, e))?;
 
     // Generate code
+    eprintln!("[JIT DEBUG] About to call finish_emit for module: {}", module_name);
     let (executable_ptr, writable_ptr, code_size, label_mappings) = loader.finish_emit(&mut loader_state)
         .map_err(|e| format!("JIT finish_emit failed for module {}: {:?}", module_name, e))?;
+    eprintln!("[JIT DEBUG] finish_emit completed for module: {} - code_size: {}", module_name, code_size);
 
     // Validate the generated code
     if executable_ptr.is_null() {
@@ -474,6 +477,12 @@ fn expr_eval(expr: &Expr, bindings: &Bindings) -> Result<(Term, Bindings), EvalE
             // Pattern matching: evaluate right side first, then match against left
             let (right_val, bindings1) = expr_eval(right, bindings)?;
             match_pattern(left, &right_val, &bindings1)
+        }
+        Expr::Fun { params, body } => {
+            // For now, create a placeholder function representation
+            // This is a simplified implementation for parsing/testing purposes
+            // In a full implementation, this would create a closure with captured variables
+            Ok((Term::Atom(0), bindings.clone())) // Placeholder: return 'false' atom for now
         }
     }
 }
