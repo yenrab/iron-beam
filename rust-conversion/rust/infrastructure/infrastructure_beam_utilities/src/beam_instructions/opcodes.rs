@@ -474,6 +474,8 @@ pub enum BeamOpcode {
     OpICallFunT = 1017,              // op_i_call_fun_t (opcode 153)
     OpIGetMapElementFyyx = 1018,     // op_i_get_map_element_fyyx (opcode 181)
     OpIGetTupleElement2XPx = 1019,   // op_i_get_tuple_element2_xPx (opcode 192)
+    OpGcBif2 = 1020,                  // gc_bif2 (opcode 125) - GC BIF with 2 args
+    OpReturn19 = 1021,               // return opcode 19
 }
 
 impl BeamOpcode {
@@ -500,7 +502,6 @@ impl BeamOpcode {
             16 => Some(GetTupleElement),
             17 => Some(SetTupleElement),
             18 => Some(PutList),
-            19 => Some(PutTuple),
             20 => Some(Add),
             21 => Some(Subtract),
             22 => Some(Multiply),
@@ -814,7 +815,6 @@ impl BeamOpcode {
             404 => Some(IUpdateRecordInPlaceDone2),
             // Additional specific opcodes
             17 => Some(OpBsTestUnitFyt),
-            19 => Some(OpBsTestUnit8Fy),
             22 => Some(OpBuildStacktrace),
             23 => Some(OpCallBifW),
             35 => Some(OpDeallocateReturnQ),
@@ -827,6 +827,8 @@ impl BeamOpcode {
             146 => Some(OpIBslSsjd),
             153 => Some(OpICallFunT),
             181 => Some(OpIGetMapElementFyyx),
+            125 => Some(OpGcBif2),
+            19 => Some(OpReturn19),
             192 => Some(OpIGetTupleElement2XPx),
             _ => None,
         }

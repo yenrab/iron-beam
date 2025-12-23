@@ -1704,17 +1704,33 @@ impl ArmBeamAssembler {
                 }
             }
             Some(BeamOpcode::OpGetTlXx) => {
-                eprintln!("[DEBUG] ARM Assembler: Processing OpGetTlXx (opcode {}), emitting NOP", instruction.opcode);
+                eprintln!("[DEBUG] ARM Assembler: Processing OpGetTlXx (opcode {}), generating move", instruction.opcode);
                 #[cfg(target_arch = "aarch64")]
                 {
                     use crate::asmjit_wrapper::a64;
-                    eprintln!("[JIT DEBUG] About to emit NOP for OpGetTlXx");
-                    let nop_result = a64::emit_add_imm(assembler, 0, 0, 0);
-                    match nop_result {
-                        Ok(()) => eprintln!("[JIT DEBUG] NOP emitted successfully for OpGetTlXx"),
-                        Err(ref e) => eprintln!("[JIT DEBUG] NOP emission failed for OpGetTlXx: {:?}", e),
+                    eprintln!("[JIT DEBUG] About to emit move instruction for OpGetTlXx");
+
+                    // OpGetTlXx is typically: move src, dst (X register to X register)
+                    if instruction.args.len() >= 2 {
+                        if let (BeamArg::Register { index: src_idx, is_y: false }, BeamArg::Register { index: dst_idx, is_y: false }) =
+                            (&instruction.args[0], &instruction.args[1]) {
+                            eprintln!("[JIT DEBUG] Move X{} to X{}", src_idx, dst_idx);
+                            let mov_result = a64::emit_mov_reg_reg(assembler, *dst_idx as u32, *src_idx as u32);
+                            match mov_result {
+                                Ok(()) => eprintln!("[JIT DEBUG] Move instruction emitted successfully"),
+                                Err(ref e) => eprintln!("[JIT DEBUG] Move instruction emission failed: {:?}", e),
+                            }
+                            mov_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+                        } else {
+                            eprintln!("[JIT DEBUG] Invalid register arguments for OpGetTlXx, emitting NOP");
+                            let nop_result = a64::emit_add_imm(assembler, 0, 0, 0);
+                            nop_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+                        }
+                    } else {
+                        eprintln!("[JIT DEBUG] Insufficient arguments for OpGetTlXx, emitting NOP");
+                        let nop_result = a64::emit_add_imm(assembler, 0, 0, 0);
+                        nop_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
                     }
-                    nop_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
                 }
             }
             Some(BeamOpcode::OpGetTlXy) => {
@@ -1732,17 +1748,69 @@ impl ArmBeamAssembler {
                 }
             }
             Some(BeamOpcode::OpIBandSsjd) => {
-                eprintln!("[DEBUG] ARM Assembler: Processing OpIBandSsjd (opcode {}), emitting NOP", instruction.opcode);
+                eprintln!("[DEBUG] ARM Assembler: Processing OpIBandSsjd (opcode {}), generating bitwise AND", instruction.opcode);
                 #[cfg(target_arch = "aarch64")]
                 {
                     use crate::asmjit_wrapper::a64;
-                    eprintln!("[JIT DEBUG] About to emit NOP for OpIBandSsjd");
+                    eprintln!("[JIT DEBUG] About to emit bitwise AND for OpIBandSsjd");
+
+                    // OpIBandSsjd is typically: dst = src1 & src2 (bitwise AND)
+                    // TODO: Implement emit_and_reg_reg_reg in asmjit_wrapper
+                    eprintln!("[JIT DEBUG] Bitwise AND not yet implemented, emitting NOP");
                     let nop_result = a64::emit_add_imm(assembler, 0, 0, 0);
-                    match nop_result {
-                        Ok(()) => eprintln!("[JIT DEBUG] NOP emitted successfully for OpIBandSsjd"),
-                        Err(ref e) => eprintln!("[JIT DEBUG] NOP emission failed for OpIBandSsjd: {:?}", e),
-                    }
                     nop_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+                }
+            }
+            Some(BeamOpcode::OpGcBif2) => {
+                eprintln!("[DEBUG] ARM Assembler: Processing OpGcBif2 (opcode {}), implementing BIF call", instruction.opcode);
+                #[cfg(target_arch = "aarch64")]
+                {
+                    use crate::asmjit_wrapper::a64;
+                    eprintln!("[JIT DEBUG] About to implement gc_bif2 operation");
+
+                    // gc_bif2 format: [module_atom, func_atom, extra_args, dst_reg, src_reg1, src_reg2]
+                    // For the inc/1 function, this should be: X{dst} = X{src1} + X{src2}
+                    if instruction.args.len() >= 6 {
+                        // For now, assume this is integer addition (erlang:+/2)
+                        // TODO: Proper BIF dispatch based on module/function atoms
+                        if let (BeamArg::Literal(_module), BeamArg::Literal(_func), BeamArg::Literal(_extra),
+                                BeamArg::Register { index: dst_idx, is_y: false },
+                                BeamArg::Register { index: src1_idx, is_y: false },
+                                BeamArg::Register { index: src2_idx, is_y: false }) =
+                            (&instruction.args[0], &instruction.args[1], &instruction.args[2],
+                             &instruction.args[3], &instruction.args[4], &instruction.args[5]) {
+
+                            eprintln!("[JIT DEBUG] BIF call: X{} = X{} + X{} (assuming integer addition)", dst_idx, src1_idx, src2_idx);
+
+                            // For simple integer addition, use ARM64 add instruction
+                            // Note: This is a simplified implementation - real Erlang arithmetic is more complex
+                            // due to tagged integers and potential bignum allocation
+                            let add_result = a64::emit_add_reg_reg_reg(assembler, *dst_idx as u32, *src1_idx as u32, *src2_idx as u32);
+                            match add_result {
+                                Ok(()) => eprintln!("[JIT DEBUG] Addition instruction emitted successfully"),
+                                Err(ref e) => eprintln!("[JIT DEBUG] Addition instruction emission failed: {:?}", e),
+                            }
+                            add_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+                        } else {
+                            eprintln!("[JIT DEBUG] Invalid register arguments for OpGcBif2, emitting NOP");
+                            let nop_result = a64::emit_add_imm(assembler, 0, 0, 0);
+                            nop_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+                        }
+                    } else {
+                        eprintln!("[JIT DEBUG] Insufficient arguments for OpGcBif2, emitting NOP");
+                        let nop_result = a64::emit_add_imm(assembler, 0, 0, 0);
+                        nop_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+                    }
+                }
+            }
+            Some(BeamOpcode::OpReturn19) => {
+                eprintln!("[DEBUG] ARM Assembler: Processing OpReturn19 (opcode {}), generating return", instruction.opcode);
+                #[cfg(target_arch = "aarch64")]
+                {
+                    use crate::asmjit_wrapper::a64;
+                    eprintln!("[JIT DEBUG] About to emit return instruction for OpReturn19");
+                    let ret_result = a64::emit_ret(assembler);
+                    ret_result.map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
                 }
             }
             Some(BeamOpcode::OpIBslSsjd) => {

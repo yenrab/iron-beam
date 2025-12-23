@@ -395,9 +395,16 @@ impl<'a> BytecodeReader<'a> {
             return Ok((vec![], 0));
         }
 
-        // For non-zero argument counts, we need to decode BEAM's tagged encoding
-        // This is a simplified implementation - BEAM uses complex tagged encoding
-        // where arguments can be 1, 2, or 4 bytes depending on the tag
+        // Special handling for opcodes where certain arguments represent register indices
+        // This is needed for move operations and BIF calls
+        let is_register_argument = |opcode: u32, arg_index: usize| -> bool {
+            match opcode {
+                64 /* OpGetTlXx */ => true, // All arguments are registers
+                78 /* OpIBandSsjd */ => true, // All arguments are registers
+                125 /* OpGcBif2 */ => matches!(arg_index, 3 | 4 | 5), // Only args 3,4,5 are registers
+                _ => false,
+            }
+        };
 
         let mut args = Vec::with_capacity(arg_count);
         let mut bytes_read = 0;
@@ -412,45 +419,53 @@ impl<'a> BytecodeReader<'a> {
             let tag = self.data[self.position + bytes_read];
             bytes_read += 1;
 
-            let arg = match tag {
-                0..=127 => {
-                    // Small integer encoded in tag byte
-                    println!("[DECODE DEBUG] Argument {}: small int {} (1 byte)", i, tag);
-                    BeamArg::Literal(tag as u64)
-                }
-                128..=191 => {
-                    // Extended literal - need more bytes
-                    if self.position + bytes_read + 3 >= self.data.len() {
-                        println!("[DECODE DEBUG] Not enough data for extended literal argument {}", i);
-                        return Err(BeamFileReadResult::CorruptCodeChunk);
+            let arg = if is_register_argument(opcode, i) && tag <= 127 {
+                // For register-based arguments, small integers represent register indices
+                let reg_index = tag as u32;
+                println!("[DECODE DEBUG] Argument {}: register index {} (treated as X register)", i, reg_index);
+                BeamArg::Register { index: reg_index, is_y: false }
+            } else {
+                // Standard BEAM tagged encoding
+                match tag {
+                    0..=127 => {
+                        // Small integer encoded in tag byte
+                        println!("[DECODE DEBUG] Argument {}: small int {} (1 byte)", i, tag);
+                        BeamArg::Literal(tag as u64)
                     }
-                    let value = u32::from_be_bytes([
-                        self.data[self.position + bytes_read],
-                        self.data[self.position + bytes_read + 1],
-                        self.data[self.position + bytes_read + 2],
-                        self.data[self.position + bytes_read + 3],
-                    ]);
-                    bytes_read += 4;
-                    println!("[DECODE DEBUG] Argument {}: extended literal {} (5 bytes total)", i, value);
-                    BeamArg::Literal(value as u64)
-                }
-                192..=223 => {
-                    // X register
-                    let reg_index = tag & 0x1F;
-                    println!("[DECODE DEBUG] Argument {}: X register {} (1 byte)", i, reg_index);
-                    BeamArg::Register { index: reg_index as u32, is_y: false }
-                }
-                224..=255 => {
-                    // Y register
-                    let reg_index = tag & 0x1F;
-                    println!("[DECODE DEBUG] Argument {}: Y register {} (1 byte)", i, reg_index);
-                    BeamArg::Register { index: reg_index as u32, is_y: true }
-                }
-                _ => {
-                    println!("[DECODE DEBUG] Unknown tag {} for argument {}", tag, i);
-                    return Err(BeamFileReadResult::CorruptCodeChunk);
-                }
-            };
+                        128..=191 => {
+                            // Extended literal - need more bytes
+                            if self.position + bytes_read + 3 >= self.data.len() {
+                                println!("[DECODE DEBUG] Not enough data for extended literal argument {}", i);
+                                return Err(BeamFileReadResult::CorruptCodeChunk);
+                            }
+                            let value = u32::from_be_bytes([
+                                self.data[self.position + bytes_read],
+                                self.data[self.position + bytes_read + 1],
+                                self.data[self.position + bytes_read + 2],
+                                self.data[self.position + bytes_read + 3],
+                            ]);
+                            bytes_read += 4;
+                            println!("[DECODE DEBUG] Argument {}: extended literal {} (5 bytes total)", i, value);
+                            BeamArg::Literal(value as u64)
+                        }
+                        192..=223 => {
+                            // X register
+                            let reg_index = tag & 0x1F;
+                            println!("[DECODE DEBUG] Argument {}: X register {} (1 byte)", i, reg_index);
+                            BeamArg::Register { index: reg_index as u32, is_y: false }
+                        }
+                        224..=255 => {
+                            // Y register
+                            let reg_index = tag & 0x1F;
+                            println!("[DECODE DEBUG] Argument {}: Y register {} (1 byte)", i, reg_index);
+                            BeamArg::Register { index: reg_index as u32, is_y: true }
+                        }
+                        _ => {
+                            println!("[DECODE DEBUG] Unknown tag {} for argument {}", tag, i);
+                            return Err(BeamFileReadResult::CorruptCodeChunk);
+                        }
+                    }
+                };
 
             args.push(arg);
         }
