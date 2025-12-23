@@ -30,7 +30,7 @@
 use crate::module_management::ModuleTableManager;
 use crate::code_index::get_global_code_ix;
 use crate::executable_memory::ExecutableMemory;
-use infrastructure_beam_utilities::beam_instructions::parser::BeamParser;
+use infrastructure_beam_utilities::beam_instructions::{parser::BeamParser, BeamArg};
 
 /// BEAM file read result
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,7 +127,20 @@ impl BeamTransformer {
         println!("[TRANSFORM DEBUG] Starting BEAM bytecode transformation for JIT");
         println!("[TRANSFORM DEBUG] Input bytecode size: {} bytes", bytecode.len());
 
-        let mut reader = BytecodeReader::new(bytecode);
+        // Skip BEAM code header (20 bytes: sub_size, instruction_set, max_opcode, label_count, function_count)
+        const BEAM_CODE_HEADER_SIZE: usize = 20;
+        if bytecode.len() < BEAM_CODE_HEADER_SIZE {
+            return Err(BeamFileReadResult::CorruptCodeChunk);
+        }
+
+        // Preserve the header in the output
+        let mut transformed_bytecode = bytecode[..BEAM_CODE_HEADER_SIZE].to_vec();
+        let instruction_bytes = &bytecode[BEAM_CODE_HEADER_SIZE..];
+
+        println!("[TRANSFORM DEBUG] Header size: {} bytes, instruction bytes: {} bytes",
+                 BEAM_CODE_HEADER_SIZE, instruction_bytes.len());
+
+        let mut reader = BytecodeReader::new(instruction_bytes);
         let mut writer = BytecodeWriter::new();
         let mut instruction_count = 0;
         let mut transformed_count = 0;
@@ -160,16 +173,21 @@ impl BeamTransformer {
             }
         }
 
-        let output_bytecode = writer.into_bytes();
+        let transformed_instructions = writer.into_bytes();
         println!("[TRANSFORM DEBUG] Transformation completed:");
         println!("[TRANSFORM DEBUG]   Instructions processed: {}", instruction_count);
         println!("[TRANSFORM DEBUG]   Instructions transformed: {}", transformed_count);
         println!("[TRANSFORM DEBUG]   Instructions written: {}", written_count);
-        println!("[TRANSFORM DEBUG]   Input size: {} bytes", bytecode.len());
-        println!("[TRANSFORM DEBUG]   Output size: {} bytes", output_bytecode.len());
+        println!("[TRANSFORM DEBUG]   Header size: {} bytes", BEAM_CODE_HEADER_SIZE);
+        println!("[TRANSFORM DEBUG]   Original instructions: {} bytes", instruction_bytes.len());
+        println!("[TRANSFORM DEBUG]   Transformed instructions: {} bytes", transformed_instructions.len());
+
+        // Combine header with transformed instructions
+        transformed_bytecode.extend_from_slice(&transformed_instructions);
+        println!("[TRANSFORM DEBUG]   Total output size: {} bytes", transformed_bytecode.len());
 
         // Replace original bytecode with transformed version
-        *bytecode = output_bytecode;
+        *bytecode = transformed_bytecode;
         Ok(())
     }
 
@@ -225,9 +243,13 @@ impl BeamTransformer {
     /// Transform NIL line instructions by removing them
     fn transform_nil_lines(instruction: &BeamInstruction) -> TransformationResult {
         if instruction.opcode == 153 { // genop_line_1
-            if instruction.args.len() >= 1 && instruction.args[0] == 0 {
-                // NIL line instruction, remove it
-                return TransformationResult::Applied;
+            if instruction.args.len() >= 1 {
+                if let BeamArg::Literal(value) = &instruction.args[0] {
+                    if *value == 0 {
+                        // NIL line instruction, remove it
+                        return TransformationResult::Applied;
+                    }
+                }
             }
         }
         TransformationResult::NotApplicable
@@ -237,12 +259,10 @@ impl BeamTransformer {
     fn transform_generic_arithmetic(instruction: &BeamInstruction) -> TransformationResult {
         if instruction.opcode == 378 { // genop_gen_plus_5
             if instruction.args.len() >= 3 {
-                let src1 = instruction.args[0];
-                let src2 = instruction.args[1];
-                let dst = instruction.args[2];
-
                 // Check operand types and convert to specific opcodes
-                if Self::is_x_register(src1) && Self::is_x_register(src2) && Self::is_x_register(dst) {
+                if Self::is_x_register(&instruction.args[0]) &&
+                   Self::is_x_register(&instruction.args[1]) &&
+                   Self::is_x_register(&instruction.args[2]) {
                     // Convert gen_plus X X D → i_plus_xxjd (381)
                     // This would require rewriting the instruction, but for now we skip
                     // as it requires more complex bytecode manipulation
@@ -260,18 +280,20 @@ impl BeamTransformer {
     ) -> TransformationResult {
         if instruction.opcode == 12 { // genop_allocate_2
             if instruction.args.len() >= 2 {
-                let n_regs = instruction.args[0];
-                let _live_regs = instruction.args[1];
+                if let (BeamArg::Literal(n_regs), BeamArg::Literal(_live_regs)) =
+                    (&instruction.args[0], &instruction.args[1]) {
 
-                // Peek at next instruction
-                if let Ok(Some(next_instr)) = reader.peek_instruction() {
-                    if next_instr.opcode == 172 && next_instr.args.len() >= 1 { // genop_init_yregs_1
-                        let init_n = next_instr.args[0];
-                        if n_regs == init_n {
-                            // Combine allocate + init_yregs → allocate_heap
-                            // Skip the next instruction since we're combining them
-                            let _ = reader.read_instruction();
-                            return TransformationResult::Applied;
+                    // Peek at next instruction
+                    if let Ok(Some(next_instr)) = reader.peek_instruction() {
+                        if next_instr.opcode == 172 && next_instr.args.len() >= 1 { // genop_init_yregs_1
+                            if let BeamArg::Literal(init_n) = &next_instr.args[0] {
+                                if n_regs == init_n {
+                                    // Combine allocate + init_yregs → allocate_heap
+                                    // Skip the next instruction since we're combining them
+                                    let _ = reader.read_instruction();
+                                    return TransformationResult::Applied;
+                                }
+                            }
                         }
                     }
                 }
@@ -287,10 +309,8 @@ impl BeamTransformer {
     ) -> TransformationResult {
         if instruction.opcode == 64 { // genop_move_2
             if instruction.args.len() >= 2 {
-                let dst = instruction.args[1];
-
                 // Check if destination is X0
-                if Self::is_x0_register(dst) {
+                if Self::is_x0_register(&instruction.args[1]) {
                     // This is a common pattern that could be optimized
                     // For now, we just recognize it but don't transform
                     return TransformationResult::NotApplicable;
@@ -301,15 +321,13 @@ impl BeamTransformer {
     }
 
     /// Check if a value represents an X register
-    fn is_x_register(value: u32) -> bool {
-        // BEAM register encoding uses tagged values
-        // This is a simplified check - real implementation would decode properly
-        (value & 0xF) < 8 // Assume low 4 bits indicate X register index
+    fn is_x_register(arg: &BeamArg) -> bool {
+        matches!(arg, BeamArg::Register { is_y: false, .. })
     }
 
     /// Check if a value represents the X0 register specifically
-    fn is_x0_register(value: u32) -> bool {
-        Self::is_x_register(value) && (value & 0xF) == 0
+    fn is_x0_register(arg: &BeamArg) -> bool {
+        matches!(arg, BeamArg::Register { is_y: false, index: 0, .. })
     }
 }
 
@@ -368,7 +386,7 @@ impl<'a> BytecodeReader<'a> {
     }
 
     /// Decode instruction arguments using proper BEAM encoding
-    fn decode_arguments(&self, opcode: u32) -> Result<(Vec<u32>, usize), BeamFileReadResult> {
+    fn decode_arguments(&self, opcode: u32) -> Result<(Vec<BeamArg>, usize), BeamFileReadResult> {
         let arg_count = Self::get_arg_count(opcode);
         println!("[DECODE DEBUG] Decoding {} arguments for opcode {}", arg_count, opcode);
 
@@ -398,7 +416,7 @@ impl<'a> BytecodeReader<'a> {
                 0..=127 => {
                     // Small integer encoded in tag byte
                     println!("[DECODE DEBUG] Argument {}: small int {} (1 byte)", i, tag);
-                    tag as u32
+                    BeamArg::Literal(tag as u64)
                 }
                 128..=191 => {
                     // Extended literal - need more bytes
@@ -414,19 +432,19 @@ impl<'a> BytecodeReader<'a> {
                     ]);
                     bytes_read += 4;
                     println!("[DECODE DEBUG] Argument {}: extended literal {} (5 bytes total)", i, value);
-                    value
+                    BeamArg::Literal(value as u64)
                 }
                 192..=223 => {
                     // X register
                     let reg_index = tag & 0x1F;
                     println!("[DECODE DEBUG] Argument {}: X register {} (1 byte)", i, reg_index);
-                    reg_index as u32
+                    BeamArg::Register { index: reg_index as u32, is_y: false }
                 }
                 224..=255 => {
                     // Y register
                     let reg_index = tag & 0x1F;
                     println!("[DECODE DEBUG] Argument {}: Y register {} (1 byte)", i, reg_index);
-                    reg_index as u32
+                    BeamArg::Register { index: reg_index as u32, is_y: true }
                 }
                 _ => {
                     println!("[DECODE DEBUG] Unknown tag {} for argument {}", tag, i);
@@ -467,15 +485,53 @@ impl BytecodeWriter {
         let before_size = self.data.len();
         self.data.push(instruction.opcode as u8);
 
-        // Encode arguments (simplified big-endian encoding)
-        for &arg in &instruction.args {
-            self.data.extend_from_slice(&arg.to_be_bytes());
+        // Encode arguments using BEAM tagged encoding
+        for arg in &instruction.args {
+            Self::write_beam_arg(&mut self.data, arg)?;
         }
 
         let after_size = self.data.len();
         println!("[WRITER DEBUG] Wrote {} bytes (total size now: {})",
                  after_size - before_size, after_size);
 
+        Ok(())
+    }
+
+    /// Write a BEAM argument using tagged encoding
+    fn write_beam_arg(data: &mut Vec<u8>, arg: &BeamArg) -> Result<(), BeamFileReadResult> {
+        match arg {
+            BeamArg::Literal(value) => {
+                if *value <= 127 {
+                    // Small integer - encode directly in tag byte
+                    data.push(*value as u8);
+                    println!("[WRITER DEBUG] Wrote small int {} (1 byte)", value);
+                } else {
+                    // Extended literal - use extended encoding
+                    data.push(0x80); // Extended literal tag
+                    data.extend_from_slice(&(*value as u32).to_be_bytes());
+                    println!("[WRITER DEBUG] Wrote extended literal {} (5 bytes)", value);
+                }
+            }
+            BeamArg::Register { index, is_y } => {
+                if *is_y {
+                    // Y register
+                    let tag = 0xE0 | (index & 0x1F);
+                    data.push(tag as u8);
+                    println!("[WRITER DEBUG] Wrote Y register {} (1 byte)", index);
+                } else {
+                    // X register
+                    let tag = 0xC0 | (index & 0x1F);
+                    data.push(tag as u8);
+                    println!("[WRITER DEBUG] Wrote X register {} (1 byte)", index);
+                }
+            }
+            _ => {
+                // For other types, encode as literal for now
+                data.push(0x80); // Extended literal tag
+                data.extend_from_slice(&0u32.to_be_bytes()); // Placeholder
+                println!("[WRITER DEBUG] Wrote placeholder for unsupported arg type");
+            }
+        }
         Ok(())
     }
 
@@ -489,7 +545,7 @@ impl BytecodeWriter {
 #[derive(Debug, Clone)]
 struct BeamInstruction {
     opcode: u32,
-    args: Vec<u32>,
+    args: Vec<BeamArg>,
 }
 
 /// BEAM file loader
