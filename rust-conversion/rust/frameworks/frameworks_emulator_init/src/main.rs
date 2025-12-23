@@ -25,19 +25,46 @@ use epmd::start_epmd_daemon;
 use signal_stack::sys_init_signal_stack;
 
 fn main() {
+    eprintln!("BEAM EMULATOR STARTING...");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
+
+    // Set up panic hook for better error reporting
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("BEAM EMULATOR CRASHED:");
+        eprintln!("Panic info: {}", panic_info);
+        // Only capture backtrace in debug mode
+        #[cfg(debug_assertions)]
+        {
+            eprintln!("Backtrace:");
+            eprintln!("{:?}", std::backtrace::Backtrace::capture());
+        }
+    }));
+
+    eprintln!("[DEBUG] === STARTING BEAM EMULATOR ===");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     eprintln!("[DEBUG] in main");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     // Initialize signal stack before any threads are created
     // This is critical for scheduler thread safety
+    eprintln!("[DEBUG] about to initialize signal stack");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     unsafe {
         if let Err(e) = sys_init_signal_stack() {
             eprintln!("Warning: Failed to initialize signal stack: {}", e);
+            std::io::Write::flush(&mut std::io::stderr()).unwrap();
             // Continue anyway - signal stack is important but not fatal
         }
+        eprintln!("[DEBUG] signal stack initialization complete");
+        std::io::Write::flush(&mut std::io::stderr()).unwrap();
     }
     eprintln!("[DEBUG] after signal stack initialization");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     // Parse command-line arguments (replaces erlexec argument processing)
+    eprintln!("[DEBUG] about to parse args");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     let args = EmulatorArgs::parse();
-    eprintln!("[DEBUG] after args parsing");
+    eprintln!("[DEBUG] after args parsing - args parsed successfully");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     // Handle special modes (must exit early)
     if args.emu_name_exit {
         println!("beam");
@@ -93,6 +120,8 @@ fn main() {
     let mut emulator_args = args.build_emulator_args(&rootdir, &bindir);
     let mut argc = emulator_args.len();
     eprintln!("[DEBUG] after build_emulator_args, argc: {}", argc);
+    eprintln!("[DEBUG] about to call erl_start - preparing...");
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     // Call Rust erl_start directly (no execv, no process replacement)
     // This is the key difference from C: we call erl_start() directly instead
     // of using execv() to launch a separate binary

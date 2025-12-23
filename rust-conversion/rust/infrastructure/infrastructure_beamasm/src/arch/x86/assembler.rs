@@ -5,7 +5,7 @@
 
 use crate::common::{BeamAssembler, BeamAssemblerError, AssemblerState, Export, FunEntry, args::ArgVal};
 use crate::jit::JitAllocator;
-use crate::beam_instructions::{BeamParser, BeamInstruction, BeamFunction};
+use infrastructure_beam_utilities::beam_instructions::{BeamParser, BeamInstruction, BeamFunction};
 use code_management_code_loading::BeamLoader;
 
 /// x86-64 BeamAssembler
@@ -194,7 +194,7 @@ impl BeamAssembler for X86BeamAssembler {
 
     /// Generate code for a single BEAM instruction
     fn generate_instruction_code(&self, code: &mut Vec<u8>, instruction: &BeamInstruction) {
-        use super::super::beam_instructions::BeamOpcode;
+        use infrastructure_beam_utilities::beam_instructions::BeamOpcode;
 
         match instruction.opcode_enum() {
             Some(BeamOpcode::Move) => {

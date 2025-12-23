@@ -55,12 +55,15 @@ extern "C" {
     fn asmjit_codeholder_new() -> *mut AsmjitCodeHolder;
     fn asmjit_codeholder_delete(holder: *mut AsmjitCodeHolder);
     fn asmjit_codeholder_init(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
+    fn asmjit_codeholder_attach(holder: *mut AsmjitCodeHolder, assembler: *mut AsmjitAssembler) -> AsmjitErrorCode;
     fn asmjit_codeholder_reset(holder: *mut AsmjitCodeHolder);
     fn asmjit_codeholder_flatten(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
     fn asmjit_codeholder_resolve_unresolved_links(holder: *mut AsmjitCodeHolder) -> AsmjitErrorCode;
     fn asmjit_codeholder_relocate_to_base(holder: *mut AsmjitCodeHolder, base_address: *mut u8) -> AsmjitErrorCode;
+    fn asmjit_codeholder_copy_flattened_data(holder: *mut AsmjitCodeHolder, buffer: *mut u8, size: usize) -> AsmjitErrorCode;
     fn asmjit_codeholder_code_size(holder: *const AsmjitCodeHolder) -> usize;
     fn asmjit_codeholder_base_address(holder: *const AsmjitCodeHolder) -> *const u8;
+    fn asmjit_virtmem_protect_jit_memory(access: i32) -> AsmjitErrorCode;
     fn asmjit_codeholder_new_section(
         holder: *mut AsmjitCodeHolder,
         name: *const c_char,
@@ -249,6 +252,17 @@ impl CodeHolder {
         }
     }
 
+    /// Attach an assembler to this CodeHolder
+    pub fn attach(&mut self, assembler: &mut Assembler) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_codeholder_attach(self.ptr, assembler.as_ptr());
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to attach assembler: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
     /// Reset the CodeHolder
     pub fn reset(&mut self) {
         unsafe {
@@ -296,11 +310,43 @@ impl CodeHolder {
         }
     }
 
+    /// Copy flattened code data to a buffer
+    pub fn copy_flattened_data(&mut self, buffer: *mut u8, size: usize) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_codeholder_copy_flattened_data(self.ptr, buffer, size);
+            if err != 0 {
+                return Err(AsmjitError::CodeGenerationFailed);
+            }
+            Ok(())
+        }
+    }
+
     /// Get the base address
     pub fn base_address(&self) -> *const u8 {
         unsafe {
             asmjit_codeholder_base_address(self.ptr)
         }
+    }
+
+    /// Protect JIT memory for read/write or read/execute access
+    pub fn protect_jit_memory(&mut self, access: i32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_virtmem_protect_jit_memory(access);
+            if err != 0 {
+                return Err(AsmjitError::CodeGenerationFailed);
+            }
+            Ok(())
+        }
+    }
+
+    /// Protect JIT memory for read/write access
+    pub fn protect_jit_memory_read_write(&mut self) -> Result<(), AsmjitError> {
+        self.protect_jit_memory(0) // kReadWrite = 0
+    }
+
+    /// Protect JIT memory for read/execute access
+    pub fn protect_jit_memory_read_execute(&mut self) -> Result<(), AsmjitError> {
+        self.protect_jit_memory(1) // kReadExecute = 1
     }
 
     /// Create a new section
@@ -352,12 +398,12 @@ impl Drop for CodeHolder {
 /// Wrapper for asmjit Assembler
 pub struct Assembler {
     ptr: *mut AsmjitAssembler,
-    code_holder: CodeHolder, // Assembler references the CodeHolder
+    // Note: Assembler does not own CodeHolder, it's owned by AssemblerState
 }
 
 impl Assembler {
     /// Create a new Assembler attached to a CodeHolder
-    pub fn new(code_holder: CodeHolder) -> Result<Self, AsmjitError> {
+    pub fn new(code_holder: &CodeHolder) -> Result<Self, AsmjitError> {
         unsafe {
             let ptr = asmjit_assembler_new(code_holder.as_ptr());
             if ptr.is_null() {
@@ -365,7 +411,6 @@ impl Assembler {
             }
             Ok(Self {
                 ptr,
-                code_holder,
             })
         }
     }
@@ -404,15 +449,6 @@ impl Assembler {
         self.ptr
     }
 
-    /// Get the CodeHolder (mutable)
-    pub fn code_holder_mut(&mut self) -> &mut CodeHolder {
-        &mut self.code_holder
-    }
-    
-    /// Get the CodeHolder (immutable)
-    pub fn code_holder(&self) -> &CodeHolder {
-        &self.code_holder
-    }
 }
 
 // Safety: Assembler contains raw pointers to asmjit C++ objects.

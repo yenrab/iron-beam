@@ -1645,6 +1645,31 @@ impl OpBif {
         }
     }
 
+    /// Display a term to stdout
+    /// Equivalent to erlang:display/1 BIF
+    pub fn display_1(term: &ErlangTerm) -> Result<ErlangTerm, OpError> {
+        // Simple implementation: just print the debug representation
+        // In a full implementation, this would format the term properly
+        println!("{:?}", term);
+        Ok(ErlangTerm::Atom("true".to_string()))
+    }
+
+    /// Terminate the Erlang system
+    /// Equivalent to erlang:halt/1 BIF (simplified)
+    pub fn halt_1(status: &ErlangTerm) -> Result<ErlangTerm, OpError> {
+        let exit_code = match status {
+            ErlangTerm::Integer(n) => *n as i32,
+            _ => 0, // Default exit code
+        };
+
+        // Print exit message
+        println!("Erlang system halted with exit code {}", exit_code);
+
+        // In a real implementation, this would terminate the entire system
+        // For now, just indicate successful halt
+        Ok(ErlangTerm::Atom("ok".to_string()))
+    }
+
     /// Helper: Convert ErlangTerm to non-negative integer
     fn to_non_negative_integer(term: &ErlangTerm) -> Result<usize, OpError> {
         match term {

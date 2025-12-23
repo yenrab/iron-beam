@@ -126,7 +126,9 @@ pub struct FunEntry {
 ///
 /// Shared state for all assemblers, converted from C++ member variables.
 pub struct AssemblerState {
-    /// asmjit Assembler (contains CodeHolder)
+    /// asmjit CodeHolder
+    code_holder: CodeHolder,
+    /// asmjit Assembler (references CodeHolder)
     assembler: Assembler,
     /// Labels map (label index -> asmjit label ID)
     labels: std::collections::HashMap<usize, u32>,
@@ -144,13 +146,20 @@ pub struct AssemblerState {
 impl AssemblerState {
     /// Create a new assembler state
     pub fn new() -> Result<Self, BeamAssemblerError> {
-        let code_holder = CodeHolder::new()
-            .map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
-        
-        let assembler = Assembler::new(code_holder)
+        let mut code_holder = CodeHolder::new()
             .map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
 
+        let mut assembler = Assembler::new(&code_holder)
+            .map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+
+        // Attach the assembler to the code holder (like C version does)
+        eprintln!("[DEBUG] AssemblerState: Attaching assembler to code holder");
+        code_holder.attach(&mut assembler)
+            .map_err(|e| BeamAssemblerError::CodeGenerationFailed(e.to_string()))?;
+        eprintln!("[DEBUG] AssemblerState: Assembler attached successfully");
+
         Ok(Self {
+            code_holder,
             assembler,
             labels: std::collections::HashMap::new(),
             lambdas: Vec::new(),
@@ -180,12 +189,12 @@ impl AssemblerState {
 
     /// Get the code holder (mutable)
     pub fn code_holder_mut(&mut self) -> &mut CodeHolder {
-        self.assembler.code_holder_mut()
+        &mut self.code_holder
     }
-    
+
     /// Get the code holder (immutable)
     pub fn code_holder(&self) -> &CodeHolder {
-        self.assembler.code_holder()
+        &self.code_holder
     }
 
     /// Finalize code generation

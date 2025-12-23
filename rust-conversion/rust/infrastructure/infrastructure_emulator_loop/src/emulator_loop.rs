@@ -326,6 +326,8 @@ pub fn process_main(
     if process.id() == 1 {
         eprintln!("[Emulator] Starting JIT execution of process {} with code pointer {:p}", 
                  process.id(), instruction_ptr);
+        eprintln!("[Emulator] DEBUG: Instruction pointer value: 0x{:x}", instruction_ptr as usize);
+        eprintln!("[Emulator] DEBUG: Process arity: {}, fcalls: {}", process.arity(), process.fcalls());
     }
     
     // JIT Execution: Call the native code directly as a function pointer
@@ -385,8 +387,33 @@ pub fn process_main(
         // - May call runtime functions (BIFs, exports) which handle scheduling
         // BEAM functions don't return - they either jump to another function or call runtime
         eprintln!("[Emulator] DEBUG: About to call JIT function...");
-        jit_func(process_ptr, x_regs_ptr);
-        eprintln!("[Emulator] DEBUG: JIT function call completed successfully");
+        eprintln!("[Emulator] DEBUG: Process ID: {}, Process ptr: {:p}, Registers ptr: {:p}", process.id(), process_ptr, x_regs_ptr);
+
+        // Add crash protection with detailed logging
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            eprintln!("[Emulator] DEBUG: Executing JIT function now...");
+            jit_func(process_ptr, x_regs_ptr);
+            eprintln!("[Emulator] DEBUG: JIT function returned normally");
+        }));
+
+        match result {
+            Ok(_) => {
+                eprintln!("[Emulator] DEBUG: JIT function call completed successfully");
+            }
+            Err(panic_info) => {
+                eprintln!("[Emulator] ERROR: JIT function panicked!");
+                eprintln!("[Emulator] ERROR: Panic info: {:?}", panic_info);
+                eprintln!("[Emulator] ERROR: Process state after panic: i={:p}, fcalls={}", process.i(), process.fcalls());
+
+                // Log register state after panic
+                eprintln!("[Emulator] ERROR: Register state after panic:");
+                for i in 0..6 {
+                    eprintln!("[Emulator] ERROR: x[{}] = 0x{:016x}", i, x_regs[i]);
+                }
+
+                return Err(EmulatorLoopError::ProcessExited);
+            }
+        }
 
         // DEBUG: Log register state after JIT execution
         eprintln!("[Emulator] DEBUG: Register state after JIT execution:");

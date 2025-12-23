@@ -42,7 +42,6 @@
 //!
 //! - `entities_data_handling`: Core data structures and types
 
-pub mod beam_instructions;
 pub mod common;
 pub mod jit;
 pub mod loader;

@@ -23,6 +23,9 @@ log = "0.4"
 # BEAM file loading
 code_management_code_loading = { path = "../../code_management/code_management_code_loading" }
 
+# BEAM instruction utilities
+infrastructure_beam_utilities = { path = "../infrastructure_beam_utilities" }
+
 # Export table for BIF resolution
 entities_io_operations = { path = "../../entities/entities_io_operations" }
 

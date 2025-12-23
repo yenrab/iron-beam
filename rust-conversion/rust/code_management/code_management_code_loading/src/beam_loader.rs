@@ -27,9 +27,10 @@
  * %CopyrightEnd%
  */
 
-use crate::module_management::{ModuleTableManager, get_global_module_manager};
+use crate::module_management::ModuleTableManager;
 use crate::code_index::get_global_code_ix;
 use crate::executable_memory::ExecutableMemory;
+use infrastructure_beam_utilities::beam_instructions::parser::BeamParser;
 
 /// BEAM file read result
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,6 +92,404 @@ pub struct BeamFile {
     pub attributes_data: Option<Vec<u8>>,
     /// Compile info chunk data (raw bytes - will be decoded to ErlangTerm when term decoding supports tuples/lists)
     pub compile_info_data: Option<Vec<u8>>,
+}
+
+/// Result of attempting a transformation
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransformationResult {
+    /// Transformation was successfully applied
+    Applied,
+    /// No transformation was applicable
+    NotApplicable,
+    /// Not enough instructions to apply transformation
+    InsufficientData,
+}
+
+/// BEAM bytecode transformer for JIT compilation preparation
+///
+/// This transformer applies optimizations to prepare BEAM bytecode for efficient
+/// JIT compilation, focusing on common patterns found in simple Erlang modules.
+pub struct BeamTransformer;
+
+impl BeamTransformer {
+    /// Transform BEAM bytecode for JIT compilation
+    ///
+    /// Applies a series of safe transformations to optimize the bytecode
+    /// for native code generation, focusing on patterns common in simple modules.
+    ///
+    /// # Arguments
+    /// * `bytecode` - Mutable reference to the bytecode to transform
+    ///
+    /// # Returns
+    /// * `Ok(())` if transformations completed successfully
+    /// * `Err(BeamFileReadResult)` if an error occurred during transformation
+    pub fn transform_for_jit(bytecode: &mut Vec<u8>) -> Result<(), BeamFileReadResult> {
+        println!("[TRANSFORM DEBUG] Starting BEAM bytecode transformation for JIT");
+        println!("[TRANSFORM DEBUG] Input bytecode size: {} bytes", bytecode.len());
+
+        let mut reader = BytecodeReader::new(bytecode);
+        let mut writer = BytecodeWriter::new();
+        let mut instruction_count = 0;
+        let mut transformed_count = 0;
+        let mut written_count = 0;
+
+        while let Some(instruction) = reader.read_instruction()? {
+            instruction_count += 1;
+            println!("[TRANSFORM DEBUG] Processing instruction {}: opcode={}, args={:?}",
+                     instruction_count, instruction.opcode, instruction.args);
+
+            match Self::try_transform_instruction(&instruction, &mut reader) {
+                TransformationResult::Applied => {
+                    transformed_count += 1;
+                    println!("[TRANSFORM DEBUG] ✓ Instruction {} transformed (total transformed: {})",
+                             instruction_count, transformed_count);
+                }
+                TransformationResult::NotApplicable => {
+                    println!("[TRANSFORM DEBUG] - Instruction {} not transformed, writing as-is",
+                             instruction_count);
+                    writer.write_instruction(&instruction)?;
+                    written_count += 1;
+                }
+                TransformationResult::InsufficientData => {
+                    println!("[TRANSFORM DEBUG] ! Instruction {} insufficient data, writing and stopping",
+                             instruction_count);
+                    writer.write_instruction(&instruction)?;
+                    written_count += 1;
+                    break;
+                }
+            }
+        }
+
+        let output_bytecode = writer.into_bytes();
+        println!("[TRANSFORM DEBUG] Transformation completed:");
+        println!("[TRANSFORM DEBUG]   Instructions processed: {}", instruction_count);
+        println!("[TRANSFORM DEBUG]   Instructions transformed: {}", transformed_count);
+        println!("[TRANSFORM DEBUG]   Instructions written: {}", written_count);
+        println!("[TRANSFORM DEBUG]   Input size: {} bytes", bytecode.len());
+        println!("[TRANSFORM DEBUG]   Output size: {} bytes", output_bytecode.len());
+
+        // Replace original bytecode with transformed version
+        *bytecode = output_bytecode;
+        Ok(())
+    }
+
+    /// Attempt to transform a single instruction
+    ///
+    /// Tries various transformation patterns on the current instruction.
+    /// Returns the result of the transformation attempt.
+    fn try_transform_instruction(
+        instruction: &BeamInstruction,
+        reader: &mut BytecodeReader,
+    ) -> TransformationResult {
+        println!("[TRANSFORM DEBUG] Attempting transformations for opcode {} with {} args",
+                 instruction.opcode, instruction.args.len());
+
+        // Try transformations in order of priority
+
+        // 1. Remove NIL line instructions
+        println!("[TRANSFORM DEBUG]   Trying transform_nil_lines...");
+        if let TransformationResult::Applied = Self::transform_nil_lines(instruction) {
+            println!("[TRANSFORM DEBUG]   ✓ NIL line transformation applied");
+            return TransformationResult::Applied;
+        }
+        println!("[TRANSFORM DEBUG]   ✗ NIL line transformation not applicable");
+
+        // 2. Convert generic arithmetic to specific forms
+        println!("[TRANSFORM DEBUG]   Trying transform_generic_arithmetic...");
+        if let TransformationResult::Applied = Self::transform_generic_arithmetic(instruction) {
+            println!("[TRANSFORM DEBUG]   ✓ Generic arithmetic transformation applied");
+            return TransformationResult::Applied;
+        }
+        println!("[TRANSFORM DEBUG]   ✗ Generic arithmetic transformation not applicable");
+
+        // 3. Combine allocate + init_yregs sequences
+        println!("[TRANSFORM DEBUG]   Trying transform_allocate_init_yregs...");
+        if let TransformationResult::Applied = Self::transform_allocate_init_yregs(instruction, reader) {
+            println!("[TRANSFORM DEBUG]   ✓ Allocate+init_yregs transformation applied");
+            return TransformationResult::Applied;
+        }
+        println!("[TRANSFORM DEBUG]   ✗ Allocate+init_yregs transformation not applicable");
+
+        // 4. Optimize move + call patterns
+        println!("[TRANSFORM DEBUG]   Trying transform_move_call_patterns...");
+        if let TransformationResult::Applied = Self::transform_move_call_patterns(instruction, reader) {
+            println!("[TRANSFORM DEBUG]   ✓ Move+call transformation applied");
+            return TransformationResult::Applied;
+        }
+        println!("[TRANSFORM DEBUG]   ✗ Move+call transformation not applicable");
+
+        println!("[TRANSFORM DEBUG]   No transformations applicable for this instruction");
+        TransformationResult::NotApplicable
+    }
+
+    /// Transform NIL line instructions by removing them
+    fn transform_nil_lines(instruction: &BeamInstruction) -> TransformationResult {
+        if instruction.opcode == 153 { // genop_line_1
+            if instruction.args.len() >= 1 && instruction.args[0] == 0 {
+                // NIL line instruction, remove it
+                return TransformationResult::Applied;
+            }
+        }
+        TransformationResult::NotApplicable
+    }
+
+    /// Transform generic arithmetic operations to specific forms
+    fn transform_generic_arithmetic(instruction: &BeamInstruction) -> TransformationResult {
+        if instruction.opcode == 378 { // genop_gen_plus_5
+            if instruction.args.len() >= 3 {
+                let src1 = instruction.args[0];
+                let src2 = instruction.args[1];
+                let dst = instruction.args[2];
+
+                // Check operand types and convert to specific opcodes
+                if Self::is_x_register(src1) && Self::is_x_register(src2) && Self::is_x_register(dst) {
+                    // Convert gen_plus X X D → i_plus_xxjd (381)
+                    // This would require rewriting the instruction, but for now we skip
+                    // as it requires more complex bytecode manipulation
+                    return TransformationResult::NotApplicable;
+                }
+            }
+        }
+        TransformationResult::NotApplicable
+    }
+
+    /// Transform allocate + init_yregs sequences into combined operations
+    fn transform_allocate_init_yregs(
+        instruction: &BeamInstruction,
+        reader: &mut BytecodeReader,
+    ) -> TransformationResult {
+        if instruction.opcode == 12 { // genop_allocate_2
+            if instruction.args.len() >= 2 {
+                let n_regs = instruction.args[0];
+                let _live_regs = instruction.args[1];
+
+                // Peek at next instruction
+                if let Ok(Some(next_instr)) = reader.peek_instruction() {
+                    if next_instr.opcode == 172 && next_instr.args.len() >= 1 { // genop_init_yregs_1
+                        let init_n = next_instr.args[0];
+                        if n_regs == init_n {
+                            // Combine allocate + init_yregs → allocate_heap
+                            // Skip the next instruction since we're combining them
+                            let _ = reader.read_instruction();
+                            return TransformationResult::Applied;
+                        }
+                    }
+                }
+            }
+        }
+        TransformationResult::InsufficientData
+    }
+
+    /// Transform move + call patterns for optimization
+    fn transform_move_call_patterns(
+        instruction: &BeamInstruction,
+        _reader: &mut BytecodeReader,
+    ) -> TransformationResult {
+        if instruction.opcode == 64 { // genop_move_2
+            if instruction.args.len() >= 2 {
+                let dst = instruction.args[1];
+
+                // Check if destination is X0
+                if Self::is_x0_register(dst) {
+                    // This is a common pattern that could be optimized
+                    // For now, we just recognize it but don't transform
+                    return TransformationResult::NotApplicable;
+                }
+            }
+        }
+        TransformationResult::NotApplicable
+    }
+
+    /// Check if a value represents an X register
+    fn is_x_register(value: u32) -> bool {
+        // BEAM register encoding uses tagged values
+        // This is a simplified check - real implementation would decode properly
+        (value & 0xF) < 8 // Assume low 4 bits indicate X register index
+    }
+
+    /// Check if a value represents the X0 register specifically
+    fn is_x0_register(value: u32) -> bool {
+        Self::is_x_register(value) && (value & 0xF) == 0
+    }
+}
+
+/// Safe bytecode reader for BEAM instructions
+struct BytecodeReader<'a> {
+    data: &'a [u8],
+    position: usize,
+    peeked_instruction: Option<BeamInstruction>,
+}
+
+impl<'a> BytecodeReader<'a> {
+    fn new(data: &'a [u8]) -> Self {
+        Self {
+            data,
+            position: 0,
+            peeked_instruction: None,
+        }
+    }
+
+    /// Read the next instruction from bytecode
+    fn read_instruction(&mut self) -> Result<Option<BeamInstruction>, BeamFileReadResult> {
+        if let Some(instr) = self.peeked_instruction.take() {
+            println!("[READER DEBUG] Returning peeked instruction: opcode={}, args={:?}",
+                     instr.opcode, instr.args);
+            return Ok(Some(instr));
+        }
+
+        if self.position >= self.data.len() {
+            println!("[READER DEBUG] End of bytecode reached at position {}", self.position);
+            return Ok(None);
+        }
+
+        let opcode = self.data[self.position];
+        println!("[READER DEBUG] Reading opcode {} at position {}", opcode, self.position);
+        self.position += 1;
+
+        // Decode arguments based on opcode (simplified)
+        let (args, bytes_read) = self.decode_arguments(opcode as u32)?;
+        println!("[READER DEBUG] Decoded {} args, {} bytes read", args.len(), bytes_read);
+        self.position += bytes_read;
+
+        let instruction = BeamInstruction {
+            opcode: opcode as u32,
+            args,
+        };
+        println!("[READER DEBUG] Created instruction: {:?}", instruction);
+        Ok(Some(instruction))
+    }
+
+    /// Peek at the next instruction without consuming it
+    fn peek_instruction(&mut self) -> Result<Option<&BeamInstruction>, BeamFileReadResult> {
+        if self.peeked_instruction.is_none() {
+            self.peeked_instruction = self.read_instruction()?;
+        }
+        Ok(self.peeked_instruction.as_ref())
+    }
+
+    /// Decode instruction arguments using proper BEAM encoding
+    fn decode_arguments(&self, opcode: u32) -> Result<(Vec<u32>, usize), BeamFileReadResult> {
+        let arg_count = Self::get_arg_count(opcode);
+        println!("[DECODE DEBUG] Decoding {} arguments for opcode {}", arg_count, opcode);
+
+        if arg_count == 0 {
+            println!("[DECODE DEBUG] Opcode {} has no arguments", opcode);
+            return Ok((vec![], 0));
+        }
+
+        // For non-zero argument counts, we need to decode BEAM's tagged encoding
+        // This is a simplified implementation - BEAM uses complex tagged encoding
+        // where arguments can be 1, 2, or 4 bytes depending on the tag
+
+        let mut args = Vec::with_capacity(arg_count);
+        let mut bytes_read = 0;
+
+        for i in 0..arg_count {
+            if self.position + bytes_read >= self.data.len() {
+                println!("[DECODE DEBUG] Not enough data for argument {} of opcode {} (position: {}, data len: {})",
+                         i, opcode, self.position + bytes_read, self.data.len());
+                return Err(BeamFileReadResult::CorruptCodeChunk);
+            }
+
+            let tag = self.data[self.position + bytes_read];
+            bytes_read += 1;
+
+            let arg = match tag {
+                0..=127 => {
+                    // Small integer encoded in tag byte
+                    println!("[DECODE DEBUG] Argument {}: small int {} (1 byte)", i, tag);
+                    tag as u32
+                }
+                128..=191 => {
+                    // Extended literal - need more bytes
+                    if self.position + bytes_read + 3 >= self.data.len() {
+                        println!("[DECODE DEBUG] Not enough data for extended literal argument {}", i);
+                        return Err(BeamFileReadResult::CorruptCodeChunk);
+                    }
+                    let value = u32::from_be_bytes([
+                        self.data[self.position + bytes_read],
+                        self.data[self.position + bytes_read + 1],
+                        self.data[self.position + bytes_read + 2],
+                        self.data[self.position + bytes_read + 3],
+                    ]);
+                    bytes_read += 4;
+                    println!("[DECODE DEBUG] Argument {}: extended literal {} (5 bytes total)", i, value);
+                    value
+                }
+                192..=223 => {
+                    // X register
+                    let reg_index = tag & 0x1F;
+                    println!("[DECODE DEBUG] Argument {}: X register {} (1 byte)", i, reg_index);
+                    reg_index as u32
+                }
+                224..=255 => {
+                    // Y register
+                    let reg_index = tag & 0x1F;
+                    println!("[DECODE DEBUG] Argument {}: Y register {} (1 byte)", i, reg_index);
+                    reg_index as u32
+                }
+                _ => {
+                    println!("[DECODE DEBUG] Unknown tag {} for argument {}", tag, i);
+                    return Err(BeamFileReadResult::CorruptCodeChunk);
+                }
+            };
+
+            args.push(arg);
+        }
+
+        println!("[DECODE DEBUG] Successfully decoded {} arguments, total bytes read: {}", args.len(), bytes_read);
+        Ok((args, bytes_read))
+    }
+
+    /// Get expected argument count for an opcode (using proper BEAM parser)
+    fn get_arg_count(opcode: u32) -> usize {
+        let arity = BeamParser::get_opcode_arity(opcode);
+        println!("[ARITY DEBUG] Opcode {} has arity {}", opcode, arity);
+        arity
+    }
+}
+
+/// Safe bytecode writer for BEAM instructions
+struct BytecodeWriter {
+    data: Vec<u8>,
+}
+
+impl BytecodeWriter {
+    fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
+    /// Write an instruction to the bytecode
+    fn write_instruction(&mut self, instruction: &BeamInstruction) -> Result<(), BeamFileReadResult> {
+        println!("[WRITER DEBUG] Writing instruction: opcode={}, args={:?}",
+                 instruction.opcode, instruction.args);
+
+        let before_size = self.data.len();
+        self.data.push(instruction.opcode as u8);
+
+        // Encode arguments (simplified big-endian encoding)
+        for &arg in &instruction.args {
+            self.data.extend_from_slice(&arg.to_be_bytes());
+        }
+
+        let after_size = self.data.len();
+        println!("[WRITER DEBUG] Wrote {} bytes (total size now: {})",
+                 after_size - before_size, after_size);
+
+        Ok(())
+    }
+
+    /// Consume the writer and return the bytecode
+    fn into_bytes(self) -> Vec<u8> {
+        self.data
+    }
+}
+
+/// Representation of a BEAM instruction for transformation
+#[derive(Debug, Clone)]
+struct BeamInstruction {
+    opcode: u32,
+    args: Vec<u32>,
 }
 
 /// BEAM file loader
@@ -293,7 +692,10 @@ impl BeamLoader {
                     beam_file.compile_info_data = Some(chunk_data);
                 }
                 0x436F6465 => { // "Code" - Code chunk
-                    beam_file.code_data = chunk_data.clone();
+                    let mut code_data = chunk_data.clone();
+                    // Apply JIT compilation transformations
+                    BeamTransformer::transform_for_jit(&mut code_data)?;
+                    beam_file.code_data = code_data;
                     beam_file.code_size = chunk_size;
                 }
                 0x45787054 => { // "ExpT" - Export table chunk

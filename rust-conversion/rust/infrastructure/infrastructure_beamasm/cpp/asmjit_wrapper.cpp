@@ -96,6 +96,22 @@ int asmjit_codeholder_init(AsmjitCodeHolder* holder) {
     }
 }
 
+int asmjit_codeholder_attach(AsmjitCodeHolder* holder, AsmjitAssembler* assembler) {
+    if (!holder || !assembler) return -1;
+    try {
+        // The assembler is already created with the code holder reference,
+        // but asmjit requires explicit attachment for proper linking
+        fprintf(stderr, "[CPP DEBUG] Attaching assembler to code holder\n");
+        Error err = holder->holder.attach(assembler->is_x86 ?
+            static_cast<BaseAssembler*>(assembler->x86_asm) :
+            static_cast<BaseAssembler*>(assembler->a64_asm));
+        fprintf(stderr, "[CPP DEBUG] Attach result: %d\n", err ? -1 : 0);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
 void asmjit_codeholder_reset(AsmjitCodeHolder* holder) {
     if (holder) {
         holder->holder.reset();
@@ -132,6 +148,7 @@ int asmjit_codeholder_relocate_to_base(AsmjitCodeHolder* holder, uint8_t* base_a
     }
 }
 
+
 size_t asmjit_codeholder_code_size(const AsmjitCodeHolder* holder) {
     if (!holder) return 0;
     return holder->holder.codeSize();
@@ -140,6 +157,58 @@ size_t asmjit_codeholder_code_size(const AsmjitCodeHolder* holder) {
 const uint8_t* asmjit_codeholder_base_address(const AsmjitCodeHolder* holder) {
     if (!holder || !holder->holder.hasBaseAddress()) return nullptr;
     return (const uint8_t*)holder->holder.baseAddress();
+}
+
+int asmjit_codeholder_copy_flattened_data(AsmjitCodeHolder* holder, uint8_t* buffer, size_t size) {
+    printf("[CPP DEBUG] copy_flattened_data: holder=%p, buffer=%p, size=%zu\n", holder, buffer, size);
+    if (!holder) {
+        printf("[CPP DEBUG] copy_flattened_data: holder is null\n");
+        return -1;
+    }
+    if (!buffer) {
+        printf("[CPP DEBUG] copy_flattened_data: buffer is null\n");
+        return -1;
+    }
+
+    // Additional validation
+    printf("[CPP DEBUG] copy_flattened_data: validating buffer alignment\n");
+    uintptr_t buffer_addr = (uintptr_t)buffer;
+    if (buffer_addr % 4 != 0) {
+        printf("[CPP DEBUG] copy_flattened_data: WARNING - buffer not 4-byte aligned: %p\n", buffer);
+    }
+
+    printf("[CPP DEBUG] copy_flattened_data: checking CodeHolder state\n");
+    size_t code_size = holder->holder.codeSize();
+    printf("[CPP DEBUG] copy_flattened_data: CodeHolder codeSize=%zu, requested size=%zu\n", code_size, size);
+
+    if (code_size == 0) {
+        printf("[CPP DEBUG] copy_flattened_data: ERROR - CodeHolder has zero code size\n");
+        return -1;
+    }
+
+    if (size > code_size) {
+        printf("[CPP DEBUG] copy_flattened_data: WARNING - requested size (%zu) > CodeHolder code size (%zu)\n", size, code_size);
+    }
+
+    // Check if buffer has base address set
+    uintptr_t base_addr_raw = holder->holder.baseAddress();
+    const uint8_t* base_addr = reinterpret_cast<const uint8_t*>(base_addr_raw);
+    printf("[CPP DEBUG] copy_flattened_data: CodeHolder baseAddress=%p (raw=%llu)\n", base_addr, (unsigned long long)base_addr_raw);
+
+    try {
+        printf("[CPP DEBUG] copy_flattened_data: calling copyFlattenedData WITHOUT flags\n");
+        // Try without flags first (safer)
+        Error err = holder->holder.copyFlattenedData(buffer, size);
+        printf("[CPP DEBUG] copy_flattened_data: result without flags=%d\n", err);
+        if (err) {
+            printf("[CPP DEBUG] copy_flattened_data: ERROR - failed even without flags\n");
+            // Don't try with flags since that crashes
+        }
+        return err ? -1 : 0;
+    } catch (...) {
+        printf("[CPP DEBUG] copy_flattened_data: exception caught\n");
+        return -1;
+    }
 }
 
 AsmjitSection* asmjit_codeholder_new_section(
@@ -170,7 +239,7 @@ AsmjitAssembler* asmjit_assembler_new(AsmjitCodeHolder* holder) {
     try {
         AsmjitAssembler* asm_wrapper = new AsmjitAssembler();
         asm_wrapper->holder = &holder->holder;
-        
+
         // Determine architecture and create appropriate assembler
         const Environment& env = Environment::host();
         #if defined(__x86_64__) || defined(_M_X64)
@@ -185,13 +254,14 @@ AsmjitAssembler* asmjit_assembler_new(AsmjitCodeHolder* holder) {
             asm_wrapper->x86_asm = nullptr;
             asm_wrapper->a64_asm = new a64::Assembler(&holder->holder);
             asm_wrapper->is_x86 = false;
+            fprintf(stderr, "[CPP DEBUG] Created AArch64 assembler: %p\n", asm_wrapper->a64_asm);
         } else
         #endif
         {
             delete asm_wrapper;
             return nullptr;
         }
-        
+
         return asm_wrapper;
     } catch (...) {
         return nullptr;
@@ -360,13 +430,19 @@ int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler) {
 
 int asmjit_a64_assembler_emit_ldr_reg_offset(AsmjitAssembler* assembler, uint32_t dst, uint32_t base, int32_t offset) {
     #if defined(__aarch64__) || defined(_M_ARM64)
-    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
+        fprintf(stderr, "[CPP DEBUG] ldr: invalid assembler state\n");
+        return -1;
+    }
     try {
+        fprintf(stderr, "[CPP DEBUG] ldr: emitting ldr x%d, [x%d, #%d]\n", dst, base, offset);
         a64::GpX dst_reg(dst);
         a64::GpX base_reg(base);
         Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->ldr(dst_reg, a64::ptr(base_reg, offset));
+        fprintf(stderr, "[CPP DEBUG] ldr: result %d\n", err ? -1 : 0);
         return err ? -1 : 0;
     } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] ldr: exception\n");
         return -1;
     }
     #else
@@ -502,14 +578,20 @@ int asmjit_a64_assembler_emit_mov_imm(AsmjitAssembler* assembler, uint32_t dst, 
 
 int asmjit_a64_assembler_emit_add_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm) {
     #if defined(__aarch64__) || defined(_M_ARM64)
-    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
+        fprintf(stderr, "[CPP DEBUG] add_imm: invalid assembler state\n");
+        return -1;
+    }
     try {
+        fprintf(stderr, "[CPP DEBUG] add_imm: emitting add x%d, x%d, #%d\n", dst, src, imm);
         a64::GpX dst_reg(dst);
         a64::GpX src_reg(src);
         // ADD immediate
         Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->add(dst_reg, src_reg, imm);
+        fprintf(stderr, "[CPP DEBUG] add_imm: result %d\n", err ? -1 : 0);
         return err ? -1 : 0;
     } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] add_imm: exception\n");
         return -1;
     }
     #else
@@ -649,5 +731,26 @@ int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler) {
     return -1; // Not aarch64
 }
 #endif
+
+// Memory protection functions
+int asmjit_virtmem_protect_jit_memory(int access) {
+    try {
+        printf("[CPP DEBUG] protectJitMemory: calling VirtMem::protectJitMemory with access=%d\n", access);
+        if (access == 0) {
+            VirtMem::protectJitMemory(VirtMem::ProtectJitAccess::kReadWrite);
+            printf("[CPP DEBUG] protectJitMemory: set kReadWrite\n");
+        } else if (access == 1) {
+            VirtMem::protectJitMemory(VirtMem::ProtectJitAccess::kReadExecute);
+            printf("[CPP DEBUG] protectJitMemory: set kReadExecute\n");
+        } else {
+            printf("[CPP DEBUG] protectJitMemory: invalid access value %d\n", access);
+            return -1;
+        }
+        return 0;
+    } catch (...) {
+        printf("[CPP DEBUG] protectJitMemory: exception caught\n");
+        return -1;
+    }
+}
 
 } // extern "C"

@@ -45,6 +45,8 @@ int asmjit_codeholder_init(AsmjitCodeHolder* holder);
 void asmjit_codeholder_reset(AsmjitCodeHolder* holder);
 int asmjit_codeholder_flatten(AsmjitCodeHolder* holder);
 int asmjit_codeholder_resolve_unresolved_links(AsmjitCodeHolder* holder);
+int asmjit_codeholder_relocate_to_base(AsmjitCodeHolder* holder, uint8_t* base_address);
+int asmjit_codeholder_copy_flattened_data(AsmjitCodeHolder* holder, uint8_t* buffer, size_t size);
 size_t asmjit_codeholder_code_size(const AsmjitCodeHolder* holder);
 const uint8_t* asmjit_codeholder_base_address(const AsmjitCodeHolder* holder);
 AsmjitSection* asmjit_codeholder_new_section(
@@ -70,6 +72,9 @@ int asmjit_x86_assembler_emit_ret(AsmjitAssembler* assembler);
 // aarch64 specific operations
 int asmjit_a64_assembler_emit_mov_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src);
 int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler);
+
+// Memory protection functions
+int asmjit_virtmem_protect_jit_memory(int access);
 
 #ifdef __cplusplus
 }

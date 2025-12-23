@@ -1,0 +1,17 @@
+[package]
+name = "infrastructure_beam_utilities"
+version = "0.1.0"
+edition = "2021"
+description = "Infrastructure layer: BEAM instruction utilities and parsing"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Rust Conversion"]
+
+[dependencies]
+# Byte order for BEAM parsing
+byteorder = "1.5"
+# Error handling
+thiserror = "1.0"
+
+[lib]
+name = "infrastructure_beam_utilities"
+path = "src/lib.rs"

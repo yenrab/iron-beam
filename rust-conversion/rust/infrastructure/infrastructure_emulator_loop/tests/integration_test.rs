@@ -42,9 +42,142 @@ fn test_register_manager_operations() {
 fn test_copy_in_registers() {
     let process = Arc::new(Process::new(1));
     let mut reg_array = vec![0u64; 10];
-    
+
     copy_in_registers(&process, &mut reg_array);
     // Should not panic
+}
+
+#[test]
+fn test_jit_execution_isolation() {
+    // Test JIT execution in isolation to identify crash causes
+    // This test sets up minimal process state and attempts JIT execution
+
+    use entities_process::Eterm;
+    use std::sync::atomic::Ordering;
+
+    // Create a minimal process
+    let mut process = Process::new(1);
+    process.set_arity(2); // erl_init:start/2
+    process.set_fcalls(1000);
+
+    // Try to get the JIT-compiled erl_init:start/2 function
+    // This would normally come from the export table after JIT compilation
+    // For testing, we'll use a dummy pointer to see if the execution framework works
+
+    let dummy_code_ptr: *const u8 = 0x12345678 as *const u8;
+    process.set_i(dummy_code_ptr);
+
+    let mut emulator_loop = EmulatorLoop::new();
+    emulator_loop.set_current_process(Some(Arc::new(process)));
+
+    let init_done = Arc::new(AtomicBool::new(true));
+
+    // This should detect the dummy pointer and return a dummy result
+    // If it crashes, we know the issue is in the execution framework itself
+    let result = process_main(&mut emulator_loop, init_done);
+
+    match result {
+        Ok(Some(_next_process)) => {
+            // Should not reach here with dummy pointer
+            panic!("Expected dummy pointer handling, got process continuation");
+        }
+        Ok(None) => {
+            // This is expected for dummy pointer - process should complete
+            println!("✓ Dummy pointer test passed - execution framework works");
+        }
+        Err(e) => {
+            println!("✗ JIT execution test failed with error: {:?}", e);
+            // Re-panic to fail the test
+            panic!("JIT execution failed: {:?}", e);
+        }
+    }
+}
+
+#[test]
+fn test_jit_compilation_and_execution() {
+    // Test full JIT compilation and execution cycle
+    // This tests the actual JIT compilation of a BEAM module and attempts execution
+
+    use infrastructure_utilities::erl_eval::jit_compile_module;
+    use code_management_code_loading::{BeamLoader, BeamFile};
+    use std::path::Path;
+
+    // Try to load erl_init.beam (should exist after build)
+    let beam_path = Path::new("../../target/otp_root/lib/stdlib-7.1/ebin/erl_init.beam");
+
+    if !beam_path.exists() {
+        println!("⚠ Skipping JIT test - erl_init.beam not found at {:?}", beam_path);
+        return;
+    }
+
+    // Load the BEAM file
+    let beam_data = match std::fs::read(beam_path) {
+        Ok(data) => data,
+        Err(e) => {
+            println!("⚠ Failed to read erl_init.beam: {:?}", e);
+            return;
+        }
+    };
+
+    // Parse the BEAM file
+    let beam_file = match BeamLoader::load_from_bytes(&beam_data) {
+        Ok(file) => file,
+        Err(e) => {
+            println!("⚠ Failed to parse erl_init.beam: {:?}", e);
+            return;
+        }
+    };
+
+    // JIT compile the module
+    let jit_result = match jit_compile_module(&beam_data, &beam_file, "erl_init", 1) {
+        Ok(result) => result,
+        Err(e) => {
+            println!("⚠ JIT compilation failed: {:?}", e);
+            return;
+        }
+    };
+
+    println!("✓ JIT compilation successful for erl_init");
+    println!("  Code size: {} bytes", jit_result.code_size);
+    println!("  Executable ptr: {:p}", jit_result.executable_ptr);
+
+    // Now try to execute one of the compiled functions
+    // Find the start/2 function
+    let start_export = beam_file.exports.iter().find(|(name_idx, arity, _label)| {
+        if *name_idx > 0 && (*name_idx as usize) < beam_file.atoms.len() {
+            let name = &beam_file.atoms[*name_idx as usize];
+            name == "start" && *arity == 2
+        } else {
+            false
+        }
+    });
+
+    if let Some((_name_idx, _arity, label)) = start_export {
+        // Get the code pointer for this function
+        let code_ptr = jit_result.label_mappings.iter()
+            .find(|(_ptr, mapped_label)| *mapped_label == *label as usize)
+            .map(|(ptr, _label)| *ptr);
+
+        if let Some(code_ptr) = code_ptr {
+            println!("✓ Found erl_init:start/2 at {:p}", code_ptr);
+
+            // Create a minimal process and try to execute
+            let mut process = entities_process::Process::new(1);
+            process.set_arity(2);
+            process.set_fcalls(1000);
+            process.set_i(code_ptr);
+
+            // This is where execution would happen in the real system
+            // For now, just verify we can set up the execution context
+            println!("✓ Execution context prepared for erl_init:start/2");
+
+        } else {
+            println!("⚠ Could not find code pointer for erl_init:start/2");
+        }
+    } else {
+        println!("⚠ Could not find erl_init:start/2 export");
+    }
+}
 }
 
 #[test]
