@@ -1,0 +1,1539 @@
+L50:
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# i_flush_stubs
+# i_func_label_L
+label_1:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:start_link/0
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x6D, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+start_link/0:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L53
+    bl L55
+L53:
+# i_test_yield
+    adr x2, start_link/0
+    subs w22, w22, 1
+    b.le L57
+# i_move_sd
+    mov x27, 59
+# i_move_sd
+    mov x26, 160587
+# i_move_sd
+    mov x28, 59
+# i_move_sd
+    ldr x25, [L58]
+# i_call_ext_only_e
+    ldr x0, [L59]
+    ldr x30, [x20], 8
+    ldr x14, [x0, x24 lsl 3]
+    br x14
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_3:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:scheduler_wall_time/1
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x99, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+scheduler_wall_time/1:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L60
+    bl L55
+L60:
+# i_test_yield
+    adr x2, scheduler_wall_time/1
+    subs w22, w22, 1
+    b.le L57
+# test_heap_It
+    add x2, x23, 64
+    cmp x2, x20
+    b.ls L61
+    mov x3, 1
+    bl L63
+L61:
+# self_d
+    ldr x26, [x21]
+# put_tuple2_SA
+    mov x9, 192
+    mov x10, 39307
+    stp x9, x10, [x23], 16
+    stp x26, x25, [x23], 16
+    sub x26, x23, 30
+# i_move_sd
+    mov x27, 395
+# i_move_sd
+    mov x25, 160587
+# i_call_ext_only_e
+    ldr x0, [L64]
+    ldr x30, [x20], 8
+    ldr x14, [x0, x24 lsl 3]
+    br x14
+# i_flush_stubs
+# i_func_label_L
+label_5:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:init/1
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x57, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+init/1:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L65
+    bl L55
+L65:
+# i_test_yield
+    adr x2, init/1
+    subs w22, w22, 1
+    b.le L57
+# is_nil_fS
+    cmp x25, 59
+    b.ne label_5
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L66
+    mov x3, xzr
+    bl L63
+L66:
+# i_move_sd
+    mov x26, 11
+# i_move_sd
+    mov x25, 39307
+# line_I
+# i_call_f
+    bl @resource/2-0
+# i_move_sd
+    ldr x25, [L68]
+# deallocate_t
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_7:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:handle_call/3
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x8B, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+handle_call/3:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L71
+    bl L55
+L71:
+# i_test_yield
+    adr x2, handle_call/3
+    subs w22, w22, 1
+    b.le L57
+# i_is_tuple_of_arity_fsA
+    tbnz x25, 0, @label_11-1
+    and x0, x25, -8
+    ldr x8, [x0]
+    cmp x8, 192
+    b.ne @label_11-1
+# get_two_tuple_elements_sPSS
+    ldp x26, x28, [x0, 8]
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 24]
+# i_select_val_lins_sfI
+    cmp x25, 11
+    b.eq @label_10-2
+    cmp x25, 75
+    b.eq @label_9-3
+    b @label_11-1
+# label_L
+@label_9-3:
+label_9:
+# line_I
+# bif_map_get_jssd
+    mov x0, x27
+    mov x1, x26
+    tbnz x0, 0, L76
+    ldur x8, [x0, -2]
+    and x8, x8, 63
+    cmp x8, 44
+    b.eq L77
+L76:
+    bl L79
+L77:
+    bl L81
+    b.eq L75
+    mov x0, x27
+    mov x1, x26
+    bl L83
+L75:
+    mov x25, x0
+# allocate_tt
+    add x2, x23, 48
+    cmp x2, x20
+    b.ls L84
+    mov x3, 4
+    bl L63
+L84:
+    sub x20, x20, 16
+# store_two_values_sdsd
+    stp x26, x27, [x20]
+# i_move_sd
+    mov x27, x28
+# swap_dd
+    mov x8, x26
+    mov x26, x25
+    mov x25, x8
+# i_call_f
+    bl @do_start/3-4
+# load_tuple_ptr_s
+    and x0, x25, -8
+# i_get_tuple_element_sPS
+    ldr x26, [x0, 16]
+# line_I
+# update_map_exact_sjdtI
+    ldp x1, x3, [x20]
+    mov x2, x26
+    bl L87
+    mov x26, x0
+# test_heap_It
+    add x2, x23, 64
+    cmp x2, x20
+    b.ls L88
+    mov x3, 2
+    bl L63
+L88:
+# load_tuple_ptr_s
+    and x0, x25, -8
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 8]
+# put_tuple2_SA
+    mov x9, 192
+    mov x10, 37451
+    stp x9, x10, [x23], 16
+    stp x25, x26, [x23], 16
+    sub x25, x23, 30
+# deallocate_t
+    add x20, x20, 16
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_10-2:
+label_10:
+# line_I
+# bif_map_get_jssd
+    mov x0, x27
+    mov x1, x26
+    tbnz x0, 0, L90
+    ldur x8, [x0, -2]
+    and x8, x8, 63
+    cmp x8, 44
+    b.eq L91
+L90:
+    bl L79
+L91:
+    bl L81
+    b.eq L89
+    mov x0, x27
+    mov x1, x26
+    bl L83
+L89:
+    mov x25, x0
+# allocate_tt
+    add x2, x23, 48
+    cmp x2, x20
+    b.ls L92
+    mov x3, 4
+    bl L63
+L92:
+    sub x20, x20, 16
+# store_two_values_sdsd
+    stp x26, x27, [x20]
+# i_move_sd
+    mov x27, x28
+# swap_dd
+    mov x8, x26
+    mov x26, x25
+    mov x25, x8
+# i_call_f
+    bl @do_stop/3-5
+# load_tuple_ptr_s
+    and x0, x25, -8
+# i_get_tuple_element_sPS
+    ldr x26, [x0, 16]
+# line_I
+# update_map_exact_sjdtI
+    ldp x1, x3, [x20]
+    mov x2, x26
+    bl L87
+    mov x26, x0
+# test_heap_It
+    add x2, x23, 64
+    cmp x2, x20
+    b.ls L94
+    mov x3, 2
+    bl L63
+L94:
+# load_tuple_ptr_s
+    and x0, x25, -8
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 8]
+# put_tuple2_SA
+    mov x9, 192
+    mov x10, 37451
+    stp x9, x10, [x23], 16
+    stp x25, x26, [x23], 16
+    sub x25, x23, 30
+# deallocate_t
+    add x20, x20, 16
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_11-1:
+label_11:
+# test_heap_It
+    add x2, x23, 64
+    cmp x2, x20
+    b.ls L95
+    mov x3, 3
+    bl L63
+L95:
+# put_tuple2_SA
+    mov x9, 192
+    mov x10, 37451
+    stp x9, x10, [x23], 16
+    mov x9, 5003
+    stp x9, x27, [x23], 16
+    sub x25, x23, 30
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_12:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:handle_cast/2
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x8E, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+handle_cast/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L96
+    bl L55
+L96:
+# i_test_yield
+    adr x2, handle_cast/2
+    subs w22, w22, 1
+    b.le L57
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L97
+    mov x3, 2
+    bl L63
+L97:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 232459
+    stp x9, x10, [x23], 16
+    str x26, [x23], 8
+    sub x25, x23, 22
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_14:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:handle_info/2
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x8F, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+handle_info/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L98
+    bl L55
+L98:
+# i_test_yield
+    adr x2, handle_info/2
+    subs w22, w22, 1
+    b.le L57
+# i_is_tagged_tuple_fsAa
+    tbnz x25, 0, @label_16-6
+    and x0, x25, -8
+    ldp x8, x9, [x0]
+    cmp x9, 1355
+    mov x10, 320
+    ccmp x8, x10, 0, 2
+    b.ne @label_16-6
+# i_get_tuple_element_sPS
+    ldr x27, [x0, 24]
+# is_eq_exact_fss
+    mov x14, 35275
+    cmp x27, x14
+    b.ne @label_16-6
+# allocate_heap_tIt
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L100
+    mov x3, 2
+    bl L63
+L100:
+# load_tuple_ptr_s
+    and x0, x25, -8
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 32]
+# i_make_fun3_FStt
+    ldr x9, [L101]
+# Create fun thing
+    mov x8, 66068
+    stp x8, x9, [x23]
+# Move fun environment
+    str x25, [x23, 16]
+# Create boxed ptr
+    orr x25, x23, 2
+    add x23, x23, 24
+# line_I
+# i_call_ext_e
+    ldr x0, [L102]
+    ldr x8, [x0, x24 lsl 3]
+    blr x8
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L103
+    mov x3, 1
+    bl L63
+L103:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 232459
+    stp x9, x10, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 22
+# deallocate_t
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_16-6:
+label_16:
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L104
+    mov x3, 2
+    bl L63
+L104:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 232459
+    stp x9, x10, [x23], 16
+    str x26, [x23], 8
+    sub x25, x23, 22
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+label_17:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:terminate/2
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x54, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+terminate/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L105
+    bl L55
+L105:
+# i_test_yield
+    adr x2, terminate/2
+    subs w22, w22, 1
+    b.le L57
+# i_move_sd
+    mov x25, 32139
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_19:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:code_change/3
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x92, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+code_change/3:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L106
+    bl L55
+L106:
+# i_test_yield
+    adr x2, code_change/3
+    subs w22, w22, 1
+    b.le L57
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L107
+    mov x3, 2
+    bl L63
+L107:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 32139
+    stp x9, x10, [x23], 16
+    str x26, [x23], 8
+    sub x25, x23, 22
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+label_21:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:do_start/3
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0B, 0x95, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@do_start/3-4:
+do_start/3:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L108
+    bl L55
+L108:
+# i_test_yield
+    adr x2, do_start/3
+    subs w22, w22, 1
+    b.le L57
+# is_map_fs
+    tbnz x26, 0, @label_26-7
+    ldur x10, [x26, -2]
+    and x10, x10, 63
+    cmp x10, 44
+    b.ne @label_26-7
+# i_get_map_element_fSSS
+    mov x0, x26
+    mov x1, x27
+    bl L81
+    b.ne @label_24-8
+    mov x28, x0
+# i_is_tuple_of_arity_ff_ffsA
+    tbnz x28, 0, @label_23-9
+    and x0, x28, -8
+    ldr x8, [x0]
+    tst x8, 63
+    b.ne @label_23-9
+    cmp x8, 128
+    b.ne @label_27-10
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 8]
+# line_I
+# i_plus_jIssd
+    mov x2, 31
+    adds x0, x25, 16
+    and x8, x25, 15
+# test for not overflow and small operands
+    ccmp x8, 15, 0, 9
+    b.eq L113
+    mov x1, x25
+    bl L115
+L113:
+    mov x25, x0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L116
+    mov x3, 4
+    bl L63
+L116:
+# load_tuple_ptr_s
+    and x0, x28, -8
+# i_get_tuple_element_sPS
+    ldr x28, [x0, 16]
+# put_tuple2_SA
+    mov x9, 128
+    stp x9, x25, [x23], 16
+    str x28, [x23], 8
+    sub x25, x23, 22
+# update_map_assoc_sdtI
+    mov x1, x27
+    mov x2, x25
+    mov x3, x26
+    bl L118
+    mov x25, x0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L119
+    mov x3, 1
+    bl L63
+L119:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 75
+    stp x9, x10, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 22
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_23-9:
+label_23:
+# is_eq_exact_fss
+    cmp x28, 907
+    b.ne @label_27-10
+# label_L
+@label_24-8:
+label_24:
+# allocate_tt
+    add x2, x23, 64
+    cmp x2, x20
+    b.ls L120
+    mov x3, 3
+    bl L63
+L120:
+    sub x20, x20, 32
+# store_two_values_sdsd
+    mov x8, 59
+    stp x8, x27, [x20]
+# store_two_values_sdsd
+    stp x26, x25, [x20, 16]
+# i_move_sd
+    mov x26, x27
+# i_move_sd
+    mov x25, 35275
+# line_I
+# call_light_bif_be
+L121:
+    ldr x3, [L122]
+    ldr x7, [L123]
+    adr x2, L121
+# BIF: erlang:monitor/2
+    bl L125
+# i_move_sd
+    str x25, [x20]
+# i_move_sd
+    ldr x25, [x20, 16]
+# line_I
+# i_call_f
+    bl @any/1-11
+# is_eq_exact_fss
+    cmp x25, 75
+    b.ne @label_25-12
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L128
+    mov x3, xzr
+    bl L63
+L128:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 31
+    stp x9, x10, [x23], 16
+    ldr x14, [x20]
+    str x14, [x23], 8
+    sub x25, x23, 22
+# update_map_assoc_sdtI
+    ldp x1, x3, [x20, 8]
+    mov x2, x25
+    bl L118
+    mov x25, x0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L129
+    mov x3, 1
+    bl L63
+L129:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 75
+    stp x9, x10, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 22
+# deallocate_t
+    add x20, x20, 32
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_25-12:
+label_25:
+# i_move_sd
+    mov x26, 75
+# i_move_sd
+    ldr x25, [x20, 24]
+# move_trim_sdt
+    ldr x8, [x20], 8
+    str x8, [x20, 16]
+# line_I
+# i_call_f
+    bl @resource/2-0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L130
+    mov x3, xzr
+    bl L63
+L130:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 31
+    stp x9, x10, [x23], 16
+    ldr x14, [x20, 16]
+    str x14, [x23], 8
+    sub x25, x23, 22
+# update_map_assoc_sdtI
+    ldp x1, x3, [x20]
+    mov x2, x25
+    bl L118
+    mov x25, x0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L131
+    mov x3, 1
+    bl L63
+L131:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 11
+    stp x9, x10, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 22
+# deallocate_t
+    add x20, x20, 24
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_26-7:
+label_26:
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L132
+    mov x3, 2
+    bl L63
+L132:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 5387
+    stp x9, x10, [x23], 16
+    str x26, [x23], 8
+    sub x25, x23, 22
+# line_I
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L133
+    mov x3, 1
+    bl L63
+L133:
+# call_light_bif_be
+L134:
+    ldr x3, [L135]
+    ldr x7, [L136]
+    adr x2, L134
+# BIF: erlang:error/1
+    bl L125
+# mark_unreachable
+# label_L
+@label_27-10:
+label_27:
+# line_I
+# case_end_s
+    mov x8, 7248
+    stp x8, x28, [x21, 96]
+    bl L138
+# i_flush_stubs
+# i_func_label_L
+    nop
+label_28:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:do_stop/3
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x4F, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@do_stop/3-5:
+do_stop/3:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L139
+    bl L55
+L139:
+# i_test_yield
+    adr x2, do_stop/3
+    subs w22, w22, 1
+    b.le L57
+# is_map_fs
+    tbnz x26, 0, @label_34-13
+    ldur x10, [x26, -2]
+    and x10, x10, 63
+    cmp x10, 44
+    b.ne @label_34-13
+# i_get_map_element_fSSS
+    mov x0, x26
+    mov x1, x27
+    bl L81
+    b.ne @label_33-14
+    mov x28, x0
+# i_is_tuple_of_arity_ff_ffsA
+    tbnz x28, 0, @label_32-15
+    and x0, x28, -8
+    ldr x8, [x0]
+    tst x8, 63
+    b.ne @label_32-15
+    cmp x8, 128
+    b.ne @label_35-16
+# get_two_tuple_elements_sPSS
+    ldp x15, x28, [x0, 8]
+# is_eq_exact_fss
+    cmp x15, 31
+    b.ne @label_31-17
+# allocate_tt
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L145
+    mov x3, 4
+    bl L63
+L145:
+    sub x20, x20, 24
+# store_two_values_sdsd
+    stp x27, x26, [x20]
+# i_move_sd
+    str x25, [x20, 16]
+# i_move_sd
+    ldr x26, [L146]
+# i_move_sd
+    mov x25, x28
+# line_I
+# call_light_bif_be
+L147:
+    ldr x3, [L148]
+    ldr x7, [L149]
+    adr x2, L147
+# BIF: erlang:demonitor/2
+    bl L125
+# load_two_xregs_dxdx
+    ldp x25, x26, [x20]
+# init_yregs_I
+    mov x8, 59
+    stp x8, x8, [x20]
+# line_I
+# call_light_bif_be
+L150:
+    ldr x3, [L151]
+    ldr x7, [L152]
+    adr x2, L150
+# BIF: maps:remove/2
+    bl L125
+# i_move_sd
+    str x25, [x20, 8]
+# line_I
+# i_call_f
+    bl @any/1-11
+# is_eq_exact_fss
+    cmp x25, 75
+    b.ne @label_30-18
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L154
+    mov x3, xzr
+    bl L63
+L154:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 75
+    stp x9, x10, [x23], 16
+    ldr x14, [x20, 8]
+    str x14, [x23], 8
+    sub x25, x23, 22
+# deallocate_t
+    add x20, x20, 24
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_30-18:
+label_30:
+# i_move_sd
+    mov x26, 11
+# move_two_trim_ydydt
+    ldp x8, x25, [x20, 8]
+    str x8, [x20, 16]!
+# line_I
+# i_call_f
+    bl @resource/2-0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L155
+    mov x3, xzr
+    bl L63
+L155:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 75
+    stp x9, x10, [x23], 16
+    ldr x14, [x20]
+    str x14, [x23], 8
+    sub x25, x23, 22
+# deallocate_t
+    add x20, x20, 8
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_31-17:
+label_31:
+# line_I
+# i_minus_jIssd
+    mov x2, 31
+    subs x0, x15, 16
+    and x8, x15, 15
+# test for not overflow and small operands
+    ccmp x8, 15, 0, 9
+    b.eq L156
+    mov x1, x15
+    str x15, [x19, 96]
+    bl L158
+    ldr x15, [x19, 96]
+L156:
+    mov x25, x0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L159
+    mov x3, 4
+    bl L63
+L159:
+# put_tuple2_SA
+    mov x9, 128
+    stp x9, x25, [x23], 16
+    str x28, [x23], 8
+    sub x25, x23, 22
+# update_map_assoc_sdtI
+    mov x1, x27
+    mov x2, x25
+    mov x3, x26
+    bl L118
+    mov x25, x0
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L160
+    mov x3, 1
+    bl L63
+L160:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 75
+    stp x9, x10, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 22
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_32-15:
+label_32:
+# is_eq_exact_fss
+    cmp x28, 907
+    b.ne @label_35-16
+# label_L
+@label_33-14:
+label_33:
+# allocate_tt
+    add x2, x23, 40
+    cmp x2, x20
+    b.ls L161
+    mov x3, 2
+    bl L63
+L161:
+    sub x20, x20, 8
+# i_move_sd
+    str x26, [x20]
+# i_move_sd
+    mov x25, x26
+# line_I
+# i_call_f
+    bl @any/1-11
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L162
+    mov x3, 1
+    bl L63
+L162:
+# put_tuple2_SA
+    mov x9, 128
+    stp x9, x25, [x23], 16
+    ldr x14, [x20]
+    str x14, [x23], 8
+    sub x25, x23, 22
+# deallocate_t
+    add x20, x20, 8
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_34-13:
+label_34:
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L163
+    mov x3, 2
+    bl L63
+L163:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 5387
+    stp x9, x10, [x23], 16
+    str x26, [x23], 8
+    sub x25, x23, 22
+# line_I
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L164
+    mov x3, 1
+    bl L63
+L164:
+# call_light_bif_be
+L165:
+    ldr x3, [L135]
+    ldr x7, [L136]
+    adr x2, L165
+# BIF: erlang:error/1
+    bl L125
+# mark_unreachable
+# label_L
+@label_35-16:
+label_35:
+# line_I
+# case_end_s
+    mov x8, 7248
+    stp x8, x28, [x21, 96]
+    bl L138
+# i_flush_stubs
+# i_func_label_L
+    nop
+label_36:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:cleanup/3
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0B, 0xA0, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+cleanup/3:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L166
+    bl L55
+L166:
+# line_I
+# i_test_yield
+    adr x2, cleanup/3
+    subs w22, w22, 1
+    b.le L57
+# bif_is_map_key_bjssd
+    stp x27, x26, [x19, 64]
+# UBIF: is_map_key/2
+    ldr x3, [L167]
+    bl L169
+    mov x28, x0
+# is_eq_exact_fss
+    cmp x28, 75
+    b.ne @label_39-19
+# allocate_tt
+    add x2, x23, 48
+    cmp x2, x20
+    b.ls L171
+    mov x3, 3
+    bl L63
+L171:
+    sub x20, x20, 16
+# store_two_values_sdsd
+    mov x8, 59
+    stp x8, x25, [x20]
+# i_move_sd
+    mov x25, x27
+# line_I
+# call_light_bif_be
+L172:
+    ldr x3, [L151]
+    ldr x7, [L152]
+    adr x2, L172
+# BIF: maps:remove/2
+    bl L125
+# i_move_sd
+    str x25, [x20]
+# line_I
+# i_call_f
+    bl @any/1-11
+# is_eq_exact_fss
+    cmp x25, 75
+    b.ne @label_38-20
+# i_move_sd
+    ldr x25, [x20]
+# deallocate_t
+    add x20, x20, 16
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_38-20:
+label_38:
+# i_move_sd
+    mov x26, 11
+# move_two_trim_ydydt
+    ldp x8, x25, [x20], 8
+    str x8, [x20]
+# line_I
+# i_call_f
+    bl @resource/2-0
+# move_deallocate_return
+    ldp x25, x30, [x20], 16
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# label_L
+@label_39-19:
+label_39:
+# i_move_sd
+    mov x25, x26
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+label_40:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:any/1
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@any/1-11:
+any/1:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L174
+    bl L55
+L174:
+# i_test_yield
+    adr x2, any/1
+    subs w22, w22, 1
+    b.le L57
+# bif_map_size_jsd
+# skipped box test since argument is always boxed
+# skipped type check because the argument is always a map
+L175:
+L176:
+    ldur x8, [x25, 6]
+    mov x25, 15
+    bfi x25, x8, 4, 60
+# bif_is_ge_ssd
+# simplified compare because one operand is an immediate small
+    cmp x25, 31
+    mov x10, 75
+    mov x11, 11
+    csel x25, x10, x11, 12
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_42:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:resource/2
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0xA0, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@resource/2-0:
+resource/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L177
+    bl L55
+L177:
+# i_test_yield
+    adr x2, resource/2
+    subs w22, w22, 1
+    b.le L57
+# is_eq_exact_fss
+    mov x14, 39307
+    cmp x25, x14
+    b.ne label_42
+# i_move_sd
+    mov x25, x26
+# line_I
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L178
+    mov x3, 1
+    bl L63
+L178:
+# call_light_bif_be
+L179:
+    ldr x3, [L180]
+    ldr x7, [L181]
+    adr x2, L179
+# BIF: erts_internal:scheduler_wall_time/1
+    bl L125
+# deallocate_t
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_44:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:module_info/0
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+module_info/0:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L182
+    bl L55
+L182:
+# i_test_yield
+    adr x2, module_info/0
+    subs w22, w22, 1
+    b.le L57
+# i_move_sd
+    mov x25, 160587
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L183
+    mov x3, 1
+    bl L63
+L183:
+# call_light_bif_be
+L184:
+    ldr x3, [L185]
+    ldr x7, [L186]
+    adr x2, L184
+# BIF: erlang:get_module_info/1
+    bl L125
+# deallocate_t
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_46:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:module_info/1
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+module_info/1:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L187
+    bl L55
+L187:
+# i_test_yield
+    adr x2, module_info/1
+    subs w22, w22, 1
+    b.le L57
+# i_move_sd
+    mov x26, x25
+# i_move_sd
+    mov x25, 160587
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L188
+    mov x3, 2
+    bl L63
+L188:
+# call_light_bif_be
+L189:
+    ldr x3, [L190]
+    ldr x7, [L191]
+    adr x2, L189
+# BIF: erlang:get_module_info/2
+    bl L125
+# deallocate_t
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L70
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+label_48:
+# func_line_I
+# i_func_info_IaaI
+# kernel_refc:'-handle_info/2-fun-0-'/3
+    bl L52
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x4B, 0x73, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x5C, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+'-handle_info/2-fun-0-'/3:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L192
+    bl L55
+L192:
+# i_test_yield
+    adr x2, '-handle_info/2-fun-0-'/3
+    subs w22, w22, 1
+    b.le L57
+# i_call_only_f
+    ldr x30, [x20], 8
+    b cleanup/3
+# i_lambda_trampoline_FfWW
+L49:
+    ldur x27, [x3, 14]
+    b '-handle_info/2-fun-0-'/3
+# int_code_end
+L193:
+    mov x0, 4369093202
+    bl L195
+# Begin stub section
+L58:
+.xword 0x7FFFFFFFFFFFFFFF
+L59:
+.xword 0x7FFFFFFFFFFFFFFF
+L64:
+.xword 0x7FFFFFFFFFFFFFFF
+# End stub section
+L196:
+L158:
+L157:
+    mov x14, 4481915888
+    br x14
+L138:
+L137:
+    mov x14, 4481916920
+    br x14
+L118:
+L117:
+    mov x14, 4481917432
+    br x14
+L195:
+L194:
+    mov x14, 4365818364
+    br x14
+L115:
+L114:
+    mov x14, 4481916304
+    br x14
+L55:
+L54:
+    mov x14, 4481913368
+    br x14
+L87:
+L86:
+    mov x14, 4481917672
+    br x14
+L83:
+L82:
+    mov x14, 4481912456
+    br x14
+L79:
+L78:
+    mov x14, 4481912488
+    br x14
+L81:
+L80:
+    mov x14, 4481913616
+    br x14
+L70:
+L69:
+    mov x14, 4481911760
+    br x14
+L63:
+L62:
+    mov x14, 4481912640
+    br x14
+L169:
+L168:
+    mov x14, 4481913200
+    br x14
+L57:
+L56:
+    mov x14, 4481914968
+    br x14
+L125:
+L124:
+    mov x14, 4481910672
+    br x14
+L52:
+L51:
+    mov x14, 4481913584
+    br x14
+# Begin stub section
+L68:
+.xword 0x7FFFFFFFFFFFFFFF
+L101:
+.xword 0x7FFFFFFFFFFFFFFF
+L102:
+.xword 0x7FFFFFFFFFFFFFFF
+L122:
+.xword 0x7FFFFFFFFFFFFFFF
+L123:
+.xword 0x000000010444C4E4
+L135:
+.xword 0x7FFFFFFFFFFFFFFF
+L136:
+.xword 0x000000010444DA38
+L146:
+.xword 0x7FFFFFFFFFFFFFFF
+L148:
+.xword 0x7FFFFFFFFFFFFFFF
+L149:
+.xword 0x000000010444C1BC
+L151:
+.xword 0x7FFFFFFFFFFFFFFF
+L152:
+.xword 0x00000001045516A8
+L167:
+.xword 0x000000010454EBA4
+L180:
+.xword 0x7FFFFFFFFFFFFFFF
+L181:
+.xword 0x000000010463FCC8
+L185:
+.xword 0x7FFFFFFFFFFFFFFF
+L186:
+.xword 0x000000010442AAD0
+L190:
+.xword 0x7FFFFFFFFFFFFFFF
+L191:
+.xword 0x000000010442AD84
+# End stub section
+L197:
+.section .rodata {#1}
+line:
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.section .text {#0}
+.section .rodata {#1}
+attr:
+.byte 0x83, 0x6C, 0x00, 0x00, 0x00, 0x02, 0x68, 0x02, 0x77, 0x03, 0x76, 0x73, 0x6E, 0x6C, 0x00, 0x00, 0x00, 0x01, 0x6E, 0x10, 0x00, 0x4F, 0x6E, 0x28, 0xB0, 0xDF, 0xA0, 0x2E, 0xEB, 0x23, 0xC4, 0xC1, 0xDF, 0x09, 0x59, 0x1D, 0x09, 0x6A, 0x68, 0x02, 0x77, 0x09, 0x62, 0x65, 0x68, 0x61, 0x76, 0x69, 0x6F, 0x75, 0x72, 0x6C, 0x00, 0x00, 0x00, 0x01, 0x77, 0x0A, 0x67, 0x65, 0x6E, 0x5F, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x6A, 0x6A
+.section .text {#0}
+.section .rodata {#1}
+compile:
+.byte 0x83, 0x6C, 0x00, 0x00, 0x00, 0x03, 0x68, 0x02, 0x77, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E, 0x6B, 0x00, 0x05, 0x38, 0x2E, 0x36, 0x2E, 0x31, 0x68, 0x02, 0x77, 0x07, 0x6F, 0x70, 0x74, 0x69, 0x6F, 0x6E, 0x73, 0x6C, 0x00, 0x00, 0x00, 0x06, 0x77, 0x0A, 0x64, 0x65, 0x62, 0x75, 0x67, 0x5F, 0x69, 0x6E, 0x66, 0x6F, 0x68, 0x02, 0x77, 0x01, 0x69, 0x6B, 0x00, 0x28, 0x2F, 0x62, 0x75, 0x69, 0x6C, 0x64, 0x72, 0x6F, 0x6F, 0x74, 0x2F, 0x6F, 0x74, 0x70, 0x2F, 0x6C, 0x69, 0x62, 0x2F, 0x6B, 0x65, 0x72, 0x6E, 0x65, 0x6C, 0x2F, 0x73, 0x72, 0x63, 0x2F, 0x2E, 0x2E, 0x2F, 0x69, 0x6E, 0x63, 0x6C, 0x75, 0x64, 0x65, 0x77, 0x19, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x6D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x5F, 0x64, 0x6F, 0x63, 0x5F, 0x66, 0x75, 0x6E, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x77, 0x19, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x6D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x5F, 0x64, 0x6F, 0x63, 0x5F, 0x63, 0x61, 0x6C, 0x6C, 0x62, 0x61, 0x63, 0x6B, 0x77, 0x1C, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x6D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x5F, 0x73, 0x70, 0x65, 0x63, 0x5F, 0x64, 0x6F, 0x63, 0x75, 0x6D, 0x65, 0x6E, 0x74, 0x65, 0x64, 0x77, 0x15, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x64, 0x65, 0x70, 0x72, 0x65, 0x63, 0x61, 0x74, 0x65, 0x64, 0x5F, 0x63, 0x61, 0x74, 0x63, 0x68, 0x6A, 0x68, 0x02, 0x77, 0x06, 0x73, 0x6F, 0x75, 0x72, 0x63, 0x65, 0x6B, 0x00, 0x2D, 0x2F, 0x62, 0x75, 0x69, 0x6C, 0x64, 0x72, 0x6F, 0x6F, 0x74, 0x2F, 0x6F, 0x74, 0x70, 0x2F, 0x6C, 0x69, 0x62, 0x2F, 0x6B, 0x65, 0x72, 0x6E, 0x65, 0x6C, 0x2F, 0x73, 0x72, 0x63, 0x2F, 0x6B, 0x65, 0x72, 0x6E, 0x65, 0x6C, 0x5F, 0x72, 0x65, 0x66, 0x63, 0x2E, 0x65, 0x72, 0x6C, 0x6A
+.section .text {#0}
+.section .rodata {#1}
+md5:
+.byte 0x09, 0x1D, 0x59, 0x09, 0xDF, 0xC1, 0xC4, 0x23, 0xEB, 0x2E, 0xA0, 0xDF, 0xB0, 0x28, 0x6E, 0x4F
+.section .text {#0}

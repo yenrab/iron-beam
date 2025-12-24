@@ -114,6 +114,13 @@ extern "C" {
     ) -> AsmjitErrorCode;
 
     #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_tst_imm(
+        assembler: *mut AsmjitAssembler,
+        reg: u32,
+        imm: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
     fn asmjit_a64_assembler_emit_str_reg_offset(
         assembler: *mut AsmjitAssembler,
         src: u32,
@@ -131,12 +138,29 @@ extern "C" {
     ) -> AsmjitErrorCode;
 
     #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_and_imm(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src: u32,
+        imm: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
     fn asmjit_a64_assembler_emit_sub_reg_reg_reg(
         assembler: *mut AsmjitAssembler,
         dst: u32,
         src1: u32,
         src2: u32,
     ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_subs_imm(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src: u32,
+        imm: u32,
+    ) -> AsmjitErrorCode;
+
 
     // Stack operations
     #[cfg(target_arch = "aarch64")]
@@ -157,11 +181,35 @@ extern "C" {
         offset: i32,
     ) -> AsmjitErrorCode;
 
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_stp(
+        assembler: *mut AsmjitAssembler,
+        reg1: u32,
+        reg2: u32,
+        base: u32,
+        offset: i32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_ldp(
+        assembler: *mut AsmjitAssembler,
+        reg1: u32,
+        reg2: u32,
+        base: u32,
+        offset: i32,
+    ) -> AsmjitErrorCode;
+
     // BIF calling operations
     #[cfg(target_arch = "aarch64")]
     fn asmjit_a64_assembler_emit_blr(
         assembler: *mut AsmjitAssembler,
         reg: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_blr_imm(
+        assembler: *mut AsmjitAssembler,
+        addr: u64,
     ) -> AsmjitErrorCode;
 
     // Immediate operations
@@ -183,6 +231,41 @@ extern "C" {
 
     #[cfg(target_arch = "aarch64")]
     fn asmjit_a64_assembler_emit_sub_imm(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src: u32,
+        imm: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_cmp_imm(
+        assembler: *mut AsmjitAssembler,
+        reg: u32,
+        imm: u64,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_b_cond(
+        assembler: *mut AsmjitAssembler,
+        condition: u32,
+        target: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_nop(
+        assembler: *mut AsmjitAssembler,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_adds_reg_reg(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src1: u32,
+        src2: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_adds_imm(
         assembler: *mut AsmjitAssembler,
         dst: u32,
         src: u32,
@@ -225,6 +308,72 @@ extern "C" {
     fn asmjit_a64_assembler_emit_b(
         assembler: *mut AsmjitAssembler,
         label_id: u32,
+    ) -> AsmjitErrorCode;
+
+    // Additional ARM64 arithmetic and shift operations
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_lsr_imm(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src: u32,
+        shift: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_lsl_imm(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src: u32,
+        shift: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_stur_reg_offset(
+        assembler: *mut AsmjitAssembler,
+        src: u32,
+        base: u32,
+        offset: i32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_ldur_reg_offset(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        base: u32,
+        offset: i32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_udiv_reg_reg_reg(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        dividend: u32,
+        divisor: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_mul_reg_reg_reg(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src1: u32,
+        src2: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_msub_reg_reg_reg_reg(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src1: u32,
+        src2: u32,
+        src3: u32,
+    ) -> AsmjitErrorCode;
+
+    #[cfg(target_arch = "aarch64")]
+    fn asmjit_a64_assembler_emit_eor_reg_reg_reg(
+        assembler: *mut AsmjitAssembler,
+        dst: u32,
+        src1: u32,
+        src2: u32,
     ) -> AsmjitErrorCode;
 }
 
@@ -551,6 +700,17 @@ pub mod a64 {
         }
     }
 
+    /// Emit test bits with immediate (TST reg, imm) - for flag testing
+    pub fn emit_tst_imm(assembler: &mut Assembler, reg: u32, imm: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_tst_imm(assembler.as_ptr(), reg, imm);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit tst: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
     /// Emit store register to memory with offset (STR src, [base, offset])
     pub fn emit_str_reg_offset(assembler: &mut Assembler, src: u32, base: u32, offset: i32) -> Result<(), AsmjitError> {
         unsafe {
@@ -573,6 +733,39 @@ pub mod a64 {
         }
     }
 
+    /// Emit and instruction with immediate (AND dst, src, imm)
+    pub fn emit_and_imm(assembler: &mut Assembler, dst: u32, src: u32, imm: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_and_imm(assembler.as_ptr(), dst, src, imm);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit and: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit adds instruction with overflow flag (ADDS dst, src1, src2)
+    pub fn emit_adds_reg_reg(assembler: &mut Assembler, dst: u32, src1: u32, src2: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_adds_reg_reg(assembler.as_ptr(), dst, src1, src2);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit adds: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit adds instruction with immediate and overflow flag (ADDS dst, src, imm)
+    pub fn emit_adds_imm(assembler: &mut Assembler, dst: u32, src: u32, imm: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_adds_imm(assembler.as_ptr(), dst, src, imm);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit adds_imm: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
     /// Emit subtract instruction (SUB dst, src1, src2)
     pub fn emit_sub_reg_reg_reg(assembler: &mut Assembler, dst: u32, src1: u32, src2: u32) -> Result<(), AsmjitError> {
         unsafe {
@@ -583,6 +776,18 @@ pub mod a64 {
             Ok(())
         }
     }
+
+    /// Emit subtract immediate with flags (SUBS dst, src, imm)
+    pub fn emit_subs_imm(assembler: &mut Assembler, dst: u32, src: u32, imm: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_subs_imm(assembler.as_ptr(), dst, src, imm);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit subs_imm: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
 
     /// Emit store pair pre-index (STP reg1, reg2, [base, offset]!)
     pub fn emit_stp_pre_idx(assembler: &mut Assembler, reg1: u32, reg2: u32, base: u32, offset: i32) -> Result<(), AsmjitError> {
@@ -599,6 +804,28 @@ pub mod a64 {
     pub fn emit_ldp_post_idx(assembler: &mut Assembler, reg1: u32, reg2: u32, base: u32, offset: i32) -> Result<(), AsmjitError> {
         unsafe {
             let err = asmjit_a64_assembler_emit_ldp_post_idx(assembler.as_ptr(), reg1, reg2, base, offset);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit ldp: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit store pair (STP reg1, reg2, [base, offset])
+    pub fn emit_stp(assembler: &mut Assembler, reg1: u32, reg2: u32, base: u32, offset: i32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_stp(assembler.as_ptr(), reg1, reg2, base, offset);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit stp: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit load pair (LDP reg1, reg2, [base, offset])
+    pub fn emit_ldp(assembler: &mut Assembler, reg1: u32, reg2: u32, base: u32, offset: i32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_ldp(assembler.as_ptr(), reg1, reg2, base, offset);
             if err != 0 {
                 return Err(AsmjitError::OperationFailed(format!("Failed to emit ldp: {}", err)));
             }
@@ -623,6 +850,17 @@ pub mod a64 {
             let err = asmjit_a64_assembler_emit_blr(assembler.as_ptr(), reg);
             if err != 0 {
                 return Err(AsmjitError::OperationFailed(format!("Failed to emit blr: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit branch with link to immediate address (BL addr) - for runtime calls
+    pub fn emit_blr_imm(assembler: &mut Assembler, addr: u64) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_blr_imm(assembler.as_ptr(), addr);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit blr imm: {}", err)));
             }
             Ok(())
         }
@@ -656,6 +894,39 @@ pub mod a64 {
             let err = asmjit_a64_assembler_emit_sub_imm(assembler.as_ptr(), dst, src, imm);
             if err != 0 {
                 return Err(AsmjitError::OperationFailed(format!("Failed to emit sub imm: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit compare immediate (CMP reg, imm)
+    pub fn emit_cmp_imm(assembler: &mut Assembler, reg: u32, imm: u64) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_cmp_imm(assembler.as_ptr(), reg, imm);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit cmp imm: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit conditional branch (B.cond target)
+    pub fn emit_b_cond(assembler: &mut Assembler, condition: u32, target: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_b_cond(assembler.as_ptr(), condition, target);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit b cond: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit no operation (NOP)
+    pub fn emit_nop(assembler: &mut Assembler) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_nop(assembler.as_ptr());
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit nop: {}", err)));
             }
             Ok(())
         }
@@ -726,7 +997,100 @@ pub mod a64 {
             Ok(())
         }
     }
+
+    // Additional ARM64 arithmetic and shift operations
+
+    /// Emit logical shift right immediate (LSR dst, src, shift)
+    pub fn emit_lsr_imm(assembler: &mut Assembler, dst: u32, src: u32, shift: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_lsr_imm(assembler.as_ptr(), dst, src, shift);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit lsr imm: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit logical shift left immediate (LSL dst, src, shift)
+    pub fn emit_lsl_imm(assembler: &mut Assembler, dst: u32, src: u32, shift: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_lsl_imm(assembler.as_ptr(), dst, src, shift);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit lsl imm: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit store register unscaled (STUR src, [base, offset])
+    pub fn emit_stur_reg_offset(assembler: &mut Assembler, src: u32, base: u32, offset: i32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_stur_reg_offset(assembler.as_ptr(), src, base, offset);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit stur reg offset: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit load register unscaled (LDUR dst, [base, offset])
+    pub fn emit_ldur_reg_offset(assembler: &mut Assembler, dst: u32, base: u32, offset: i32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_ldur_reg_offset(assembler.as_ptr(), dst, base, offset);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit ldur reg offset: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit unsigned divide (UDIV dst, dividend, divisor)
+    pub fn emit_udiv_reg_reg_reg(assembler: &mut Assembler, dst: u32, dividend: u32, divisor: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_udiv_reg_reg_reg(assembler.as_ptr(), dst, dividend, divisor);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit udiv reg reg reg: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit multiply (MUL dst, src1, src2)
+    pub fn emit_mul_reg_reg_reg(assembler: &mut Assembler, dst: u32, src1: u32, src2: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_mul_reg_reg_reg(assembler.as_ptr(), dst, src1, src2);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit mul reg reg reg: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit multiply subtract (MSUB dst, src1, src2, src3)
+    pub fn emit_msub_reg_reg_reg_reg(assembler: &mut Assembler, dst: u32, src1: u32, src2: u32, src3: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_msub_reg_reg_reg_reg(assembler.as_ptr(), dst, src1, src2, src3);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit msub reg reg reg reg: {}", err)));
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit exclusive or (EOR dst, src1, src2)
+    pub fn emit_eor_reg_reg_reg(assembler: &mut Assembler, dst: u32, src1: u32, src2: u32) -> Result<(), AsmjitError> {
+        unsafe {
+            let err = asmjit_a64_assembler_emit_eor_reg_reg_reg(assembler.as_ptr(), dst, src1, src2);
+            if err != 0 {
+                return Err(AsmjitError::OperationFailed(format!("Failed to emit eor reg reg reg: {}", err)));
+            }
+            Ok(())
+        }
+    }
 }
+
+// Re-export the a64 module for easier access
+pub use a64::*;
 
 #[cfg(test)]
 mod tests {

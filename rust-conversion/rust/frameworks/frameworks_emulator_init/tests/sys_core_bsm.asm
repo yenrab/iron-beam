@@ -1,0 +1,1133 @@
+L35:
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# i_flush_stubs
+# i_func_label_L
+label_1:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:module/2
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+module/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L38
+    bl L40
+L38:
+# i_test_yield
+    adr x2, module/2
+    subs w22, w22, 1
+    b.le L42
+# i_is_tagged_tuple_fsAa
+    tbnz x25, 0, label_1
+    and x0, x25, -8
+    ldp x8, x9, [x0]
+    mov x14, 693579
+    cmp x9, x14
+    mov x10, 384
+    ccmp x8, x10, 0, 2
+    b.ne label_1
+# allocate_tt
+    add x2, x23, 40
+    cmp x2, x20
+    b.ls L43
+    mov x3, 1
+    bl L45
+L43:
+    sub x20, x20, 8
+# i_move_sd
+    str x25, [x20]
+# load_tuple_ptr_s
+    and x0, x25, -8
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 48]
+# line_I
+# i_call_f
+    bl @function/1-0
+# test_heap_It
+    add x2, x23, 112
+    cmp x2, x20
+    b.ls L47
+    mov x3, 1
+    bl L45
+L47:
+# update_record_aIsdI
+    ldr x1, [x20]
+    and x2, x1, -8
+    ldr x8, [x2, 48]
+    cmp x8, x25
+    csel x25, x25, x1, 3
+    b.eq L48
+    ldp q30, q31, [x2], 32
+    stp q30, q31, [x23], 32
+    ldr q30, [x2], 16
+    str q30, [x23], 16
+    add x2, x2, 8
+    str x25, [x23], 8
+    sub x25, x23, 54
+L48:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 32139
+    stp x9, x10, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 22
+# deallocate_t
+    add x20, x20, 8
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_3:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:function/1
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@function/1-0:
+function/1:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L51
+    bl L40
+L51:
+# i_test_yield
+    adr x2, function/1
+    subs w22, w22, 1
+    b.le L42
+# is_nonempty_list_fS
+    tbnz x25, 1, @label_6-1
+# get_list_Sdd
+    and x8, x25, -8
+    ldp x26, x27, [x8]
+# i_is_tuple_of_arity_fsA
+    tbnz x26, 0, label_3
+    and x0, x26, -8
+    ldr x8, [x0]
+    cmp x8, 128
+    b.ne label_3
+# i_get_tuple_element_sPS
+    ldr x28, [x0, 8]
+# i_is_tagged_tuple_fsAa
+    tbnz x28, 0, label_3
+    and x0, x28, -8
+    ldp x8, x9, [x0]
+    mov x14, 734411
+    cmp x9, x14
+    mov x10, 192
+    ccmp x8, x10, 0, 2
+    b.ne label_3
+# i_get_tuple_element_sPS
+    ldr x15, [x0, 24]
+# i_is_tuple_of_arity_fsA
+    tbnz x15, 0, label_3
+    and x0, x15, -8
+    ldr x8, [x0]
+    cmp x8, 128
+    b.ne label_3
+# allocate_tt
+    add x2, x23, 80
+    cmp x2, x20
+    b.ls L53
+    mov x3, 5
+    bl L45
+L53:
+    sub x20, x20, 48
+# i_move_sd
+    mov x14, 59
+    str x14, [x20]
+# store_two_values_sdsd
+    stp x28, x27, [x20, 24]
+# load_tuple_ptr_s
+    and x0, x15, -8
+# get_two_tuple_elements_sPSS
+    ldp x8, x9, [x0, 8]
+    stp x9, x8, [x20, 8]
+# catch_yH
+    ldr x8, [x21, 248]
+    add x8, x8, 1
+    str x8, [x21, 248]
+    ldr x14, [L54]
+    str x14, [x20, 40]
+# test_heap_It
+    add x2, x23, 48
+    cmp x2, x20
+    b.ls L55
+    mov x3, 2
+    bl L45
+L55:
+# i_move_sd
+    ldr x25, [L56]
+# load_tuple_ptr_s
+    and x0, x26, -8
+# i_get_tuple_element_sPS
+    ldr x26, [x0, 16]
+# line_I
+# i_call_ext_e
+    ldr x0, [L57]
+    ldr x8, [x0, x24 lsl 3]
+    blr x8
+# i_move_sd
+    str x25, [x20]
+# try_end_y
+    ldr x8, [x21, 248]
+    sub x8, x8, 1
+    str x8, [x21, 248]
+    mov x8, 59
+    str x8, [x20, 40]
+# i_move_sd
+    ldr x25, [x20, 32]
+# store_two_values_sdsd
+    ldr x8, [x20, 24]
+    ldr x9, [x20]
+    stp x8, x9, [x20, 32]
+# trim_tt
+    add x20, x20, 32
+# line_I
+# i_call_f
+    bl function/1
+# test_heap_It
+    add x2, x23, 72
+    cmp x2, x20
+    b.ls L58
+    mov x3, 1
+    bl L45
+L58:
+# put_tuple2_SA
+    mov x9, 128
+    ldr x10, [x20]
+    stp x9, x10, [x23], 16
+    ldr x14, [x20, 8]
+    str x14, [x23], 8
+    sub x26, x23, 22
+# put_list_deallocate_ssdt
+    stp x26, x25, [x23], 16
+    sub x25, x23, 15
+    add x20, x20, 16
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# label_L
+label_5:
+# try_case_y
+    ldr x8, [x21, 248]
+    mov x25, x28
+    sub x8, x8, 1
+    str x8, [x21, 248]
+# test_heap_It
+    add x2, x23, 64
+    cmp x2, x20
+    b.ls L59
+    mov x3, 3
+    bl L45
+L59:
+# store_two_values_sdsd
+    stp x25, x26, [x20, 24]
+# i_move_sd
+    str x27, [x20, 40]
+# put_list_ssd
+    ldr x8, [x20, 8]
+    mov x9, 59
+    stp x8, x9, [x23], 16
+    sub x25, x23, 15
+# put_list_ssd
+    ldr x8, [x20, 16]
+    stp x8, x25, [x23], 16
+    sub x26, x23, 15
+# init_yregs_I
+    mov x8, 59
+    stp x8, x8, [x20, 8]
+# i_move_sd
+    ldr x25, [L60]
+# line_I
+# i_call_ext_e
+    ldr x0, [L61]
+    ldr x8, [x0, x24 lsl 3]
+    blr x8
+# load_two_xregs_dxdx
+    ldp x26, x27, [x20, 32]
+# i_move_sd
+    ldr x25, [x20, 24]
+# raw_raise
+    mov x0, x27
+    mov x1, x25
+    mov x2, x26
+    mov x3, x21
+    bl L64
+    cbnz x0, L62
+    bl L66
+L62:
+    mov x25, 5003
+# deallocate_t
+    add x20, x20, 48
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# label_L
+@label_6-1:
+label_6:
+# is_nil_fS
+    cmp x25, 59
+    b.ne label_3
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_7:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:bsm_reorder/1
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x0C, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+bsm_reorder/1:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L67
+    bl L40
+L67:
+# i_test_yield
+    adr x2, bsm_reorder/1
+    subs w22, w22, 1
+    b.le L42
+# i_is_tagged_tuple_fsAa
+    tbnz x25, 0, @label_11-2
+    and x0, x25, -8
+    ldp x8, x9, [x0]
+    mov x14, 748043
+    cmp x9, x14
+    mov x10, 256
+    ccmp x8, x10, 0, 2
+    b.ne @label_11-2
+# i_get_tuple_element_sPS
+    ldr x26, [x0, 24]
+# i_is_tuple_of_arity_fsA
+    tbnz x26, 0, @label_11-2
+    and x0, x26, -8
+    ldr x8, [x0]
+    cmp x8, 192
+    b.ne @label_11-2
+# i_get_tuple_element_sPS
+    ldr x27, [x0, 8]
+# i_select_val_lins_sfI
+    mov x14, 734411
+    cmp x27, x14
+    b.eq @label_9-3
+    mov x14, 749131
+    cmp x27, x14
+    b.eq @label_10-4
+    b @label_11-2
+# label_L
+@label_9-3:
+label_9:
+# test_heap_It
+    add x2, x23, 48
+    cmp x2, x20
+    b.ls L71
+    mov x3, 2
+    bl L45
+L71:
+# put_list_ssd
+    mov x9, 59
+    stp x26, x9, [x23], 16
+    sub x26, x23, 15
+# swap_dd
+    mov x8, x26
+    mov x26, x25
+    mov x25, x8
+# i_call_only_f
+    ldr x30, [x20], 8
+    b @bsm_reorder_1/2-5
+# label_L
+@label_10-4:
+label_10:
+# load_tuple_ptr_s
+    and x0, x26, -8
+# get_tuple_element_swap_sPdd
+    mov x26, x25
+    ldr x25, [x0, 24]
+# i_call_only_f
+    ldr x30, [x20], 8
+    b @bsm_reorder_1/2-5
+# label_L
+@label_11-2:
+label_11:
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_12:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:bsm_reorder_1/2
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x0C, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@bsm_reorder_1/2-5:
+bsm_reorder_1/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L73
+    bl L40
+L73:
+# i_test_yield
+    adr x2, bsm_reorder_1/2
+    subs w22, w22, 1
+    b.le L42
+# allocate_tt
+    add x2, x23, 64
+    cmp x2, x20
+    b.ls L74
+    mov x3, 2
+    bl L45
+L74:
+    sub x20, x20, 32
+# i_move_sd
+    mov x14, 59
+    str x14, [x20]
+# store_two_values_sdsd
+    stp x26, x25, [x20, 16]
+# load_tuple_ptr_s
+    and x0, x26, -8
+# i_get_tuple_element_sPS
+    ldr x8, [x0, 32]
+    str x8, [x20, 8]
+# i_move_sd
+    mov x26, 1291
+# i_move_sd
+# simplified fetching of BEAM register
+    mov x25, x8
+# line_I
+# i_call_f
+    bl @bsm_leftmost_1/2-6
+# i_move_sd
+    str x25, [x20]
+# is_eq_exact_fss
+    cmp x25, 1291
+    b.ne @label_14-7
+# i_move_sd
+    ldr x25, [x20, 16]
+# deallocate_t
+    add x20, x20, 32
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# label_L
+@label_14-7:
+label_14:
+# i_move_sd
+    ldr x26, [x20, 24]
+# i_move_sd
+    mov x14, 59
+    str x14, [x20, 24]
+# line_I
+# i_call_f
+    bl @move_from_col/2-8
+# i_call_ext_e
+    ldr x0, [L78]
+    ldr x8, [x0, x24 lsl 3]
+    blr x8
+# i_move_sd
+    ldr x27, [x20, 8]
+# i_move_sd
+    str x25, [x20, 24]
+# move_trim_sdt
+    ldr x26, [x20], 16
+# i_move_sd
+    mov x25, x27
+# line_I
+# i_call_f
+    bl @'-bsm_reorder_1/2-lc$^0/1-0-'/2-9
+# test_heap_It
+    add x2, x23, 72
+    cmp x2, x20
+    b.ls L80
+    mov x3, 1
+    bl L45
+L80:
+# update_record_aIsdI
+    ldr x1, [x20]
+    and x2, x1, -8
+    ldr q30, [x2], 16
+    str q30, [x23], 16
+    ldr x8, [x20, 8]
+    ldr x10, [x2], 24
+    stp x10, x8, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 38
+L81:
+# deallocate_t
+    add x20, x20, 16
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_15:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:move_from_col/2
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x0C, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@move_from_col/2-8:
+move_from_col/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L82
+    bl L40
+L82:
+# line_I
+# i_test_yield
+    adr x2, move_from_col/2
+    subs w22, w22, 1
+    b.le L42
+# i_minus_jIssd
+    mov x2, 31
+    subs x0, x25, 16
+# skipped overflow test because the result is always small
+# simplified test for small operand since other types are boxed
+    tbnz x25, 0, L83
+    mov x1, x25
+    bl L85
+L83:
+    mov x25, x0
+# allocate_tt
+    add x2, x23, 40
+    cmp x2, x20
+    b.ls L86
+    mov x3, 2
+    bl L45
+L86:
+    sub x20, x20, 8
+# i_move_sd
+    mov x14, 59
+    str x14, [x20]
+# i_call_ext_e
+    ldr x0, [L87]
+    ldr x8, [x0, x24 lsl 3]
+    blr x8
+# i_is_tuple_of_arity_fsA
+    tbnz x25, 0, @label_17-10
+    and x0, x25, -8
+    ldr x8, [x0]
+    cmp x8, 128
+    b.ne @label_17-10
+# i_get_tuple_element_sPS
+    ldr x26, [x0, 16]
+# is_nonempty_list_fS
+    tbnz x26, 1, @label_17-10
+# get_list_Sdd
+    and x8, x26, -8
+    ldp x9, x26, [x8]
+    str x9, [x20]
+# load_tuple_ptr_s
+    and x0, x25, -8
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 8]
+# line_I
+# call_light_bif_be
+L89:
+    ldr x3, [L90]
+    ldr x7, [L91]
+    adr x2, L89
+# BIF: erlang:'++'/2
+    bl L93
+# test_heap_It
+    add x2, x23, 48
+    cmp x2, x20
+    b.ls L94
+    mov x3, 1
+    bl L45
+L94:
+# put_list_deallocate_ssdt
+    ldr x8, [x20], 8
+    stp x8, x25, [x23], 16
+    sub x25, x23, 15
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# label_L
+@label_17-10:
+label_17:
+# line_I
+# badmatch_s
+    mov x8, 5200
+    stp x8, x25, [x21, 96]
+    bl L66
+# i_flush_stubs
+# i_func_label_L
+    nop
+    align 8
+label_18:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:bsm_leftmost_1/2
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0B, 0x0D, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@bsm_leftmost_1/2-6:
+bsm_leftmost_1/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L95
+    bl L40
+L95:
+# i_test_yield
+    adr x2, bsm_leftmost_1/2
+    subs w22, w22, 1
+    b.le L42
+# is_nonempty_list_fS
+    tbnz x25, 1, @label_21-11
+# get_list_Sdd
+    and x8, x25, -8
+    ldp x27, x28, [x8]
+# is_eq_exact_fss
+    cmp x26, 31
+    b.ne @label_20-12
+# i_move_sd
+    mov x25, 31
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# label_L
+@label_20-12:
+label_20:
+# i_is_tagged_tuple_fsAa
+    tbnz x27, 0, label_18
+    and x0, x27, -8
+    ldp x8, x9, [x0]
+    mov x14, 747019
+    cmp x9, x14
+    mov x10, 320
+    ccmp x8, x10, 0, 2
+    b.ne label_18
+# i_get_tuple_element_sPS
+    ldr x25, [x0, 24]
+# i_move_sd
+    mov x27, 31
+# swap_dd
+    mov x8, x28
+    mov x28, x26
+    mov x26, x8
+# i_call_only_f
+    ldr x30, [x20], 8
+    b @bsm_leftmost_2/4-13
+# label_L
+@label_21-11:
+label_21:
+# is_nil_fS
+    cmp x25, 59
+    b.ne label_18
+# i_move_sd
+    mov x25, x26
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_22:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:bsm_leftmost_2/4
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x0D, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@bsm_leftmost_2/4-13:
+bsm_leftmost_2/4:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L99
+    bl L40
+L99:
+# i_test_yield
+    adr x2, bsm_leftmost_2/4
+    subs w22, w22, 1
+    b.le L42
+# is_eq_exact_fss
+    cmp x28, x27
+    b.eq L100
+    orr x14, x28, x27
+    tbnz x14, 0, @label_24-14
+    mov x0, x28
+    mov x1, x27
+    bl L103
+    b.ne @label_24-14
+L100:
+# i_move_sd
+    mov x25, x26
+# i_move_sd
+    mov x26, x27
+# i_call_only_f
+    ldr x30, [x20], 8
+    b bsm_leftmost_1/2
+# label_L
+@label_24-14:
+label_24:
+# is_nonempty_list_fS
+    tbnz x25, 1, @label_26-15
+# get_list_Sdd
+    and x8, x25, -8
+    ldp x15, x25, [x8]
+# i_is_tagged_tuple_fsAa
+    tbnz x15, 0, @label_25-16
+    and x0, x15, -8
+    ldp x8, x9, [x0]
+    mov x14, 747339
+    cmp x9, x14
+    mov x10, 192
+    ccmp x8, x10, 0, 2
+    b.ne @label_25-16
+# i_get_tuple_element_sPS
+    ldr x15, [x0, 24]
+# is_nonempty_list_fS
+    tbnz x15, 1, @label_25-16
+# i_move_sd
+    mov x25, x26
+# i_move_sd
+    mov x26, x27
+# i_call_only_f
+    ldr x30, [x20], 8
+    b bsm_leftmost_1/2
+# label_L
+@label_25-16:
+label_25:
+# line_I
+# i_plus_jIssd
+    mov x2, 31
+    adds x0, x27, 16
+    and x8, x27, 15
+# test for not overflow and small operands
+    ccmp x8, 15, 0, 9
+    b.eq L106
+    mov x1, x27
+    bl L108
+L106:
+    mov x27, x0
+# i_call_only_f
+    ldr x30, [x20], 8
+    b bsm_leftmost_2/4
+# label_L
+@label_26-15:
+label_26:
+# is_nil_fS
+    cmp x25, 59
+    b.ne label_22
+# i_move_sd
+    mov x25, x26
+# i_move_sd
+    mov x26, x28
+# i_call_only_f
+    ldr x30, [x20], 8
+    b bsm_leftmost_1/2
+# i_flush_stubs
+# i_func_label_L
+label_27:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:module_info/0
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+module_info/0:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L109
+    bl L40
+L109:
+# i_test_yield
+    adr x2, module_info/0
+    subs w22, w22, 1
+    b.le L42
+# i_move_sd
+    mov x25, 485515
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L110
+    mov x3, 1
+    bl L45
+L110:
+# call_light_bif_be
+L111:
+    ldr x3, [L112]
+    ldr x7, [L113]
+    adr x2, L111
+# BIF: erlang:get_module_info/1
+    bl L93
+# deallocate_t
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+    align 8
+label_29:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:module_info/1
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCB, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+module_info/1:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L114
+    bl L40
+L114:
+# i_test_yield
+    adr x2, module_info/1
+    subs w22, w22, 1
+    b.le L42
+# i_move_sd
+    mov x26, x25
+# i_move_sd
+    mov x25, 485515
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L115
+    mov x3, 2
+    bl L45
+L115:
+# call_light_bif_be
+L116:
+    ldr x3, [L117]
+    ldr x7, [L118]
+    adr x2, L116
+# BIF: erlang:get_module_info/2
+    bl L93
+# deallocate_t
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# i_flush_stubs
+# i_func_label_L
+label_31:
+# func_line_I
+# i_func_info_IaaI
+# sys_core_bsm:'-bsm_reorder_1/2-lc$^0/1-0-'/2
+    bl L37
+.word 0x00000000
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.byte 0x8B, 0x68, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x0D, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+# aligned_label_Lt
+@'-bsm_reorder_1/2-lc$^0/1-0-'/2-9:
+'-bsm_reorder_1/2-lc$^0/1-0-'/2:
+# i_breakpoint_trampoline
+    str x30, [x20, -8]!
+    b L119
+    bl L40
+L119:
+# i_test_yield
+    adr x2, '-bsm_reorder_1/2-lc$^0/1-0-'/2
+    subs w22, w22, 1
+    b.le L42
+# is_nonempty_list_fS
+    tbnz x25, 1, @label_34-17
+# get_list_Sdd
+    and x8, x25, -8
+    ldp x27, x25, [x8]
+# i_is_tagged_tuple_fsAa
+    tbnz x27, 0, @label_33-18
+    and x0, x27, -8
+    ldp x8, x9, [x0]
+    mov x14, 747019
+    cmp x9, x14
+    mov x10, 320
+    ccmp x8, x10, 0, 2
+    b.ne @label_33-18
+# allocate_tt
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L122
+    mov x3, 3
+    bl L45
+L122:
+    sub x20, x20, 24
+# store_two_values_sdsd
+    stp x26, x27, [x20]
+# i_move_sd
+    str x25, [x20, 16]
+# load_tuple_ptr_s
+    and x0, x27, -8
+# i_get_tuple_element_sPS
+    ldr x26, [x0, 24]
+# i_move_sd
+    ldr x25, [x20]
+# line_I
+# i_call_f
+    bl move_from_col/2
+# test_heap_It
+    add x2, x23, 80
+    cmp x2, x20
+    b.ls L123
+    mov x3, 1
+    bl L45
+L123:
+# update_record_aIsdI
+    ldr x1, [x20, 8]
+    and x2, x1, -8
+    ldr x8, [x2, 24]
+    cmp x8, x25
+    csel x0, x0, x1, 3
+    b.eq L124
+    ldr q30, [x2], 16
+    str q30, [x23], 16
+    ldr x9, [x2], 16
+    stp x9, x25, [x23], 16
+    ldr q30, [x2], 16
+    str q30, [x23], 16
+    sub x0, x23, 46
+L124:
+    str x0, [x20, 8]
+# i_move_sd
+    ldr x26, [x20]
+# move_two_trim_ydydt
+    ldp x8, x25, [x20, 8]
+    str x8, [x20, 16]!
+# line_I
+# i_call_f
+    bl '-bsm_reorder_1/2-lc$^0/1-0-'/2
+# test_heap_It
+    add x2, x23, 48
+    cmp x2, x20
+    b.ls L125
+    mov x3, 1
+    bl L45
+L125:
+# put_list_deallocate_ssdt
+    ldr x8, [x20], 8
+    stp x8, x25, [x23], 16
+    sub x25, x23, 15
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# label_L
+@label_33-18:
+label_33:
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L126
+    mov x3, 3
+    bl L45
+L126:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 5451
+    stp x9, x10, [x23], 16
+    str x27, [x23], 8
+    sub x25, x23, 22
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L127
+    mov x3, 1
+    bl L45
+L127:
+# call_light_bif_be
+L128:
+    ldr x3, [L129]
+    ldr x7, [L130]
+    adr x2, L128
+# BIF: erlang:error/1
+    bl L93
+# mark_unreachable
+# label_L
+@label_34-17:
+label_34:
+# is_nil_fS
+    cmp x25, 59
+    b.ne @label_35-19
+# return
+    ldr x30, [x20], 8
+    subs w22, w22, 1
+    b.mi L50
+    ret x30
+# label_L
+@label_35-19:
+label_35:
+# test_heap_It
+    add x2, x23, 56
+    cmp x2, x20
+    b.ls L132
+    mov x3, 1
+    bl L45
+L132:
+# put_tuple2_SA
+    mov x9, 128
+    mov x10, 94923
+    stp x9, x10, [x23], 16
+    str x25, [x23], 8
+    sub x25, x23, 22
+# allocate_tt
+    add x2, x23, 32
+    cmp x2, x20
+    b.ls L133
+    mov x3, 1
+    bl L45
+L133:
+# call_light_bif_be
+L134:
+    ldr x3, [L129]
+    ldr x7, [L130]
+    adr x2, L134
+# BIF: erlang:error/1
+    bl L93
+# mark_unreachable
+# int_code_end
+L135:
+    mov x0, 4369093202
+    bl L137
+L137:
+L136:
+    mov x14, 4365818364
+    br x14
+L108:
+L107:
+    mov x14, 4481916304
+    br x14
+L103:
+L102:
+    mov x14, 4481915512
+    br x14
+L37:
+L36:
+    mov x14, 4481913584
+    br x14
+L93:
+L92:
+    mov x14, 4481910672
+    br x14
+L64:
+L63:
+    mov x14, 4366180156
+    br x14
+L50:
+L49:
+    mov x14, 4481911760
+    br x14
+L85:
+L84:
+    mov x14, 4481915888
+    br x14
+L45:
+L44:
+    mov x14, 4481912640
+    br x14
+L66:
+L65:
+    mov x14, 4481916920
+    br x14
+L42:
+L41:
+    mov x14, 4481914968
+    br x14
+L40:
+L39:
+    mov x14, 4481913368
+    br x14
+# Begin stub section
+L54:
+.xword 0x000000007FFFFFFF
+L56:
+.xword 0x7FFFFFFFFFFFFFFF
+L57:
+.xword 0x7FFFFFFFFFFFFFFF
+L60:
+.xword 0x7FFFFFFFFFFFFFFF
+L61:
+.xword 0x7FFFFFFFFFFFFFFF
+L78:
+.xword 0x7FFFFFFFFFFFFFFF
+L87:
+.xword 0x7FFFFFFFFFFFFFFF
+L90:
+.xword 0x7FFFFFFFFFFFFFFF
+L91:
+.xword 0x000000010442CDE4
+L112:
+.xword 0x7FFFFFFFFFFFFFFF
+L113:
+.xword 0x000000010442AAD0
+L117:
+.xword 0x7FFFFFFFFFFFFFFF
+L118:
+.xword 0x000000010442AD84
+L129:
+.xword 0x7FFFFFFFFFFFFFFF
+L130:
+.xword 0x000000010444DA38
+# End stub section
+L138:
+.section .rodata {#1}
+line:
+.byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+.section .text {#0}
+.section .rodata {#1}
+attr:
+.byte 0x83, 0x6C, 0x00, 0x00, 0x00, 0x01, 0x68, 0x02, 0x77, 0x03, 0x76, 0x73, 0x6E, 0x6C, 0x00, 0x00, 0x00, 0x01, 0x6E, 0x10, 0x00, 0xAE, 0x8F, 0x50, 0x8B, 0x5D, 0xE8, 0xB4, 0xFE, 0xBF, 0x6E, 0xD5, 0x3A, 0x1C, 0xE1, 0xE4, 0xA9, 0x6A, 0x6A
+.section .text {#0}
+.section .rodata {#1}
+compile:
+.byte 0x83, 0x6C, 0x00, 0x00, 0x00, 0x03, 0x68, 0x02, 0x77, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E, 0x6B, 0x00, 0x05, 0x38, 0x2E, 0x36, 0x2E, 0x31, 0x68, 0x02, 0x77, 0x07, 0x6F, 0x70, 0x74, 0x69, 0x6F, 0x6E, 0x73, 0x6C, 0x00, 0x00, 0x00, 0x0A, 0x77, 0x0A, 0x64, 0x65, 0x62, 0x75, 0x67, 0x5F, 0x69, 0x6E, 0x66, 0x6F, 0x68, 0x02, 0x77, 0x01, 0x69, 0x6B, 0x00, 0x34, 0x2F, 0x62, 0x75, 0x69, 0x6C, 0x64, 0x72, 0x6F, 0x6F, 0x74, 0x2F, 0x6F, 0x74, 0x70, 0x2F, 0x6C, 0x69, 0x62, 0x2F, 0x63, 0x6F, 0x6D, 0x70, 0x69, 0x6C, 0x65, 0x72, 0x2F, 0x73, 0x72, 0x63, 0x2F, 0x2E, 0x2E, 0x2F, 0x2E, 0x2E, 0x2F, 0x73, 0x74, 0x64, 0x6C, 0x69, 0x62, 0x2F, 0x69, 0x6E, 0x63, 0x6C, 0x75, 0x64, 0x65, 0x68, 0x02, 0x77, 0x01, 0x69, 0x6B, 0x00, 0x21, 0x2F, 0x62, 0x75, 0x69, 0x6C, 0x64, 0x72, 0x6F, 0x6F, 0x74, 0x2F, 0x6F, 0x74, 0x70, 0x2F, 0x6C, 0x69, 0x62, 0x2F, 0x63, 0x6F, 0x6D, 0x70, 0x69, 0x6C, 0x65, 0x72, 0x2F, 0x73, 0x72, 0x63, 0x2F, 0x2E, 0x77, 0x19, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x6D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x5F, 0x64, 0x6F, 0x63, 0x5F, 0x66, 0x75, 0x6E, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x77, 0x19, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x6D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x5F, 0x64, 0x6F, 0x63, 0x5F, 0x63, 0x61, 0x6C, 0x6C, 0x62, 0x61, 0x63, 0x6B, 0x77, 0x1C, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x6D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x5F, 0x73, 0x70, 0x65, 0x63, 0x5F, 0x64, 0x6F, 0x63, 0x75, 0x6D, 0x65, 0x6E, 0x74, 0x65, 0x64, 0x77, 0x15, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x64, 0x65, 0x70, 0x72, 0x65, 0x63, 0x61, 0x74, 0x65, 0x64, 0x5F, 0x63, 0x61, 0x74, 0x63, 0x68, 0x77, 0x06, 0x69, 0x6E, 0x6C, 0x69, 0x6E, 0x65, 0x77, 0x12, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x75, 0x6E, 0x75, 0x73, 0x65, 0x64, 0x5F, 0x69, 0x6D, 0x70, 0x6F, 0x72, 0x74, 0x77, 0x11, 0x77, 0x61, 0x72, 0x6E, 0x5F, 0x6D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x5F, 0x73, 0x70, 0x65, 0x63, 0x6A, 0x68, 0x02, 0x77, 0x06, 0x73, 0x6F, 0x75, 0x72, 0x63, 0x65, 0x6B, 0x00, 0x30, 0x2F, 0x62, 0x75, 0x69, 0x6C, 0x64, 0x72, 0x6F, 0x6F, 0x74, 0x2F, 0x6F, 0x74, 0x70, 0x2F, 0x6C, 0x69, 0x62, 0x2F, 0x63, 0x6F, 0x6D, 0x70, 0x69, 0x6C, 0x65, 0x72, 0x2F, 0x73, 0x72, 0x63, 0x2F, 0x73, 0x79, 0x73, 0x5F, 0x63, 0x6F, 0x72, 0x65, 0x5F, 0x62, 0x73, 0x6D, 0x2E, 0x65, 0x72, 0x6C, 0x6A
+.section .text {#0}
+.section .rodata {#1}
+md5:
+.byte 0xA9, 0xE4, 0xE1, 0x1C, 0x3A, 0xD5, 0x6E, 0xBF, 0xFE, 0xB4, 0xE8, 0x5D, 0x8B, 0x50, 0x8F, 0xAE
+.section .text {#0}

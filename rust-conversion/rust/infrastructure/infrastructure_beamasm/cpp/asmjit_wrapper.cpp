@@ -28,6 +28,7 @@
 #include "asmjit/asmjit.h"
 #include <cstring>
 #include <cstdlib>
+#include <exception>
 
 using namespace asmjit;
 
@@ -90,7 +91,21 @@ int asmjit_codeholder_init(AsmjitCodeHolder* holder) {
     if (!holder) return -1;
     try {
         Error err = holder->holder.init(Environment::host());
-        return err ? -1 : 0;
+        if (err) return -1;
+
+        // Create .rodata section like the C implementation
+        Section* rodata;
+        err = holder->holder.newSection(&rodata,
+                                       ".rodata",
+                                       SIZE_MAX,
+                                       SectionFlags::kReadOnly,
+                                       8);
+        if (err) return -1;
+
+        // Set error handler (simplified - we'll handle errors in Rust)
+        // For now, skip error handler setup
+
+        return 0;
     } catch (...) {
         return -1;
     }
@@ -120,20 +135,26 @@ void asmjit_codeholder_reset(AsmjitCodeHolder* holder) {
 
 int asmjit_codeholder_flatten(AsmjitCodeHolder* holder) {
     if (!holder) return -1;
+    printf("[CPP DEBUG] flatten: calling holder->holder.flatten()\n");
     try {
         Error err = holder->holder.flatten();
+        printf("[CPP DEBUG] flatten: result %d\n", err ? -1 : 0);
         return err ? -1 : 0;
     } catch (...) {
+        printf("[CPP DEBUG] flatten: exception caught\n");
         return -1;
     }
 }
 
 int asmjit_codeholder_resolve_unresolved_links(AsmjitCodeHolder* holder) {
     if (!holder) return -1;
+    printf("[CPP DEBUG] resolve_unresolved_links: calling holder->holder.resolveUnresolvedLinks()\n");
     try {
         Error err = holder->holder.resolveUnresolvedLinks();
+        printf("[CPP DEBUG] resolve_unresolved_links: result %d\n", err ? -1 : 0);
         return err ? -1 : 0;
     } catch (...) {
+        printf("[CPP DEBUG] resolve_unresolved_links: exception caught\n");
         return -1;
     }
 }
@@ -160,7 +181,7 @@ const uint8_t* asmjit_codeholder_base_address(const AsmjitCodeHolder* holder) {
 }
 
 int asmjit_codeholder_copy_flattened_data(AsmjitCodeHolder* holder, uint8_t* buffer, size_t size) {
-    printf("[CPP DEBUG] copy_flattened_data: holder=%p, buffer=%p, size=%zu\n", holder, buffer, size);
+    printf("[CPP DEBUG] copy_flattened_data: ENTER - holder=%p, buffer=%p, size=%zu\n", holder, buffer, size);
     if (!holder) {
         printf("[CPP DEBUG] copy_flattened_data: holder is null\n");
         return -1;
@@ -196,17 +217,52 @@ int asmjit_codeholder_copy_flattened_data(AsmjitCodeHolder* holder, uint8_t* buf
     printf("[CPP DEBUG] copy_flattened_data: CodeHolder baseAddress=%p (raw=%llu)\n", base_addr, (unsigned long long)base_addr_raw);
 
     try {
+        // Phase 1.2: Detailed diagnostics before copyFlattenedData
+        printf("[CPP DEBUG] copy_flattened_data: ===== DETAILED C++ DIAGNOSTICS =====\n");
+        printf("[CPP DEBUG] copy_flattened_data: buffer=%p, size=%zu\n", buffer, size);
+        printf("[CPP DEBUG] copy_flattened_data: buffer validity check...\n");
+
+        // Check buffer accessibility
+        if (buffer == nullptr) {
+            printf("[CPP DEBUG] copy_flattened_data: ERROR - buffer is null!\n");
+            return -1;
+        }
+
+        // Try to access buffer (this might cause SIGBUS if buffer is invalid)
+        printf("[CPP DEBUG] copy_flattened_data: Testing buffer access...\n");
+        volatile uint8_t test_val = *buffer;  // volatile to prevent optimization
+        printf("[CPP DEBUG] copy_flattened_data: Buffer access OK, first byte = 0x%02X\n", test_val);
+
+        // Check size validity
+        if (size == 0) {
+            printf("[CPP DEBUG] copy_flattened_data: ERROR - size is 0!\n");
+            return -1;
+        }
+
+        printf("[CPP DEBUG] copy_flattened_data: Size check passed: %zu bytes\n", size);
+
+        // Check CodeHolder validity
+        printf("[CPP DEBUG] copy_flattened_data: Checking CodeHolder validity...\n");
+        printf("[CPP DEBUG] copy_flattened_data: CodeHolder codeSize: %zu\n", holder->holder.codeSize());
+        // Note: flattenedSize() method doesn't exist in this asmjit version
+
         printf("[CPP DEBUG] copy_flattened_data: calling copyFlattenedData WITHOUT flags\n");
         // Try without flags first (safer)
         Error err = holder->holder.copyFlattenedData(buffer, size);
         printf("[CPP DEBUG] copy_flattened_data: result without flags=%d\n", err);
         if (err) {
-            printf("[CPP DEBUG] copy_flattened_data: ERROR - failed even without flags\n");
+            printf("[CPP DEBUG] copy_flattened_data: ERROR - failed even without flags, error code: %u\n", err);
             // Don't try with flags since that crashes
+        } else {
+            printf("[CPP DEBUG] copy_flattened_data: SUCCESS - copied %zu bytes\n", size);
         }
+        printf("[CPP DEBUG] copy_flattened_data: returning %d\n", err ? -1 : 0);
         return err ? -1 : 0;
+    } catch (const std::exception& e) {
+        printf("[CPP DEBUG] copy_flattened_data: std::exception caught: %s\n", e.what());
+        return -1;
     } catch (...) {
-        printf("[CPP DEBUG] copy_flattened_data: exception caught\n");
+        printf("[CPP DEBUG] copy_flattened_data: unknown exception caught\n");
         return -1;
     }
 }
@@ -247,6 +303,15 @@ AsmjitAssembler* asmjit_assembler_new(AsmjitCodeHolder* holder) {
             asm_wrapper->x86_asm = new x86::Assembler(&holder->holder);
             asm_wrapper->a64_asm = nullptr;
             asm_wrapper->is_x86 = true;
+
+            // Set encoding options like the C implementation
+            asm_wrapper->x86_asm->addEncodingOptions(EncodingOptions::kOptimizeForSize |
+                                                     EncodingOptions::kOptimizedAlign);
+
+            // Add diagnostic options in debug mode (like C implementation)
+#ifndef NDEBUG
+            asm_wrapper->x86_asm->addDiagnosticOptions(DiagnosticOptions::kValidateAssembler);
+#endif
         } else
         #endif
         #if defined(__aarch64__) || defined(_M_ARM64)
@@ -255,6 +320,15 @@ AsmjitAssembler* asmjit_assembler_new(AsmjitCodeHolder* holder) {
             asm_wrapper->a64_asm = new a64::Assembler(&holder->holder);
             asm_wrapper->is_x86 = false;
             fprintf(stderr, "[CPP DEBUG] Created AArch64 assembler: %p\n", asm_wrapper->a64_asm);
+
+            // Set encoding options like the C implementation
+            asm_wrapper->a64_asm->addEncodingOptions(EncodingOptions::kOptimizeForSize |
+                                                     EncodingOptions::kOptimizedAlign);
+
+            // Add diagnostic options in debug mode (like C implementation)
+#ifndef NDEBUG
+            asm_wrapper->a64_asm->addDiagnosticOptions(DiagnosticOptions::kValidateAssembler);
+#endif
         } else
         #endif
         {
@@ -428,6 +502,19 @@ int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler) {
     #endif
 }
 
+#else
+int asmjit_a64_assembler_emit_mov_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src) {
+    (void)assembler; (void)dst; (void)src;
+    return -1; // Not aarch64
+}
+
+int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler) {
+    (void)assembler;
+    return -1; // Not aarch64
+}
+#endif
+
+// Memory protection functions
 int asmjit_a64_assembler_emit_ldr_reg_offset(AsmjitAssembler* assembler, uint32_t dst, uint32_t base, int32_t offset) {
     #if defined(__aarch64__) || defined(_M_ARM64)
     if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
@@ -447,6 +534,28 @@ int asmjit_a64_assembler_emit_ldr_reg_offset(AsmjitAssembler* assembler, uint32_
     }
     #else
     (void)assembler; (void)dst; (void)base; (void)offset;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_tst_imm(AsmjitAssembler* assembler, uint32_t reg, uint32_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
+        fprintf(stderr, "[CPP DEBUG] tst: invalid assembler state\n");
+        return -1;
+    }
+    try {
+        fprintf(stderr, "[CPP DEBUG] tst: emitting tst x%d, #%d\n", reg, imm);
+        a64::GpX reg_gpx(reg);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->tst(reg_gpx, imm);
+        fprintf(stderr, "[CPP DEBUG] tst: result %d\n", err ? -1 : 0);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] tst: exception\n");
+        return -1;
+    }
+    #else
+    (void)assembler; (void)reg; (void)imm;
     return -1; // Not aarch64
     #endif
 }
@@ -482,6 +591,23 @@ int asmjit_a64_assembler_emit_add_reg_reg_reg(AsmjitAssembler* assembler, uint32
     }
     #else
     (void)assembler; (void)dst; (void)src1; (void)src2;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_and_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        a64::GpX src_reg(src);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->and_(dst_reg, src_reg, imm);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src; (void)imm;
     return -1; // Not aarch64
     #endif
 }
@@ -542,6 +668,44 @@ int asmjit_a64_assembler_emit_ldp_post_idx(AsmjitAssembler* assembler, uint32_t 
     #endif
 }
 
+int asmjit_a64_assembler_emit_stp(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX reg1_gpx(reg1);
+        a64::GpX reg2_gpx(reg2);
+        a64::GpX base_reg(base);
+        // STP with offset addressing: stp reg1, reg2, [base, offset]
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->stp(reg1_gpx, reg2_gpx, a64::ptr(base_reg, offset));
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)reg1; (void)reg2; (void)base; (void)offset;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_ldp(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX reg1_gpx(reg1);
+        a64::GpX reg2_gpx(reg2);
+        a64::GpX base_reg(base);
+        // LDP with offset addressing: ldp reg1, reg2, [base, offset]
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->ldp(reg1_gpx, reg2_gpx, a64::ptr(base_reg, offset));
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)reg1; (void)reg2; (void)base; (void)offset;
+    return -1; // Not aarch64
+    #endif
+}
+
 int asmjit_a64_assembler_emit_blr(AsmjitAssembler* assembler, uint32_t reg) {
     #if defined(__aarch64__) || defined(_M_ARM64)
     if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
@@ -555,6 +719,46 @@ int asmjit_a64_assembler_emit_blr(AsmjitAssembler* assembler, uint32_t reg) {
     }
     #else
     (void)assembler; (void)reg;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_subs_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        a64::GpX dst_reg(dst);
+        a64::GpX src_reg(src);
+        // SUBS immediate (sets flags)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->subs(dst_reg, src_reg, imm);
+        return err ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src; (void)imm;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_blr_imm(AsmjitAssembler* assembler, uint64_t addr) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        // For ARM64, we need to load the address into a register first, then branch
+        // We'll use a temporary register (x16 is typically used for this purpose)
+        a64::GpX temp_reg(16);
+        Error err1 = static_cast<a64::Assembler*>(assembler->a64_asm)->mov(temp_reg, addr);
+        if (err1) return -1;
+
+        // Now branch with link to the register
+        Error err2 = static_cast<a64::Assembler*>(assembler->a64_asm)->blr(temp_reg);
+        return err2 ? -1 : 0;
+    } catch (...) {
+        return -1;
+    }
+    #else
+    (void)assembler; (void)addr;
     return -1; // Not aarch64
     #endif
 }
@@ -592,6 +796,55 @@ int asmjit_a64_assembler_emit_add_imm(AsmjitAssembler* assembler, uint32_t dst, 
         return err ? -1 : 0;
     } catch (...) {
         fprintf(stderr, "[CPP DEBUG] add_imm: exception\n");
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src; (void)imm;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_adds_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
+        fprintf(stderr, "[CPP DEBUG] adds_reg_reg: invalid assembler state\n");
+        return -1;
+    }
+    try {
+        fprintf(stderr, "[CPP DEBUG] adds_reg_reg: emitting adds x%d, x%d, x%d\n", dst, src1, src2);
+        a64::GpX dst_reg(dst);
+        a64::GpX src1_reg(src1);
+        a64::GpX src2_reg(src2);
+        // ADDS (add with flag update for overflow checking)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->adds(dst_reg, src1_reg, src2_reg);
+        fprintf(stderr, "[CPP DEBUG] adds_reg_reg: result %d\n", err ? -1 : 0);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] adds_reg_reg: exception\n");
+        return -1;
+    }
+    #else
+    (void)assembler; (void)dst; (void)src1; (void)src2;
+    return -1; // Not aarch64
+    #endif
+}
+
+int asmjit_a64_assembler_emit_adds_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
+        fprintf(stderr, "[CPP DEBUG] adds_imm: invalid assembler state\n");
+        return -1;
+    }
+    try {
+        fprintf(stderr, "[CPP DEBUG] adds_imm: emitting adds x%d, x%d, #%d\n", dst, src, imm);
+        a64::GpX dst_reg(dst);
+        a64::GpX src_reg(src);
+        // ADDS immediate (add with flag update for overflow checking)
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->adds(dst_reg, src_reg, imm);
+        fprintf(stderr, "[CPP DEBUG] adds_imm: result %d\n", err ? -1 : 0);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] adds_imm: exception\n");
         return -1;
     }
     #else
@@ -720,17 +973,6 @@ int asmjit_a64_assembler_emit_b(AsmjitAssembler* assembler, uint32_t label_id) {
     return -1; // Not aarch64
     #endif
 }
-#else
-int asmjit_a64_assembler_emit_mov_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src) {
-    (void)assembler; (void)dst; (void)src;
-    return -1; // Not aarch64
-}
-
-int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler) {
-    (void)assembler;
-    return -1; // Not aarch64
-}
-#endif
 
 // Memory protection functions
 int asmjit_virtmem_protect_jit_memory(int access) {
@@ -751,6 +993,227 @@ int asmjit_virtmem_protect_jit_memory(int access) {
         printf("[CPP DEBUG] protectJitMemory: exception caught\n");
         return -1;
     }
+}
+
+int asmjit_a64_assembler_emit_cmp_imm(AsmjitAssembler* assembler, uint32_t reg, uint64_t imm) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
+        fprintf(stderr, "[CPP DEBUG] cmp_imm: invalid assembler state\n");
+        return -1;
+    }
+    try {
+        fprintf(stderr, "[CPP DEBUG] cmp_imm: emitting cmp x%d, #%lld\n", reg, imm);
+        a64::GpX reg_gp(reg);
+        // CMP immediate
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->cmp(reg_gp, imm);
+        fprintf(stderr, "[CPP DEBUG] cmp_imm: result %d\n", err ? -1 : 0);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] cmp_imm: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] cmp_imm: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_b_cond(AsmjitAssembler* assembler, uint32_t condition, uint32_t target) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) {
+        fprintf(stderr, "[CPP DEBUG] b_cond: invalid assembler state\n");
+        return -1;
+    }
+    try {
+        fprintf(stderr, "[CPP DEBUG] b_cond: emitting b.%s to label %d\n",
+                condition == 0 ? "eq" : "unknown", target);
+        // For now, implement basic conditional branch
+        // This would need proper label handling
+        fprintf(stderr, "[CPP DEBUG] b_cond: not fully implemented\n");
+        return -1;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] b_cond: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] b_cond: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_nop(AsmjitAssembler* assembler) {
+    #ifdef ASMJIT_ARCH_ARM
+    try {
+        fprintf(stderr, "[CPP DEBUG] nop: emitting nop\n");
+        auto& a = *reinterpret_cast<asmjit::a64::Assembler*>(assembler);
+        a.nop();
+        return 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] nop: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] nop: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+// Additional ARM64 arithmetic and shift operations
+int asmjit_a64_assembler_emit_lsr_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t shift) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] lsr_imm: dst=%u, src=%u, shift=%u\n", dst, src, shift);
+        a64::GpX dst_reg(dst);
+        a64::GpX src_reg(src);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->lsr(dst_reg, src_reg, shift);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] lsr_imm: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] lsr_imm: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_lsl_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t shift) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] lsl_imm: dst=%u, src=%u, shift=%u\n", dst, src, shift);
+        a64::GpX dst_reg(dst);
+        a64::GpX src_reg(src);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->lsl(dst_reg, src_reg, shift);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] lsl_imm: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] lsl_imm: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_stur_reg_offset(AsmjitAssembler* assembler, uint32_t src, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] stur_reg_offset: src=%u, base=%u, offset=%d\n", src, base, offset);
+        a64::GpX src_reg(src);
+        a64::GpX base_reg(base);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->stur(src_reg, a64::ptr(base_reg, offset));
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] stur_reg_offset: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] stur_reg_offset: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_ldur_reg_offset(AsmjitAssembler* assembler, uint32_t dst, uint32_t base, int32_t offset) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] ldur_reg_offset: dst=%u, base=%u, offset=%d\n", dst, base, offset);
+        a64::GpX dst_reg(dst);
+        a64::GpX base_reg(base);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->ldur(dst_reg, a64::ptr(base_reg, offset));
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] ldur_reg_offset: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] ldur_reg_offset: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_udiv_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t dividend, uint32_t divisor) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] udiv_reg_reg_reg: dst=%u, dividend=%u, divisor=%u\n", dst, dividend, divisor);
+        a64::GpX dst_reg(dst);
+        a64::GpX dividend_reg(dividend);
+        a64::GpX divisor_reg(divisor);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->udiv(dst_reg, dividend_reg, divisor_reg);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] udiv_reg_reg_reg: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] udiv_reg_reg_reg: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_mul_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] mul_reg_reg_reg: dst=%u, src1=%u, src2=%u\n", dst, src1, src2);
+        a64::GpX dst_reg(dst);
+        a64::GpX src1_reg(src1);
+        a64::GpX src2_reg(src2);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->mul(dst_reg, src1_reg, src2_reg);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] mul_reg_reg_reg: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] mul_reg_reg_reg: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_msub_reg_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2, uint32_t src3) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] msub_reg_reg_reg_reg: dst=%u, src1=%u, src2=%u, src3=%u\n", dst, src1, src2, src3);
+        a64::GpX dst_reg(dst);
+        a64::GpX src1_reg(src1);
+        a64::GpX src2_reg(src2);
+        a64::GpX src3_reg(src3);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->msub(dst_reg, src1_reg, src2_reg, src3_reg);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] msub_reg_reg_reg_reg: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] msub_reg_reg_reg_reg: not supported on this architecture\n");
+    return -1;
+    #endif
+}
+
+int asmjit_a64_assembler_emit_eor_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2) {
+    #if defined(__aarch64__) || defined(_M_ARM64)
+    if (!assembler || assembler->is_x86 || !assembler->a64_asm) return -1;
+    try {
+        fprintf(stderr, "[CPP DEBUG] eor_reg_reg_reg: dst=%u, src1=%u, src2=%u\n", dst, src1, src2);
+        a64::GpX dst_reg(dst);
+        a64::GpX src1_reg(src1);
+        a64::GpX src2_reg(src2);
+        Error err = static_cast<a64::Assembler*>(assembler->a64_asm)->eor(dst_reg, src1_reg, src2_reg);
+        return err ? -1 : 0;
+    } catch (...) {
+        fprintf(stderr, "[CPP DEBUG] eor_reg_reg_reg: exception caught\n");
+        return -1;
+    }
+    #else
+    fprintf(stderr, "[CPP DEBUG] eor_reg_reg_reg: not supported on this architecture\n");
+    return -1;
+    #endif
 }
 
 } // extern "C"

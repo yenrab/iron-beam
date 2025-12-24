@@ -433,6 +433,7 @@ dependencies = [
  "entities_io_operations",
  "entities_process",
  "entities_utilities",
+ "infrastructure_beam_utilities",
  "infrastructure_bif_dispatcher",
  "infrastructure_emulator_loop",
  "infrastructure_runtime_utils",
@@ -557,6 +558,7 @@ dependencies = [
  "log",
  "memmap2",
  "region",
+ "tempfile",
  "thiserror",
 ]
 
@@ -616,6 +618,7 @@ dependencies = [
 name = "infrastructure_emulator_loop"
 version = "0.1.0"
 dependencies = [
+ "code_management_code_loading",
  "entities_data_handling",
  "entities_process",
  "infrastructure_beamasm",

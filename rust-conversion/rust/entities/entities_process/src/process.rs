@@ -142,6 +142,10 @@ pub struct Process {
     min_heap_size: usize,
     /// Maximum heap size in words (0 = unlimited)
     max_heap_size: usize,
+    /// Stack stop pointer (for JIT compatibility - must be at offset 0x20)
+    /// Points to the current stack position in heap_data
+    /// Protected by Mutex for thread-safe access
+    stop: Mutex<usize>,
     /// Heap data storage (safe Rust Vec, protected by Mutex for concurrent access)
     heap_data: Mutex<Vec<Eterm>>,
     /// Heap start index (usually 0, but can be offset if needed)
@@ -192,18 +196,21 @@ impl Process {
     /// A new Process instance with default values
     pub fn new(id: ProcessId) -> Self {
         let initial_heap_size = 233; // Default minimum heap size (words)
-        let mut heap_data = Vec::with_capacity(initial_heap_size);
-        heap_data.resize(initial_heap_size, 0);
-        
+        let stack_size = 100; // Additional space for stack
+        let total_size = initial_heap_size + stack_size;
+        let mut heap_data = Vec::with_capacity(total_size);
+        heap_data.resize(total_size, 0);
+
         Self {
             id,
             heap_sz: initial_heap_size,
             min_heap_size: initial_heap_size,
             max_heap_size: 0,    // 0 = unlimited
+            stop: Mutex::new(total_size), // Stack starts at end of allocated memory
             heap_data: Mutex::new(heap_data),
             heap_start_index: 0,
             heap_top_index: Mutex::new(0),
-            stack_top_index: Mutex::new(None),
+            stack_top_index: Mutex::new(Some(initial_heap_size)),
             flags: 0,
             reds: 0,
             fcalls: 0,
@@ -372,7 +379,10 @@ impl Process {
         // Store value at new stack top
         heap_data[new_stack_top] = value;
         *stack_top_guard = Some(new_stack_top);
-        
+
+        // Update stop field for JIT compatibility
+        *self.stop.lock().unwrap() = new_stack_top;
+
         Ok(())
     }
 
@@ -408,10 +418,14 @@ impl Process {
         // If stack is now empty (reached end of heap_data), clear stack_top_index
         if new_stack_top >= heap_data.len() {
             *stack_top_guard = None;
+            // Update stop field for JIT compatibility
+            *self.stop.lock().unwrap() = heap_data.len(); // Reset to end of heap
         } else {
             *stack_top_guard = Some(new_stack_top);
+            // Update stop field for JIT compatibility
+            *self.stop.lock().unwrap() = new_stack_top;
         }
-        
+
         Some(value)
     }
 
@@ -450,6 +464,14 @@ impl Process {
     /// Get function calls
     pub fn fcalls(&self) -> i32 {
         self.fcalls
+    }
+
+    /// Set function calls (remaining reductions for process)
+    ///
+    /// # Arguments
+    /// * `fcalls` - Number of function calls remaining
+    pub fn set_fcalls(&mut self, fcalls: i32) {
+        self.fcalls = fcalls;
     }
 
     /// Get arity
@@ -517,7 +539,7 @@ impl Process {
 
     #[deprecated(note = "Use stack_top_index() instead")]
     pub fn stop(&self) -> Option<usize> {
-        *self.stack_top_index.lock().unwrap()
+        Some(*self.stop.lock().unwrap())
     }
 
     /// Add a NIF pointer to this process's tracking list

@@ -1,68 +1,69 @@
 graph TD
     subgraph entities["Entities Layer (1)"]
-        BehaviorGroup_5["entities_io_operations"]
-        BehaviorGroup_36["entities_process"]
-        BehaviorGroup_2["entities_system_integration_common"]
-        BehaviorGroup_3["entities_system_integration_win32"]
-        BehaviorGroup_4["entities_utilities"]
-        BehaviorGroup_1["✅entities_data_handling"]
+        5["entities_io_operations"]
+        36["entities_process"]
+        2["entities_system_integration_common"]
+        3["entities_system_integration_win32"]
+        4["entities_utilities"]
+        1["✅entities_data_handling"]
     end
     style entities fill:#4A90A4,stroke:#2C5F6B,stroke-width:3px,color:#FFFFFF
 
     subgraph infrastructure["Infrastructure Layer (2)"]
-        BehaviorGroup_infrastructure_bif_dispatcher["infrastructure_bif_dispatcher"]
-        BehaviorGroup_28["infrastructure_bifs"]
-        BehaviorGroup_31["infrastructure_bignum_encoding"]
-        BehaviorGroup_32["infrastructure_bignum_encoding"]
-        BehaviorGroup_29["infrastructure_code_loading"]
-        BehaviorGroup_30["infrastructure_data_handling"]
-        BehaviorGroup_infrastructure_beamasm["infrastructure_beamasm"]
-        BehaviorGroup_infrastructure_external_format["infrastructure_external_format"]
-        BehaviorGroup_35["infrastructure_nif_api"]
-        BehaviorGroup_infrastructure_runtime_utils["infrastructure_runtime_utils"]
-        BehaviorGroup_33["infrastructure_trace_encoding"]
-        BehaviorGroup_25["✅infrastructure_debugging"]
-        BehaviorGroup_26["✅infrastructure_ets_tables"]
-        BehaviorGroup_27["✅infrastructure_time_management"]
-        BehaviorGroup_24["✅infrastructure_utilities"]
+        infrastructure_beamasm["infrastructure_beamasm"]
+        infrastructure_bif_dispatcher["infrastructure_bif_dispatcher"]
+        28["infrastructure_bifs"]
+        31["infrastructure_bignum_encoding"]
+        32["infrastructure_bignum_encoding"]
+        29["infrastructure_code_loading"]
+        30["infrastructure_data_handling"]
+        infrastructure_emulator_loop["infrastructure_emulator_loop"]
+        infrastructure_external_format["infrastructure_external_format"]
+        35["infrastructure_nif_api"]
+        infrastructure_runtime_utils["infrastructure_runtime_utils"]
+        33["infrastructure_trace_encoding"]
+        25["✅infrastructure_debugging"]
+        26["✅infrastructure_ets_tables"]
+        27["✅infrastructure_time_management"]
+        24["✅infrastructure_utilities"]
     end
     style infrastructure fill:#5BA0B4,stroke:#3C6F7B,stroke-width:3px,color:#FFFFFF
 
     subgraph usecases["Usecases Layer (3)"]
-        BehaviorGroup_9["usecases_bifs"]
-        BehaviorGroup_8["usecases_io_operations"]
-        BehaviorGroup_usecases_nif_compilation["usecases_nif_compilation"]
-        BehaviorGroup_7["usecases_process_management"]
-        BehaviorGroup_usecases_scheduling["usecases_scheduling"]
-        BehaviorGroup_6["✅usecases_memory_management"]
+        9["usecases_bifs"]
+        8["usecases_io_operations"]
+        usecases_nif_compilation["usecases_nif_compilation"]
+        7["usecases_process_management"]
+        usecases_scheduling["usecases_scheduling"]
+        6["✅usecases_memory_management"]
     end
     style usecases fill:#6CB0C4,stroke:#4C7F8B,stroke-width:3px,color:#FFFFFF
 
-    subgraph codemanagement["Code Management Layer (4)"]
-        BehaviorGroup_34["code_management_code_loading"]
+    subgraph code_management["Code Management Layer (4)"]
+        34["code_management_code_loading"]
     end
-    style codemanagement fill:#7DC0D4,stroke:#5C8F9B,stroke-width:3px,color:#FFFFFF
+    style code_management fill:#7DC0D4,stroke:#5C8F9B,stroke-width:3px,color:#FFFFFF
 
     subgraph adapters["Adapters Layer (5)"]
-        BehaviorGroup_18["adapters_distribution"]
-        BehaviorGroup_12["adapters_ets_tables"]
-        BehaviorGroup_17["adapters_nif_io"]
-        BehaviorGroup_37["adapters_socket"]
-        BehaviorGroup_16["adapters_system_integration_unix"]
-        BehaviorGroup_13["✅adapters_debugging"]
-        BehaviorGroup_14["✅adapters_drivers"]
-        BehaviorGroup_10["✅adapters_nifs"]
-        BehaviorGroup_15["✅adapters_time_management"]
+        18["adapters_distribution"]
+        12["adapters_ets_tables"]
+        17["adapters_nif_io"]
+        37["adapters_socket"]
+        16["adapters_system_integration_unix"]
+        13["✅adapters_debugging"]
+        14["✅adapters_drivers"]
+        10["✅adapters_nifs"]
+        15["✅adapters_time_management"]
     end
-    style adapters fill:#8ED0E4,stroke:#6C9FAB,stroke-width:3px,color:#000000
+    style adapters fill:#8ED0E4,stroke:#6C9FAB,stroke-width:3px,color:#FFFFFF
 
     subgraph frameworks["Frameworks Layer (6)"]
-        BehaviorGroup_frameworks_emulator_init["frameworks_emulator_init"]
-        BehaviorGroup_23["frameworks_system_integration"]
-        BehaviorGroup_22["frameworks_system_integration_common"]
-        BehaviorGroup_21["frameworks_system_integration_unix"]
-        BehaviorGroup_20["frameworks_system_integration_win32"]
-        BehaviorGroup_19["frameworks_utilities"]
+        frameworks_emulator_init["frameworks_emulator_init"]
+        23["frameworks_system_integration"]
+        22["frameworks_system_integration_common"]
+        21["frameworks_system_integration_unix"]
+        20["frameworks_system_integration_win32"]
+        19["frameworks_utilities"]
     end
-    style frameworks fill:#9FE0F4,stroke:#7FAFBB,stroke-width:3px,color:#000000
+    style frameworks fill:#9FE0F4,stroke:#7FAFBB,stroke-width:3px,color:#FFFFFF
 

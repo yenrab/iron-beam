@@ -1,0 +1,7 @@
+#!/usr/bin/env lldb
+target create "../../target/otp_root/bin/beam"
+breakpoint set -f beam_loader.rs -l 180
+run
+memory read --size 1 --format hex --count 92 0x102ea0000
+disassemble --start-address 0x102ea0000 --end-address 0x102ea005c
+quit

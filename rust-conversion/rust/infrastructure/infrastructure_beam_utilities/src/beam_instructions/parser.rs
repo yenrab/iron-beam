@@ -562,17 +562,18 @@ impl BeamParser {
                     0xC0..=0xDF => {
                         // Register X
                         let index = tag & 0x1F;
+                        eprintln!("[DEBUG] BEAM Parser: Register X - tag=0x{:02x}, index={}", tag, index);
                         Ok(BeamArg::Register { index: index as u32, is_y: false })
                     }
                     0xE0..=0xFF => {
                         // Register Y
                         let index = tag & 0x1F;
+                        eprintln!("[DEBUG] BEAM Parser: Register Y - tag=0x{:02x}, index={}", tag, index);
                         Ok(BeamArg::Register { index: index as u32, is_y: true })
                     }
                     _ => Err(BeamParseError::InvalidArgument),
                 }
             }
-            _ => Err(BeamParseError::InvalidArgument),
         }
     }
 

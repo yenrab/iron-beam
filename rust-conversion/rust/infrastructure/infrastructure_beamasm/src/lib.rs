@@ -42,6 +42,7 @@
 //!
 //! - `entities_data_handling`: Core data structures and types
 
+pub mod beam_instructions;
 pub mod common;
 pub mod jit;
 pub mod loader;
@@ -49,6 +50,15 @@ pub mod metadata;
 pub mod types;
 pub mod asmjit_wrapper;
 pub mod scheduler_data;
+pub mod process_registers;
+pub mod heap_allocation;
+pub mod scheduler_integration;
+pub mod context_switching;
+pub mod exception_handling;
+pub mod error_integration;
+pub mod bif_integration;
+pub mod bit_syntax_operations;
+pub mod map_operations;
 
 #[cfg(target_arch = "x86_64")]
 pub mod arch {
@@ -67,9 +77,23 @@ pub use jit::{JitAllocator, JitAllocatorError};
 pub use loader::{BeamAsmLoader, LoaderState};
 pub use metadata::BeamAsmMetadata;
 pub use scheduler_data::{ErtsSchedulerData, ErtsSchedulerRegisters, JitProcessMain, JitBeamFunction};
+pub use process_registers::{ProcessRegisterManager, ProcessRegisterSync};
+pub use heap_allocation::{HeapAllocationCoordinator, HeapAllocRequest, GcRootInfo};
+pub use scheduler_integration::{SchedulerIntegration, YieldMode, ReductionOperation};
+pub use context_switching::{ContextSwitching, ContextSwitchMode, ProcessState};
+pub use exception_handling::{ExceptionHandling, ExceptionClass, ExceptionState, CatchInfo};
+pub use error_integration::{ErrorIntegration, ErrorContext, ErrorMFA};
+pub use bif_integration::{BifIntegration, BifCallInfo, ExternalCallInfo, BifType, BifResult};
+pub use bit_syntax_operations::{BitSyntaxOperations, BitSyntaxContext, BitFieldSpec, BinaryConstructionState, BinaryMatchResult, BitFieldType, BitEndianness};
+pub use map_operations::{MapOperations, MapOperationContext, MapCreationSpec, MapIterationContext, MapOperationResult, MapOperation, MapType, MapKeyValuePair};
 
 #[cfg(target_arch = "x86_64")]
 pub use arch::x86::global::generate_process_main;
+
+#[cfg(target_arch = "aarch64")]
+pub use arch::arm::{RuntimeContextManager, RuntimeSpec, RuntimeCallManager, RuntimeCallBuilder, RuntimeArg, StackFrameManager, XRegisterManager, LiveRegisterInfo, XRegisterAllocation};
+
+// Additional types are accessible through their respective modules
 
 /// Initialize the BeamAsm JIT system
 ///

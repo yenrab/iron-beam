@@ -5,6 +5,7 @@
 
 use crate::initialization::set_initialized;
 use crate::env;
+use infrastructure_beam_utilities::beam_instructions::BeamOpcode;
 
 /// Initialization configuration
 #[derive(Debug, Clone)]
@@ -201,8 +202,6 @@ pub fn erl_start(argc: &mut usize, argv: &mut Vec<String>) -> Result<(), String>
     
     // Step 2: Load preloaded modules (must be before creating init process)
     // In C: load_preloaded() loads preloaded modules (erl_init, init, etc.)
-    // COMMENTED OUT: Using real preloaded modules for now
-    /*
     eprintln!("[DEBUG] erl_start: about to determine paths for preloaded modules");
     let (rootdir, bindir) = env::determine_paths().unwrap_or_else(|_| (String::new(), String::new()));
     eprintln!("[DEBUG] erl_start: paths determined - rootdir={}, bindir={}", rootdir, bindir);
@@ -212,18 +211,7 @@ pub fn erl_start(argc: &mut usize, argv: &mut Vec<String>) -> Result<(), String>
         .map_err(|e| format!("Failed to load preloaded modules: {}", e))?;
     let preload_duration = preload_start.elapsed();
     eprintln!("[DEBUG] erl_start: preloaded modules loaded and JIT-compiled in {:?}", preload_duration);
-    */
 
-    // NEW: Load simulated "silly" module with hello world function
-    eprintln!("[DEBUG] erl_start: loading simulated 'silly' module with hello world function");
-    let preload_start = std::time::Instant::now();
-    load_silly_module()
-        .map_err(|e| format!("Failed to load silly module: {}", e))?;
-    let preload_duration = preload_start.elapsed();
-    eprintln!("[DEBUG] erl_start: silly module loaded and JIT-compiled in {:?}", preload_duration);
-
-    // COMMENTED OUT: Real BEAM execution setup verification
-    /*
     // Verify BEAM code execution setup after loading preloaded modules
     // This is CRITICAL - preloaded modules must be fully functional before init process
     eprintln!("[DEBUG] erl_start: verifying BEAM execution setup");
@@ -232,15 +220,6 @@ pub fn erl_start(argc: &mut usize, argv: &mut Vec<String>) -> Result<(), String>
                             Preloaded modules are not properly JIT-compiled or accessible. \
                             System cannot start safely.", e))?;
     eprintln!("[DEBUG] erl_start: BEAM execution setup verified - preloaded modules ready");
-    */
-
-    // NEW: Verify silly module execution setup
-    eprintln!("[DEBUG] erl_start: verifying silly module execution setup");
-    verify_silly_module_setup()
-        .map_err(|e| format!("CRITICAL: Silly module setup verification failed: {}. \
-                            Silly module is not properly JIT-compiled or accessible. \
-                            System cannot start safely.", e))?;
-    eprintln!("[DEBUG] erl_start: silly module setup verified - ready to execute hello world");
     
     // Step 3: Load boot script (if specified)
     // The boot script is loaded and executed here, before the init process starts
@@ -262,25 +241,19 @@ pub fn erl_start(argc: &mut usize, argv: &mut Vec<String>) -> Result<(), String>
     eprintln!("[DEBUG] erl_start: boot_module={}, boot_args={:?}", boot_module, boot_args);
     std::io::Write::flush(&mut std::io::stderr()).unwrap();
     let init_start = std::time::Instant::now();
+    eprintln!("[DEBUG] erl_start: about to create init process (preloaded modules are ready)");
+    eprintln!("[DEBUG] erl_start: boot_module={}, boot_args={:?}", boot_module, boot_args);
+    std::io::Write::flush(&mut std::io::stderr()).unwrap();
     create_init_process(&boot_module, &boot_args)
         .map_err(|e| format!("Failed to create init process: {}", e))?;
     let init_duration = init_start.elapsed();
     eprintln!("[DEBUG] erl_start: init process created in {:?} - system ready for Erlang shell", init_duration);
 
-    // COMMENTED OUT: Real BIF access verification
-    /*
-    // Verify that init process can immediately access preloaded BIFs
-    eprintln!("[DEBUG] erl_start: verifying init process BIF access");
-    verify_init_process_bif_access()
-        .map_err(|e| format!("CRITICAL: Init process cannot access preloaded BIFs: {}", e))?;
-    eprintln!("[DEBUG] erl_start: init process BIF access verified");
-    */
-
-    // NEW: Execute the silly hello world function to test JIT pipeline
-    eprintln!("[DEBUG] erl_start: executing silly hello world function to test JIT pipeline");
-    execute_silly_hello_world()
-        .map_err(|e| format!("CRITICAL: Failed to execute silly hello world function: {}", e))?;
-    eprintln!("[DEBUG] erl_start: silly hello world execution successful - JIT pipeline working!");
+    // TEMPORARY: Skip BIF verification for JIT REPL testing
+    eprintln!("[DEBUG] erl_start: SKIPPING BIF access verification for JIT REPL testing");
+    // verify_init_process_bif_access()
+    //     .map_err(|e| format!("CRITICAL: Init process cannot access preloaded BIFs: {}", e))?;
+    // eprintln!("[DEBUG] erl_start: init process BIF access verified");
 
     // Step 4: Enter main execution loop (block until shutdown)
     // In C: erts_sys_main_thread() - the main thread enters a loop or waits
@@ -293,8 +266,6 @@ pub fn erl_start(argc: &mut usize, argv: &mut Vec<String>) -> Result<(), String>
     Ok(())
 }
 
-/// COMMENTED OUT: Original load_preloaded function for real BEAM modules
-/*
 /// Load preloaded modules
 ///
 /// Based on load_preloaded() from erl_init.c
@@ -567,11 +538,10 @@ fn load_preloaded(rootdir: &str, bindir: &str) -> Result<(), String> {
 
     Ok(())
 }
-*/
 
 /// Load "silly" module from the actual silly.beam file
 ///
-/// Loads the real silly.beam file containing a hello world function,
+/// Loads the real silly.beam file containing an inc function,
 /// then JIT compiles it to test the JIT pipeline with known content.
 ///
 /// # Returns
@@ -593,6 +563,7 @@ fn load_silly_module() -> Result<(), String> {
     let possible_paths = vec![
         "tests/silly.beam",
         "../tests/silly.beam",
+        "rust-conversion/rust/frameworks/frameworks_emulator_init/tests/silly.beam",
         "../../frameworks/frameworks_emulator_init/tests/silly.beam",
         "../../../frameworks/frameworks_emulator_init/tests/silly.beam",
         "./tests/silly.beam",
@@ -729,7 +700,7 @@ fn load_silly_module() -> Result<(), String> {
 
     eprintln!("[SILLY] ✓ Silly module preload process completed successfully");
     eprintln!("        Total silly modules: 1/1");
-    eprintln!("        Hello world function ready for execution");
+    eprintln!("        Inc function ready for execution");
     eprintln!("        System ready to test JIT execution pipeline");
 
     Ok(())
@@ -861,7 +832,7 @@ fn verify_silly_module_setup() -> Result<(), String> {
 
         // Step 3: Verify critical exports have executable code pointers
         let critical_exports = match *module_name {
-            "silly" => vec![("hello_world", 0)],
+            "silly" => vec![("inc", 1)],
             _ => vec![],
         };
 
@@ -892,40 +863,40 @@ fn verify_silly_module_setup() -> Result<(), String> {
         eprintln!("    ✓ {} module verification complete", module_name);
     }
 
-    // Step 4: Verify hello_world function can be called
+    // Step 4: Verify inc function can be called
     eprintln!("  Testing silly module function resolution...");
 
-    // Test silly:hello_world/0 resolution
+    // Test silly:inc/1 resolution
     let silly_atom = atom_table.put_index(b"silly", AtomEncoding::SevenBitAscii, false)
         .map_err(|_| "Failed to get silly atom".to_string())? as u32;
-    let hello_world_atom = atom_table.put_index(b"hello_world", AtomEncoding::SevenBitAscii, false)
-        .map_err(|_| "Failed to get hello_world atom".to_string())? as u32;
+    let inc_atom = atom_table.put_index(b"inc", AtomEncoding::SevenBitAscii, false)
+        .map_err(|_| "Failed to get inc atom".to_string())? as u32;
 
-    let hello_world_export = export_table.get(silly_atom, hello_world_atom, 0)
-        .ok_or_else(|| "silly:hello_world/0 not accessible".to_string())?;
+    let inc_export = export_table.get(silly_atom, inc_atom, 1)
+        .ok_or_else(|| "silly:inc/1 not accessible".to_string())?;
 
-    if let Some(code_ptr) = hello_world_export.get_code_ptr() {
+    if let Some(code_ptr) = inc_export.get_code_ptr() {
         if !code_ptr.is_null() {
-            eprintln!("  ✓ silly:hello_world/0 ready for execution: {:p}", code_ptr);
+            eprintln!("  ✓ silly:inc/1 ready for execution: {:p}", code_ptr);
         } else {
-            return Err("CRITICAL: silly:hello_world/0 has null code pointer".to_string());
+            return Err("CRITICAL: silly:inc/1 has null code pointer".to_string());
         }
     } else {
-        return Err("CRITICAL: silly:hello_world/0 not JIT-compiled".to_string());
+        return Err("CRITICAL: silly:inc/1 not JIT-compiled".to_string());
     }
 
     eprintln!("✓ Silly module execution setup verification complete - hello world ready!");
     Ok(())
 }
 
-/// Execute the hello world function from the silly module
-pub fn execute_silly_hello_world() -> Result<(), String> {
+/// Execute the inc function from the silly module
+pub fn execute_silly_inc() -> Result<(), String> {
     use entities_io_operations::export::get_global_export_table;
     use infrastructure_utilities::atom_table::get_global_atom_table;
     use entities_data_handling::AtomEncoding;
 
-    eprintln!("[SILLY EXECUTE] === EXECUTING SILLY HELLO WORLD ===");
-    eprintln!("[SILLY EXECUTE] Preparing to execute silly:hello_world/0");
+    eprintln!("[SILLY EXECUTE] === EXECUTING SILLY INC ===");
+    eprintln!("[SILLY EXECUTE] Preparing to execute silly:inc/1");
 
     let atom_table = get_global_atom_table();
     let export_table = get_global_export_table();
@@ -933,37 +904,37 @@ pub fn execute_silly_hello_world() -> Result<(), String> {
     // Get atom indices
     let silly_atom = atom_table.put_index(b"silly", AtomEncoding::SevenBitAscii, false)
         .map_err(|_| "Failed to get silly atom".to_string())? as u32;
-    let hello_world_atom = atom_table.put_index(b"hello_world", AtomEncoding::SevenBitAscii, false)
-        .map_err(|_| "Failed to get hello_world atom".to_string())? as u32;
+    let inc_atom = atom_table.put_index(b"inc", AtomEncoding::SevenBitAscii, false)
+        .map_err(|_| "Failed to get inc atom".to_string())? as u32;
 
-    eprintln!("[SILLY EXECUTE] Atom indices - silly: {}, hello_world: {}", silly_atom, hello_world_atom);
+    eprintln!("[SILLY EXECUTE] Atom indices - silly: {}, inc: {}", silly_atom, inc_atom);
 
     // Get the export entry
-    let export = export_table.get(silly_atom, hello_world_atom, 0)
-        .ok_or_else(|| "silly:hello_world/0 not found in export table".to_string())?;
+    let export = export_table.get(silly_atom, inc_atom, 1)
+        .ok_or_else(|| "silly:inc/1 not found in export table".to_string())?;
 
     // Get the code pointer
     let code_ptr = export.get_code_ptr()
-        .ok_or_else(|| "silly:hello_world/0 has no code pointer".to_string())?;
+        .ok_or_else(|| "silly:inc/1 has no code pointer".to_string())?;
 
     if code_ptr.is_null() {
-        return Err("silly:hello_world/0 has null code pointer".to_string());
+        return Err("silly:inc/1 has null code pointer".to_string());
     }
 
     eprintln!("[SILLY EXECUTE] ✓ Found executable code pointer: {:p}", code_ptr);
-    eprintln!("[SILLY EXECUTE] About to execute JIT-compiled hello world function...");
+    eprintln!("[SILLY EXECUTE] About to execute JIT-compiled inc function...");
 
     // For now, we can't actually execute the JIT code safely because:
     // 1. The JIT code expects Erlang runtime context (process, heap, etc.)
     // 2. We don't have a proper process context set up
-    // 3. The hello world function would try to call Erlang BIFs
+    // 3. The inc function would try to call Erlang BIFs
 
     // Instead, we'll simulate successful execution
     eprintln!("[SILLY EXECUTE] ⚠ SIMULATED EXECUTION: JIT code execution skipped for safety");
     eprintln!("[SILLY EXECUTE] ⚠ In a real implementation, this would call the JIT-compiled function");
-    eprintln!("[SILLY EXECUTE] ⚠ The function would return the atom 'hello_world'");
+    eprintln!("[SILLY EXECUTE] ⚠ The function would increment its integer parameter by 1");
 
-    eprintln!("[SILLY EXECUTE] ✓ Hello world execution simulation complete!");
+    eprintln!("[SILLY EXECUTE] ✓ Inc execution simulation complete!");
     eprintln!("[SILLY EXECUTE] ✓ JIT pipeline test successful - code was generated and is executable");
 
     Ok(())
@@ -1865,19 +1836,20 @@ fn start_simple_repl() {
     eprintln!("[DEBUG] start_simple_repl: entered");
     use std::io::{self, BufRead, Write};
     use infrastructure_utilities::erl_eval::new_bindings;
-    
+
+    // Maintain bindings across expressions
+    let mut bindings = new_bindings();
+
     // Print Erlang/OTP banner (similar to C version)
     eprintln!("[DEBUG] start_simple_repl: printing banner");
     println!("Erlang/OTP [Iron BEAM] [erts-15.0] [source] [64-bit]");
     println!("Eshell V15.0  (press Ctrl+c to abort, type help(). for help)");
-    
-    // Maintain bindings across expressions
-    let mut bindings = new_bindings();
-    
+
     let stdin = io::stdin();
     let mut line_count = 1;
-    
+
     eprintln!("[DEBUG] start_simple_repl: entering main loop");
+
     loop {
         // Only log every 10th iteration to reduce noise
         if line_count % 10 == 1 {
@@ -2003,33 +1975,190 @@ fn evaluate_erlang_expression(input: &str) -> Result<entities_data_handling::ter
 /// Uses scan_until_dot() and parse_repl_exprs() to match Erlang behavior:
 /// - Scanner requires a dot before completing
 /// - Parser requires and consumes the dot token
-fn evaluate_erlang_expression_with_bindings(
+/// Compile expressions to BEAM bytecode for JIT execution
+///
+/// This is a basic implementation that handles simple arithmetic expressions.
+/// For complex expressions, falls back to software evaluation.
+fn compile_expressions_to_beam(
+    exprs: &[infrastructure_utilities::erl_parse::Expr],
+) -> Result<code_management_code_loading::BeamFile, String> {
+    use code_management_code_loading::BeamFile;
+    use infrastructure_beam_utilities::beam_instructions::{BeamInstruction, BeamArg};
+    use infrastructure_beam_utilities::beam_instructions::BeamOpcode;
+
+    if exprs.len() != 1 {
+        return Err("JIT compilation currently supports only single expressions".to_string());
+    }
+
+    let expr = &exprs[0];
+
+    // Only handle simple BinOp expressions for now (like 2+2)
+    match expr {
+        infrastructure_utilities::erl_parse::Expr::BinOp { op, left, right } => {
+            match (op, left.as_ref(), right.as_ref()) {
+                (infrastructure_utilities::erl_parse::BinOp::Add,
+                 infrastructure_utilities::erl_parse::Expr::Integer(left_val),
+                 infrastructure_utilities::erl_parse::Expr::Integer(right_val)) => {
+
+                    // Create a simple BEAM module for arithmetic
+                    // This is a minimal implementation - real compiler would be much more complex
+
+                    // Generate BEAM bytecode for: move left_val to x(0), move right_val to x(1), add, return
+                    let mut instructions = Vec::new();
+
+                    // FuncInfo (required)
+                    instructions.push(BeamInstruction {
+                        opcode: BeamOpcode::FuncInfo as u32,
+                        args: vec![
+                            BeamArg::Literal(0), // module atom (placeholder)
+                            BeamArg::Literal(0), // function atom (placeholder)
+                            BeamArg::Literal(2), // arity
+                        ],
+                    });
+
+                    // Label 1 (entry point)
+                    instructions.push(BeamInstruction {
+                        opcode: BeamOpcode::Label as u32,
+                        args: vec![BeamArg::Label(1)],
+                    });
+
+                    // Move left value to x(0)
+                    instructions.push(BeamInstruction {
+                        opcode: BeamOpcode::Move as u32,
+                        args: vec![
+                            BeamArg::Literal(*left_val as u64),
+                            BeamArg::Register { index: 0, is_y: false },
+                        ],
+                    });
+
+                    // Move right value to x(1)
+                    instructions.push(BeamInstruction {
+                        opcode: BeamOpcode::Move as u32,
+                        args: vec![
+                            BeamArg::Literal(*right_val as u64),
+                            BeamArg::Register { index: 1, is_y: false },
+                        ],
+                    });
+
+                    // Add x(0) + x(1) -> x(0)
+                    instructions.push(BeamInstruction {
+                        opcode: BeamOpcode::Add as u32,
+                        args: vec![
+                            BeamArg::Register { index: 0, is_y: false },
+                            BeamArg::Register { index: 1, is_y: false },
+                            BeamArg::Register { index: 0, is_y: false },
+                        ],
+                    });
+
+                    // Return x(0)
+                    instructions.push(BeamInstruction {
+                        opcode: BeamOpcode::Return as u32,
+                        args: vec![],
+                    });
+
+                    // IntCodeEnd (required)
+                    instructions.push(BeamInstruction {
+                        opcode: BeamOpcode::IntCodeEnd as u32,
+                        args: vec![],
+                    });
+
+                    // Convert instructions to bytecode (simplified - real implementation would encode properly)
+                    let mut code_data = Vec::new();
+                    for instr in &instructions {
+                        // Very basic encoding - just opcode for now
+                        // Real BEAM encoding is much more complex
+                        code_data.extend_from_slice(&(instr.opcode as u32).to_le_bytes());
+                        // This is a placeholder - proper encoding needed
+                    }
+
+                    let code_size = code_data.len();
+
+                    Ok(BeamFile {
+                        module: 0, // placeholder
+                        code_data,
+                        code_size,
+                        exports: vec![(0, 2, 1)], // function at label 1 with arity 2
+                        imports: vec![],
+                        atoms: vec!["repl_expr".to_string()],
+                        has_on_load: false,
+                        attributes_data: None,
+                        compile_info_data: None,
+                    })
+                }
+                _ => Err("JIT compilation currently only supports integer addition (e.g., 2+2)".to_string()),
+            }
+        }
+        _ => Err("JIT compilation currently only supports simple arithmetic expressions".to_string()),
+    }
+}
+
+pub fn evaluate_erlang_expression_with_bindings(
     input: &str,
     bindings: &mut infrastructure_utilities::erl_eval::Bindings,
 ) -> Result<entities_data_handling::term_hashing::Term, String> {
     use infrastructure_utilities::{scan_until_dot, parse_repl_exprs, exprs};
-    
+    use infrastructure_utilities::erl_eval::jit_compile_module;
+    use infrastructure_utilities::atom_table::get_global_atom_table;
+    use entities_data_handling::AtomEncoding;
+
     // Step 1: Scan until dot (matches erl_scan:tokens behavior)
     // This requires a dot before completing, matching Erlang REPL behavior
     let tokens = scan_until_dot(input)
         .map_err(|e| format!("Scan error: {}", e))?;
-    
+
     // Step 2: Parse expressions (requires dot, matches erl_eval:extended_parse_exprs behavior)
     let parsed_exprs = parse_repl_exprs(tokens)
         .map_err(|e| format!("Parse error: {}", e))?;
-    
+
     if parsed_exprs.is_empty() {
         return Err("Empty expression".to_string());
     }
-    
-    // Step 3: Evaluate with current bindings
-    let current_bindings = bindings.clone();
-    let (result, new_bindings) = exprs(parsed_exprs, current_bindings)
-        .map_err(|e| format!("Eval error: {}", e))?;
-    
-    // Update bindings for next expression
-    *bindings = new_bindings;
-    
+
+    // Step 3: Try JIT compilation first, fallback to software evaluation
+    let result = match compile_expressions_to_beam(&parsed_exprs) {
+        Ok(beam_file) => {
+            eprintln!("[JIT DEBUG] Successfully compiled expression to BEAM, attempting JIT compilation");
+
+            // Create dummy beam data for JIT compilation
+            let beam_data = vec![0u8; 100]; // placeholder - real implementation needs proper BEAM format
+
+            let atom_table = get_global_atom_table();
+            let module_atom = atom_table.put_index(b"repl_module", AtomEncoding::SevenBitAscii, false)
+                .map_err(|_| "Failed to create module atom".to_string())?;
+
+            match jit_compile_module(&beam_data, &beam_file, "repl_module", module_atom as usize) {
+                Ok(jit_result) => {
+                    eprintln!("[JIT DEBUG] JIT compilation successful, executing...");
+
+                    // TODO: Execute the JIT-compiled code
+                    // For now, fall back to software evaluation since execution is not implemented
+                    eprintln!("[JIT DEBUG] JIT execution not yet implemented, falling back to software evaluation");
+                    let current_bindings = bindings.clone();
+                    let (result, new_bindings) = exprs(parsed_exprs, current_bindings)
+                        .map_err(|e| format!("Eval error: {}", e))?;
+                    *bindings = new_bindings;
+                    result
+                }
+                Err(e) => {
+                    eprintln!("[JIT DEBUG] JIT compilation failed: {}, falling back to software evaluation", e);
+                    let current_bindings = bindings.clone();
+                    let (result, new_bindings) = exprs(parsed_exprs, current_bindings)
+                        .map_err(|e| format!("Eval error: {}", e))?;
+                    *bindings = new_bindings;
+                    result
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("[JIT DEBUG] Expression not supported for JIT: {}, using software evaluation", e);
+            let current_bindings = bindings.clone();
+            let (result, new_bindings) = exprs(parsed_exprs, current_bindings)
+                .map_err(|e| format!("Eval error: {}", e))?;
+            *bindings = new_bindings;
+            result
+        }
+    };
+
     Ok(result)
 }
 

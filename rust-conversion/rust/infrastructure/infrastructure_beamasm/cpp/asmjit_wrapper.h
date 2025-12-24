@@ -72,6 +72,30 @@ int asmjit_x86_assembler_emit_ret(AsmjitAssembler* assembler);
 // aarch64 specific operations
 int asmjit_a64_assembler_emit_mov_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src);
 int asmjit_a64_assembler_emit_ret(AsmjitAssembler* assembler);
+int asmjit_a64_assembler_emit_ldr_reg_offset(AsmjitAssembler* assembler, uint32_t dst, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_tst_imm(AsmjitAssembler* assembler, uint32_t reg, uint32_t imm);
+int asmjit_a64_assembler_emit_str_reg_offset(AsmjitAssembler* assembler, uint32_t src, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_add_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2);
+int asmjit_a64_assembler_emit_and_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm);
+int asmjit_a64_assembler_emit_sub_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2);
+int asmjit_a64_assembler_emit_subs_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm);
+int asmjit_a64_assembler_emit_stp_pre_idx(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_ldp_post_idx(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_stp(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_ldp(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_blr(AsmjitAssembler* assembler, uint32_t reg);
+int asmjit_a64_assembler_emit_blr_imm(AsmjitAssembler* assembler, uint64_t addr);
+int asmjit_a64_assembler_emit_mov_imm(AsmjitAssembler* assembler, uint32_t dst, uint64_t imm);
+int asmjit_a64_assembler_emit_add_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm);
+int asmjit_a64_assembler_emit_adds_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2);
+int asmjit_a64_assembler_emit_adds_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm);
+int asmjit_a64_assembler_emit_sub_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t imm);
+int asmjit_a64_assembler_emit_cmp_reg_reg(AsmjitAssembler* assembler, uint32_t reg1, uint32_t reg2);
+int asmjit_a64_assembler_emit_b_eq(AsmjitAssembler* assembler, uint32_t label_id);
+int asmjit_a64_assembler_emit_b_ne(AsmjitAssembler* assembler, uint32_t label_id);
+int asmjit_a64_assembler_emit_b_lt(AsmjitAssembler* assembler, uint32_t label_id);
+int asmjit_a64_assembler_emit_b_ge(AsmjitAssembler* assembler, uint32_t label_id);
+int asmjit_a64_assembler_emit_b(AsmjitAssembler* assembler, uint32_t label_id);
 
 // Memory protection functions
 int asmjit_virtmem_protect_jit_memory(int access);
@@ -79,6 +103,21 @@ int asmjit_virtmem_protect_jit_memory(int access);
 #ifdef __cplusplus
 }
 #endif
+
+// Additional ARM64 functions
+int asmjit_a64_assembler_emit_cmp_imm(AsmjitAssembler* assembler, uint32_t reg, uint64_t imm);
+int asmjit_a64_assembler_emit_b_cond(AsmjitAssembler* assembler, uint32_t condition, uint32_t target);
+int asmjit_a64_assembler_emit_nop(AsmjitAssembler* assembler);
+
+// Additional ARM64 arithmetic and shift operations
+int asmjit_a64_assembler_emit_lsr_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t shift);
+int asmjit_a64_assembler_emit_lsl_imm(AsmjitAssembler* assembler, uint32_t dst, uint32_t src, uint32_t shift);
+int asmjit_a64_assembler_emit_stur_reg_offset(AsmjitAssembler* assembler, uint32_t src, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_ldur_reg_offset(AsmjitAssembler* assembler, uint32_t dst, uint32_t base, int32_t offset);
+int asmjit_a64_assembler_emit_udiv_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t dividend, uint32_t divisor);
+int asmjit_a64_assembler_emit_mul_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2);
+int asmjit_a64_assembler_emit_msub_reg_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2, uint32_t src3);
+int asmjit_a64_assembler_emit_eor_reg_reg_reg(AsmjitAssembler* assembler, uint32_t dst, uint32_t src1, uint32_t src2);
 
 #endif // ASMJIT_WRAPPER_H
 

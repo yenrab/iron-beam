@@ -120,7 +120,7 @@ fn test_jit_compilation_and_execution() {
     };
 
     // Parse the BEAM file
-    let beam_file = match BeamLoader::load_from_bytes(&beam_data) {
+    let beam_file = match BeamLoader::read_beam_file(&beam_data) {
         Ok(file) => file,
         Err(e) => {
             println!("⚠ Failed to parse erl_init.beam: {:?}", e);
@@ -177,7 +177,6 @@ fn test_jit_compilation_and_execution() {
     } else {
         println!("⚠ Could not find erl_init:start/2 export");
     }
-}
 }
 
 #[test]

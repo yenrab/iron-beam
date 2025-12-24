@@ -16,6 +16,7 @@ entities_io_operations = { path = "../../entities/entities_io_operations" }
 # Infrastructure layer
 infrastructure_runtime_utils = { path = "../../infrastructure/infrastructure_runtime_utils" }
 infrastructure_utilities = { path = "../../infrastructure/infrastructure_utilities" }
+infrastructure_beam_utilities = { path = "../../infrastructure/infrastructure_beam_utilities" }
 infrastructure_time_management = { path = "../../infrastructure/infrastructure_time_management" }
 infrastructure_bif_dispatcher = { path = "../../infrastructure/infrastructure_bif_dispatcher" }
 infrastructure_emulator_loop = { path = "../../infrastructure/infrastructure_emulator_loop" }

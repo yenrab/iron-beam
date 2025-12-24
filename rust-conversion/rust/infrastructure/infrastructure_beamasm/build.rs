@@ -36,13 +36,21 @@ fn main() {
     asmjit_build.cpp(true);
     asmjit_build.std("c++17");
     asmjit_build.include(asmjit_dir.parent().unwrap()); // erts/emulator
-    
-    // Compiler flags (matching Erlang's Makefile)
+
+    // Compiler flags (matching Erlang's Makefile exactly)
     asmjit_build.flag("-DASMJIT_EMBED=1");
     asmjit_build.flag("-DASMJIT_NO_BUILDER=1");
     asmjit_build.flag("-DASMJIT_NO_DEPRECATED=1");
     asmjit_build.flag("-DASMJIT_STATIC=1");
     asmjit_build.flag("-DASMJIT_NO_FOREIGN=1");
+
+    // Match C build optimization: use -O2 with no-inline-functions (matching GEN_OPT_FLGS pattern)
+    asmjit_build.opt_level(2);
+    asmjit_build.flag("-fno-inline-functions");
+
+    // Filter out format warnings like the C build does
+    asmjit_build.flag("-Wno-format");
+    asmjit_build.flag("-Wno-format=2");
     
     // Architecture-specific flags
     #[cfg(target_arch = "x86_64")]
@@ -95,24 +103,32 @@ fn main() {
     
     // Compile C++ wrapper
     let mut build = cc::Build::new();
-    
+
     // Add C++ wrapper source
     build.file(cpp_dir.join("asmjit_wrapper.cpp"));
-    
+
     // Set C++ standard
     build.cpp(true);
     build.std("c++17");
-    
+
     // Add include paths
     build.include(asmjit_dir.parent().unwrap()); // erts/emulator
     build.include(&cpp_dir);
-    
-    // Same compiler flags
+
+    // Same compiler flags as asmjit
     build.flag("-DASMJIT_EMBED=1");
     build.flag("-DASMJIT_NO_BUILDER=1");
     build.flag("-DASMJIT_NO_DEPRECATED=1");
     build.flag("-DASMJIT_STATIC=1");
     build.flag("-DASMJIT_NO_FOREIGN=1");
+
+    // Match C build optimization for wrapper too
+    build.opt_level(2);
+    build.flag("-fno-inline-functions");
+
+    // Filter out format warnings
+    build.flag("-Wno-format");
+    build.flag("-Wno-format=2");
     
     #[cfg(target_arch = "x86_64")]
     {

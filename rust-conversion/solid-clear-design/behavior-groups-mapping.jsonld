@@ -118923,6 +118923,7 @@
     },
     {
       "@id": "ex:BehaviorGroup_infrastructure_beamasm",
+      "@type": "BehaviorGroup",
       "name": "infrastructure_beamasm",
       "cleanLayer": "infrastructure",
       "solidResponsibility": "beamasm_jit_execution",
@@ -118977,12 +118978,62 @@
         "erts/emulator/beam/jit/arm/instr_select.cpp",
         "erts/emulator/beam/jit/arm/instr_trace.cpp"
       ],
-      "rustFiles": [],
+      "rustFiles": [
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/lib.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/beam_instructions/mod.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/beam_instructions/opcodes.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/beam_instructions/parser.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/beam_instructions/types.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/common/mod.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/common/args.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/jit/mod.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/mod.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/x86/mod.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/x86/assembler.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/x86/global.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/x86/instructions.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/x86/module.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/arm/mod.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/arm/assembler.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/arm/runtime_calls.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/arm/runtime_context.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/arm/stack_frames.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/arch/arm/x_register_management.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/loader.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/metadata.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/types.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/asmjit_wrapper/mod.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/scheduler_data.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/process_registers.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/heap_allocation.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/scheduler_integration.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/context_switching.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/exception_handling.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/error_integration.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/bif_integration.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/bit_syntax_operations.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/src/map_operations.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/tests/integration_test.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/tests/integration_testing.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/tests/jit_verification_test.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/tests/performance_validation.rs",
+        "rust-conversion/rust/infrastructure/infrastructure_beamasm/tests/runtime_integration_test.rs"
+      ],
       "functions": [],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_beam_utilities"
+      ],
+      "rationale": {
+        "codeRationale": "Infrastructure layer: BeamAsm JIT execution for BEAM bytecode",
+        "solidRationale": "Single Responsibility: JIT compilation and execution of BEAM instructions",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Core execution engine",
+        "rustRationale": "Rust module: infrastructure_beamasm as separate module with clear dependency boundaries"
+      },
       "note": "BeamAsm JIT implementation. Provides load-time conversion of BEAM instructions to native code. Includes code loading (asm_load.c), code generation (beam_asm_module.cpp, beam_asm_global.cpp), and instruction emitters for x86-64 and aarch64 architectures. Replaces interpreter-based execution (beam_emu.c removed)."
     },
     {
       "@id": "ex:BehaviorGroup_infrastructure_emulator_loop",
+      "@type": "BehaviorGroup",
       "name": "infrastructure_emulator_loop",
       "cleanLayer": "infrastructure",
       "solidResponsibility": "emulator_execution_loop",
@@ -119085,6 +119136,6 @@
       "clearLayerOrder": 5,
       "implementationPriority": 5,
       "clearPrinciple": "inner_layers_before_outer_layers"
-    },
+    }
   ]
 }

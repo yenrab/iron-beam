@@ -246,8 +246,8 @@ impl BeamTransformer {
             if instruction.args.len() >= 1 {
                 if let BeamArg::Literal(value) = &instruction.args[0] {
                     if *value == 0 {
-                        // NIL line instruction, remove it
-                        return TransformationResult::Applied;
+                // NIL line instruction, remove it
+                return TransformationResult::Applied;
                     }
                 }
             }
@@ -283,15 +283,15 @@ impl BeamTransformer {
                 if let (BeamArg::Literal(n_regs), BeamArg::Literal(_live_regs)) =
                     (&instruction.args[0], &instruction.args[1]) {
 
-                    // Peek at next instruction
-                    if let Ok(Some(next_instr)) = reader.peek_instruction() {
-                        if next_instr.opcode == 172 && next_instr.args.len() >= 1 { // genop_init_yregs_1
+                // Peek at next instruction
+                if let Ok(Some(next_instr)) = reader.peek_instruction() {
+                    if next_instr.opcode == 172 && next_instr.args.len() >= 1 { // genop_init_yregs_1
                             if let BeamArg::Literal(init_n) = &next_instr.args[0] {
-                                if n_regs == init_n {
-                                    // Combine allocate + init_yregs → allocate_heap
-                                    // Skip the next instruction since we're combining them
-                                    let _ = reader.read_instruction();
-                                    return TransformationResult::Applied;
+                        if n_regs == init_n {
+                            // Combine allocate + init_yregs → allocate_heap
+                            // Skip the next instruction since we're combining them
+                            let _ = reader.read_instruction();
+                            return TransformationResult::Applied;
                                 }
                             }
                         }
@@ -439,12 +439,12 @@ impl<'a> BytecodeReader<'a> {
                                 return Err(BeamFileReadResult::CorruptCodeChunk);
                             }
                             let value = u32::from_be_bytes([
-                                self.data[self.position + bytes_read],
-                                self.data[self.position + bytes_read + 1],
-                                self.data[self.position + bytes_read + 2],
-                                self.data[self.position + bytes_read + 3],
-                            ]);
-                            bytes_read += 4;
+                self.data[self.position + bytes_read],
+                self.data[self.position + bytes_read + 1],
+                self.data[self.position + bytes_read + 2],
+                self.data[self.position + bytes_read + 3],
+            ]);
+            bytes_read += 4;
                             println!("[DECODE DEBUG] Argument {}: extended literal {} (5 bytes total)", i, value);
                             BeamArg::Literal(value as u64)
                         }

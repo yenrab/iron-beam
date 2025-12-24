@@ -35,6 +35,9 @@ byteorder = "1.5"
 # ARM64 disassembly for debugging
 capstone = "0.11"
 
+# Temporary files for JIT verification
+tempfile = "3.0"
+
 [build-dependencies]
 # For generating bindings to asmjit C++ library
 cc = "1.0"

@@ -168,11 +168,11 @@ impl BeamArg {
         // Use local ArgType
         // ArgVal is a struct with tag_type() and value() methods
         match arg.tag_type() {
-            ArgType::Word | ArgType::Immediate => Some(BeamArg::Literal(arg.value())),
+            ArgType::Word => Some(BeamArg::Literal(arg.value())),
+            ArgType::Immediate => Some(BeamArg::Literal(arg.value())),
             ArgType::XReg => Some(BeamArg::Register { index: arg.value() as u32, is_y: false }),
             ArgType::YReg => Some(BeamArg::Register { index: arg.value() as u32, is_y: true }),
             ArgType::Label => Some(BeamArg::Label(arg.value() as u32)),
-            _ => None, // Other types not implemented yet
         }
     }
 
