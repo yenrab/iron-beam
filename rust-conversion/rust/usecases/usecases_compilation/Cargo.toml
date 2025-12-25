@@ -1,0 +1,37 @@
+[package]
+name = "usecases_compilation"
+version = "0.1.0"
+edition = "2021"
+description = "Compilation business logic and workflows - CLEAN Architecture Use Cases Layer"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "compilation", "pipeline", "usecases"]
+categories = ["compilers", "development-tools"]
+
+[dependencies]
+# CLEAN Architecture dependencies
+entities_erlang_syntax = { path = "../../entities/entities_erlang_syntax" }
+
+# Serialization support for API integration
+serde = { version = "1.0", features = ["derive"] }
+
+# Infrastructure layer dependencies (all infrastructure crates)
+infrastructure_memory_management = { path = "../../infrastructure/infrastructure_memory_management" }
+infrastructure_error_handling = { path = "../../infrastructure/infrastructure_error_handling" }
+infrastructure_platform_support = { path = "../../infrastructure/infrastructure_platform_support" }
+infrastructure_environment_config = { path = "../../infrastructure/infrastructure_environment_config" }
+infrastructure_path_handling = { path = "../../infrastructure/infrastructure_path_handling" }
+infrastructure_process_execution = { path = "../../infrastructure/infrastructure_process_execution" }
+infrastructure_compile_server = { path = "../../infrastructure/infrastructure_compile_server" }
+infrastructure_compiler_frontend = { path = "../../infrastructure/infrastructure_compiler_frontend" }
+
+# Async trait support
+async-trait = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["rt", "macros"] }
+
+[lib]
+name = "usecases_compilation"
+path = "src/lib.rs"

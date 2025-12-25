@@ -49288,6 +49288,249 @@
       "isStatic": true
     },
     {
+      "@id": "ex:BehaviorGroup_infrastructure_compiler_frontend",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_compiler_frontend",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "compiler_command_interface",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_main",
+        "ex:CFunction_erts_etc_common_erlc.c_wmain",
+        "ex:CFunction_erts_etc_common_erlc.c_process_opt"
+      ],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_process_execution",
+        "ex:BehaviorGroup_infrastructure_compile_server",
+        "ex:BehaviorGroup_infrastructure_environment_config",
+        "ex:BehaviorGroup_infrastructure_path_handling",
+        "ex:BehaviorGroup_infrastructure_platform_support",
+        "ex:BehaviorGroup_infrastructure_error_handling"
+      ],
+      "rationale": {
+        "codeRationale": "Main compiler frontend interface - handles command line arguments, orchestrates compilation process, manages compiler lifecycle",
+        "solidRationale": "Single Responsibility: Provides the main compiler interface and argument processing for Erlang compilation",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Platform-specific compilation infrastructure with no dependencies on outer layers",
+        "rustRationale": "Rust module: infrastructure_compiler_frontend as separate crate. Uses safe Rust patterns for argument parsing and process orchestration."
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_process_execution",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_process_execution",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "process_spawning_execution",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_run_erlang",
+        "ex:CFunction_erts_etc_common_erlc.c_my_spawnvp"
+      ],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_platform_support",
+        "ex:BehaviorGroup_infrastructure_error_handling"
+      ],
+      "rationale": {
+        "codeRationale": "Platform-specific process spawning and execution - handles fork/exec on Unix and CreateProcess on Windows",
+        "solidRationale": "Single Responsibility: Manages process creation, execution, and synchronization for compiler subprocesses",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Low-level process management with platform abstraction",
+        "rustRationale": "Rust module: infrastructure_process_execution using std::process for safe process spawning, avoiding unsafe FFI"
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_compile_server",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_compile_server",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "distributed_compilation_coordination",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_call_compile_server",
+        "ex:CFunction_erts_etc_common_erlc.c_start_compile_server",
+        "ex:CFunction_erts_etc_common_erlc.c_encode_env"
+      ],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_process_execution",
+        "ex:BehaviorGroup_infrastructure_environment_config",
+        "ex:BehaviorGroup_infrastructure_error_handling"
+      ],
+      "rationale": {
+        "codeRationale": "Distributed compilation server infrastructure - manages Erlang node communication, RPC calls, and server lifecycle",
+        "solidRationale": "Single Responsibility: Coordinates distributed compilation using Erlang's ei library for performance optimization",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Distributed system coordination infrastructure",
+        "rustRationale": "Rust module: infrastructure_compile_server using safe networking and serialization, avoiding unsafe ei library calls"
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_environment_config",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_environment_config",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "environment_variable_management",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_get_env",
+        "ex:CFunction_erts_etc_common_erlc.c_set_env",
+        "ex:CFunction_erts_etc_common_erlc.c_free_env_val",
+        "ex:CFunction_erts_etc_common_erlc.c_get_env_compile_server"
+      ],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_platform_support",
+        "ex:BehaviorGroup_infrastructure_error_handling"
+      ],
+      "rationale": {
+        "codeRationale": "Environment variable management for compiler configuration - handles ERLC_EMULATOR, ERLC_USE_SERVER, PATH, etc.",
+        "solidRationale": "Single Responsibility: Manages environment variables for compiler configuration and state persistence",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: System environment configuration management",
+        "rustRationale": "Rust module: infrastructure_environment_config using std::env for safe environment variable access"
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_path_handling",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_path_handling",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "filesystem_path_resolution",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_find_executable",
+        "ex:CFunction_erts_etc_common_erlc.c_safe_realpath",
+        "ex:CFunction_erts_etc_common_erlc.c_get_default_emulator",
+        "ex:CFunction_erts_etc_common_erlc.c_file_exists"
+      ],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_platform_support",
+        "ex:BehaviorGroup_infrastructure_error_handling"
+      ],
+      "rationale": {
+        "codeRationale": "Filesystem path resolution and executable location - finds Erlang emulator, resolves symlinks, validates paths",
+        "solidRationale": "Single Responsibility: Handles path resolution, executable discovery, and filesystem validation",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Platform-specific filesystem operations",
+        "rustRationale": "Rust module: infrastructure_path_handling using std::path and std::fs for safe path operations"
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_platform_support",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_platform_support",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "platform_specific_utilities",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_get_encoding",
+        "ex:CFunction_erts_etc_common_erlc.c_decode_binary",
+        "ex:CFunction_erts_etc_common_erlc.c_possibly_quote",
+        "ex:CFunction_erts_etc_common_erlc.c_possibly_unquote",
+        "ex:CFunction_erts_etc_common_erlc.c_make_commandline"
+      ],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_memory_management"
+      ],
+      "rationale": {
+        "codeRationale": "Platform-specific utilities - UTF-8 encoding, argument quoting, command line construction",
+        "solidRationale": "Single Responsibility: Provides platform-specific string handling and encoding utilities",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Platform abstraction for string and encoding operations",
+        "rustRationale": "Rust module: infrastructure_platform_support using std::ffi and encoding crates for safe platform operations"
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_error_handling",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_error_handling",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "consistent_error_reporting",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_error",
+        "ex:CFunction_erts_etc_common_erlc.c_strerror"
+      ],
+      "dependencies": [
+        "ex:BehaviorGroup_infrastructure_memory_management"
+      ],
+      "rationale": {
+        "codeRationale": "Consistent error reporting and termination - provides unified error handling across compiler infrastructure",
+        "solidRationale": "Single Responsibility: Manages error reporting, logging, and graceful termination",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Cross-cutting error handling infrastructure",
+        "rustRationale": "Rust module: infrastructure_error_handling using Result types and proper error propagation instead of exit()"
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
+      "@id": "ex:BehaviorGroup_infrastructure_memory_management",
+      "@type": "BehaviorGroup",
+      "name": "infrastructure_memory_management",
+      "cleanLayer": "infrastructure",
+      "solidResponsibility": "safe_memory_allocation",
+      "clearLayerOrder": 4,
+      "implementationPriority": 4,
+      "clearPrinciple": "inner_layers_before_outer_layers",
+      "files": [
+        "erts/etc/common/erlc.c"
+      ],
+      "functions": [
+        "ex:CFunction_erts_etc_common_erlc.c_emalloc",
+        "ex:CFunction_erts_etc_common_erlc.c_erealloc",
+        "ex:CFunction_erts_etc_common_erlc.c_efree",
+        "ex:CFunction_erts_etc_common_erlc.c_strsave"
+      ],
+      "dependencies": [],
+      "rationale": {
+        "codeRationale": "Safe memory allocation with error handling - wraps malloc/free with consistent error checking",
+        "solidRationale": "Single Responsibility: Provides memory management infrastructure with proper error handling",
+        "cleanRationale": "CLEAN Architecture infrastructure layer: Foundation memory management utilities",
+        "rustRationale": "Rust module: infrastructure_memory_management - unnecessary in Rust as ownership/borrowing provides safety, but may provide allocation utilities if needed"
+      },
+      "rustFiles": [],
+      "functions": []
+    },
+    {
       "@id": "ex:BehaviorGroup_19",
       "name": "frameworks_utilities",
       "cleanLayer": "frameworks",

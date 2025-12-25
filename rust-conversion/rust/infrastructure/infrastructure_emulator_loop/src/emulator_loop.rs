@@ -11,12 +11,37 @@
 //! Based on the JIT implementation (`process_main.cpp`), not the interpreter (`beam_emu.c`).
 
 use entities_process::{Process, ErtsCodePtr, Eterm};
-use usecases_scheduling::ScheduleError;
 use infrastructure_beamasm::{beamasm_init, JitProcessMain, ErtsSchedulerData};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::registers::RegisterManager;
+
+/// Scheduler error types (local definition to avoid dependency)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScheduleError {
+    /// Process is exiting
+    ProcessExiting,
+    /// Run queue is full
+    QueueFull,
+    /// Invalid priority level
+    InvalidPriority,
+    /// Scheduler is not active
+    SchedulerInactive,
+}
+
+impl std::fmt::Display for ScheduleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScheduleError::ProcessExiting => write!(f, "Process is exiting"),
+            ScheduleError::QueueFull => write!(f, "Run queue is full"),
+            ScheduleError::InvalidPriority => write!(f, "Invalid priority level"),
+            ScheduleError::SchedulerInactive => write!(f, "Scheduler is not active"),
+        }
+    }
+}
+
+impl std::error::Error for ScheduleError {}
 
 /// Emulator loop error types
 #[derive(Debug, Clone, PartialEq, Eq)]

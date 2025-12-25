@@ -1,0 +1,21 @@
+[package]
+name = "infrastructure_memory_management"
+version = "0.1.0"
+edition = "2021"
+description = "Memory management utilities for Erlang BEAM - CLEAN Architecture Infrastructure Layer"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "memory", "allocation"]
+categories = ["memory-management", "no-std"]
+
+[dependencies]
+
+[features]
+default = []
+# Feature for custom allocation strategies if needed in the future
+custom-alloc = []
+
+[lib]
+name = "infrastructure_memory_management"
+path = "src/lib.rs"

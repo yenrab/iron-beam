@@ -17,7 +17,7 @@
 //! ### One-shot compression
 //!
 //! ```rust
-//! use infrastructure_utilities::compression::{compress2, uncompress, CompressionLevel};
+//! use interfaces_serialization::{compress2, uncompress, CompressionLevel};
 //!
 //! let data = b"Hello, world!";
 //! let mut compressed = vec![0u8; data.len() * 2];
@@ -36,7 +36,7 @@
 //! ### Chunked compression
 //!
 //! ```rust
-//! use infrastructure_utilities::compression::{DeflateStream, CompressionLevel, ChunkResult};
+//! use interfaces_serialization::{DeflateStream, CompressionLevel, ChunkResult};
 //!
 //! let data = b"Hello, world!";
 //! let mut stream = DeflateStream::new(data, CompressionLevel::Default).unwrap();

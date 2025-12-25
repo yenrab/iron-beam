@@ -1,0 +1,26 @@
+[package]
+name = "infrastructure_compiler_frontend"
+version = "0.1.0"
+edition = "2021"
+description = "Compiler command interface and argument processing for Erlang BEAM compiler infrastructure"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "compiler", "frontend", "cli"]
+categories = ["command-line-utilities", "compilers"]
+
+[dependencies]
+infrastructure_memory_management = { path = "../infrastructure_memory_management" }
+infrastructure_error_handling = { path = "../infrastructure_error_handling" }
+infrastructure_platform_support = { path = "../infrastructure_platform_support" }
+infrastructure_environment_config = { path = "../infrastructure_environment_config" }
+infrastructure_path_handling = { path = "../infrastructure_path_handling" }
+infrastructure_process_execution = { path = "../infrastructure_process_execution" }
+infrastructure_compile_server = { path = "../infrastructure_compile_server" }
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["rt", "macros"] }
+
+[lib]
+name = "infrastructure_compiler_frontend"
+path = "src/lib.rs"

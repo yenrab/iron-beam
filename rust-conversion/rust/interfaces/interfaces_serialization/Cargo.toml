@@ -1,0 +1,25 @@
+[package]
+name = "interfaces_serialization"
+version = "0.1.0"
+edition = "2021"
+description = "Serialization interfaces and cross-cutting serialization concerns - CLEAN Architecture Interface Adapters Layer"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "serialization", "compression", "interfaces"]
+categories = ["compression", "encoding", "api-bindings"]
+
+[dependencies]
+# CLEAN Architecture dependencies (entities for data types)
+entities_data_handling = { path = "../../entities/entities_data_handling" }
+
+# Compression libraries
+flate2 = "1.0"  # Zlib compression/decompression
+zstd = "0.13"   # Zstd compression/decompression
+
+# Error handling
+thiserror = "1.0"
+
+[dev-dependencies]
+# For testing
+tempfile = "3.8"

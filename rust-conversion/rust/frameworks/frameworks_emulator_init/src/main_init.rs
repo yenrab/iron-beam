@@ -249,11 +249,11 @@ pub fn erl_start(argc: &mut usize, argv: &mut Vec<String>) -> Result<(), String>
     let init_duration = init_start.elapsed();
     eprintln!("[DEBUG] erl_start: init process created in {:?} - system ready for Erlang shell", init_duration);
 
-    // TEMPORARY: Skip BIF verification for JIT REPL testing
-    eprintln!("[DEBUG] erl_start: SKIPPING BIF access verification for JIT REPL testing");
-    // verify_init_process_bif_access()
-    //     .map_err(|e| format!("CRITICAL: Init process cannot access preloaded BIFs: {}", e))?;
-    // eprintln!("[DEBUG] erl_start: init process BIF access verified");
+    // Verify that init process can immediately access preloaded BIFs
+    eprintln!("[DEBUG] erl_start: verifying init process BIF access");
+    verify_init_process_bif_access()
+        .map_err(|e| format!("CRITICAL: Init process cannot access preloaded BIFs: {}", e))?;
+    eprintln!("[DEBUG] erl_start: init process BIF access verified");
 
     // Step 4: Enter main execution loop (block until shutdown)
     // In C: erts_sys_main_thread() - the main thread enters a loop or waits
@@ -1833,6 +1833,7 @@ fn wait_for_shutdown(handles: Vec<std::thread::JoinHandle<()>>, start_shell: boo
 /// - Input reading
 /// - Basic command handling (help, quit)
 fn start_simple_repl() {
+    eprintln!("=== REPL STARTED ===");
     eprintln!("[DEBUG] start_simple_repl: entered");
     use std::io::{self, BufRead, Write};
     use infrastructure_utilities::erl_eval::new_bindings;
@@ -1981,6 +1982,7 @@ fn evaluate_erlang_expression(input: &str) -> Result<entities_data_handling::ter
 /// For complex expressions, falls back to software evaluation.
 fn compile_expressions_to_beam(
     exprs: &[infrastructure_utilities::erl_parse::Expr],
+    module_atom_index: usize,
 ) -> Result<code_management_code_loading::BeamFile, String> {
     use code_management_code_loading::BeamFile;
     use infrastructure_beam_utilities::beam_instructions::{BeamInstruction, BeamArg};
@@ -2002,6 +2004,13 @@ fn compile_expressions_to_beam(
 
                     // Create a simple BEAM module for arithmetic
                     // This is a minimal implementation - real compiler would be much more complex
+
+                    // Create function atom for the expression
+                    use infrastructure_utilities::atom_table::get_global_atom_table;
+                    use entities_data_handling::AtomEncoding;
+                    let atom_table = get_global_atom_table();
+                    let func_atom = atom_table.put_index(b"eval", AtomEncoding::SevenBitAscii, false)
+                        .map_err(|_| "Failed to create function atom".to_string())?;
 
                     // Generate BEAM bytecode for: move left_val to x(0), move right_val to x(1), add, return
                     let mut instructions = Vec::new();
@@ -2074,12 +2083,12 @@ fn compile_expressions_to_beam(
                     let code_size = code_data.len();
 
                     Ok(BeamFile {
-                        module: 0, // placeholder
+                        module: module_atom_index,
                         code_data,
                         code_size,
-                        exports: vec![(0, 2, 1)], // function at label 1 with arity 2
+                        exports: vec![(1, 0, 1)], // function at index 1 in atoms array (1-based), label 1, arity 0
                         imports: vec![],
-                        atoms: vec!["repl_expr".to_string()],
+                        atoms: vec!["".to_string(), "eval".to_string()], // index 0 unused, index 1 = "eval"
                         has_on_load: false,
                         attributes_data: None,
                         compile_info_data: None,
@@ -2114,17 +2123,25 @@ pub fn evaluate_erlang_expression_with_bindings(
         return Err("Empty expression".to_string());
     }
 
+    eprintln!("=== JIT: Parsed {} expressions ===", parsed_exprs.len());
+    for (i, expr) in parsed_exprs.iter().enumerate() {
+        eprintln!("=== JIT: Expression {}: {:?} ===", i, expr);
+    }
+
     // Step 3: Try JIT compilation first, fallback to software evaluation
-    let result = match compile_expressions_to_beam(&parsed_exprs) {
+    let atom_table = get_global_atom_table();
+    let module_atom = atom_table.put_index(b"repl_module", AtomEncoding::SevenBitAscii, false)
+        .map_err(|_| "Failed to create module atom".to_string())?;
+
+    eprintln!("=== JIT: About to call compile_expressions_to_beam for expression ===");
+    let result = match compile_expressions_to_beam(&parsed_exprs, module_atom as usize) {
         Ok(beam_file) => {
             eprintln!("[JIT DEBUG] Successfully compiled expression to BEAM, attempting JIT compilation");
+            eprintln!("[JIT DEBUG] BeamFile exports: {:?}", beam_file.exports);
+            eprintln!("[JIT DEBUG] BeamFile atoms: {:?}", beam_file.atoms);
 
             // Create dummy beam data for JIT compilation
             let beam_data = vec![0u8; 100]; // placeholder - real implementation needs proper BEAM format
-
-            let atom_table = get_global_atom_table();
-            let module_atom = atom_table.put_index(b"repl_module", AtomEncoding::SevenBitAscii, false)
-                .map_err(|_| "Failed to create module atom".to_string())?;
 
             match jit_compile_module(&beam_data, &beam_file, "repl_module", module_atom as usize) {
                 Ok(jit_result) => {

@@ -1,0 +1,20 @@
+[package]
+name = "infrastructure_process_execution"
+version = "0.1.0"
+edition = "2021"
+description = "Process spawning and execution for Erlang BEAM compiler infrastructure"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "process", "execution", "spawning"]
+categories = ["os", "command-line"]
+
+[dependencies]
+infrastructure_memory_management = { path = "../infrastructure_memory_management" }
+infrastructure_error_handling = { path = "../infrastructure_error_handling" }
+infrastructure_platform_support = { path = "../infrastructure_platform_support" }
+infrastructure_environment_config = { path = "../infrastructure_environment_config" }
+
+[lib]
+name = "infrastructure_process_execution"
+path = "src/lib.rs"

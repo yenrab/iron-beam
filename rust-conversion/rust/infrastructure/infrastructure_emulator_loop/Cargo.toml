@@ -11,7 +11,6 @@ entities_process = { path = "../../entities/entities_process" }
 entities_data_handling = { path = "../../entities/entities_data_handling" }
 infrastructure_bif_dispatcher = { path = "../infrastructure_bif_dispatcher" }
 infrastructure_beamasm = { path = "../infrastructure_beamasm" }
-usecases_scheduling = { path = "../../usecases/usecases_scheduling" }
 infrastructure_utilities = { path = "../infrastructure_utilities" }
 code_management_code_loading = { path = "../../code_management/code_management_code_loading" }
 

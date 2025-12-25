@@ -1,0 +1,20 @@
+[package]
+name = "infrastructure_error_handling"
+version = "0.1.0"
+edition = "2021"
+description = "Error handling utilities for Erlang BEAM compiler infrastructure"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "error", "handling"]
+categories = ["rust-patterns", "error-handling"]
+
+[dependencies]
+infrastructure_memory_management = { path = "../infrastructure_memory_management" }
+thiserror = "1.0"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[lib]
+name = "infrastructure_error_handling"
+path = "src/lib.rs"

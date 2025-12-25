@@ -1,0 +1,21 @@
+[package]
+name = "entities_erlang_syntax"
+version = "0.1.0"
+edition = "2021"
+description = "Erlang syntax tree structures and language constructs - CLEAN Architecture Entities Layer"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "ast", "syntax", "entities"]
+categories = ["data-structures", "compilers"]
+
+[dependencies]
+# Pure data structures need some external crates for correct representation
+num-bigint = "0.4"    # For arbitrary precision integers (BigInt)
+num-rational = "0.4"  # For rational numbers and precise arithmetic (BigRational)
+num-traits = "0.2"    # For number casting and conversion methods
+serde = { version = "1.0", features = ["derive"] }  # Serialization support
+
+[lib]
+name = "entities_erlang_syntax"
+path = "src/lib.rs"

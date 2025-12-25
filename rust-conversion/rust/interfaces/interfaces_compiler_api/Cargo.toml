@@ -1,0 +1,41 @@
+[package]
+name = "interfaces_compiler_api"
+version = "0.1.0"
+edition = "2021"
+description = "External interfaces and adapters for compiler integration - CLEAN Architecture Interface Adapters Layer"
+license = "Apache-2.0"
+authors = ["Erlang/OTP Team"]
+repository = "https://github.com/erlang/otp"
+keywords = ["erlang", "beam", "api", "interfaces", "adapters"]
+categories = ["api-bindings", "development-tools"]
+
+[dependencies]
+# CLEAN Architecture dependencies
+usecases_compilation = { path = "../../usecases/usecases_compilation" }
+entities_erlang_syntax = { path = "../../entities/entities_erlang_syntax" }
+
+# Infrastructure layer dependencies (all infrastructure crates)
+infrastructure_memory_management = { path = "../../infrastructure/infrastructure_memory_management" }
+infrastructure_error_handling = { path = "../../infrastructure/infrastructure_error_handling" }
+infrastructure_platform_support = { path = "../../infrastructure/infrastructure_platform_support" }
+infrastructure_environment_config = { path = "../../infrastructure/infrastructure_environment_config" }
+infrastructure_path_handling = { path = "../../infrastructure/infrastructure_path_handling" }
+infrastructure_process_execution = { path = "../../infrastructure/infrastructure_process_execution" }
+infrastructure_compile_server = { path = "../../infrastructure/infrastructure_compile_server" }
+infrastructure_compiler_frontend = { path = "../../infrastructure/infrastructure_compiler_frontend" }
+
+# External interface dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"  # LSP protocol only
+bincode = "1.3"  # Binary serialization
+async-trait = "0.1"  # Async traits
+tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "net", "io-util", "sync", "macros"] }  # Async runtime
+clap = { version = "4.0", features = ["derive"] }  # Command line parsing
+
+[lib]
+name = "interfaces_compiler_api"
+path = "src/lib.rs"
+
+[[bin]]
+name = "erlc"
+path = "src/bin/erlc.rs"

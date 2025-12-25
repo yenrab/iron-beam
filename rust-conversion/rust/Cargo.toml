@@ -7,6 +7,7 @@ members = [
     "entities/entities_system_integration_win32",
     "entities/entities_utilities",
     "entities/entities_io_operations",
+    "entities/entities_erlang_syntax",
     
     # Use Cases layer
     "usecases/usecases_memory_management",
@@ -15,6 +16,11 @@ members = [
     "usecases/usecases_io_operations",
     "usecases/usecases_bifs",
     "usecases/usecases_nif_compilation",
+    "usecases/usecases_compilation",
+
+    # Interface Adapters layer
+    "interfaces/interfaces_compiler_api",
+    "interfaces/interfaces_serialization",
     
     # Adapters layer
     "adapters/adapters_nifs",
@@ -44,8 +50,17 @@ members = [
     "infrastructure/infrastructure_trace_encoding",
     "infrastructure/infrastructure_nif_api",
     "infrastructure/infrastructure_beamasm",
+    "infrastructure/infrastructure_memory_management",
+    "infrastructure/infrastructure_error_handling",
+    "infrastructure/infrastructure_platform_support",
+    "infrastructure/infrastructure_environment_config",
+    "infrastructure/infrastructure_path_handling",
+    "infrastructure/infrastructure_process_execution",
+    "infrastructure/infrastructure_compile_server",
+    "infrastructure/infrastructure_compiler_frontend",
     
     # Frameworks layer
+    "frameworks/frameworks_beam_integration",
     "frameworks/frameworks_utilities",
     "frameworks/frameworks_emulator_init",
     "frameworks/frameworks_system_integration_win32",
