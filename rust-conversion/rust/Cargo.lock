@@ -490,8 +490,10 @@ dependencies = [
  "infrastructure_platform_support",
  "infrastructure_process_execution",
  "interfaces_compiler_api",
+ "num_cpus",
  "serde",
  "serde_json",
+ "thiserror",
  "usecases_compilation",
 ]
 
@@ -858,6 +860,7 @@ dependencies = [
  "bincode",
  "clap",
  "entities_erlang_syntax",
+ "infrastructure_beam_utilities",
  "infrastructure_compile_server",
  "infrastructure_compiler_frontend",
  "infrastructure_environment_config",
@@ -866,6 +869,7 @@ dependencies = [
  "infrastructure_path_handling",
  "infrastructure_platform_support",
  "infrastructure_process_execution",
+ "num-traits",
  "serde",
  "serde_json",
  "tokio",
@@ -1546,6 +1550,7 @@ dependencies = [
  "infrastructure_path_handling",
  "infrastructure_platform_support",
  "infrastructure_process_execution",
+ "infrastructure_utilities",
  "serde",
  "tokio",
 ]

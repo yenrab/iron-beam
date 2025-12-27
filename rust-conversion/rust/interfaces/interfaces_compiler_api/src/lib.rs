@@ -83,6 +83,7 @@ mod api;
 mod serialization;
 mod plugins;
 mod protocols;
+mod bytecode;
 
 /// Main compiler API for external integration
 ///
@@ -135,7 +136,8 @@ impl CompilerAPI {
             .map_err(|e| APIError::CompilationError(e.to_string()))?;
 
         // Apply post-compilation plugins
-        let mut final_result = CompilationOutput::from_result(result);
+        let mut final_result = CompilationOutput::from_result(result)
+            .map_err(|e| APIError::SerializationError(e))?;
         for plugin in &self.plugins {
             final_result = plugin.post_compile(&module_atom, final_result).await?;
         }

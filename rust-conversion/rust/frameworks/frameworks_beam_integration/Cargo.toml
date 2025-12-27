@@ -11,10 +11,10 @@ categories = ["compilers", "virtualization"]
 
 [dependencies]
 # CLEAN Architecture dependencies (all previous layers)
-interfaces_compiler_api = { path = "../../interfaces/interfaces_compiler_api" }
 usecases_compilation = { path = "../../usecases/usecases_compilation" }
 entities_erlang_syntax = { path = "../../entities/entities_erlang_syntax" }
 entities_process = { path = "../../entities/entities_process" }
+interfaces_compiler_api = { path = "../../interfaces/interfaces_compiler_api" }
 
 # Infrastructure layer dependencies (all infrastructure crates)
 infrastructure_memory_management = { path = "../../infrastructure/infrastructure_memory_management" }
@@ -30,6 +30,8 @@ infrastructure_beamasm = { path = "../../infrastructure/infrastructure_beamasm" 
 # External framework dependencies
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+thiserror = "1.0"
+num_cpus = "1.0"
 
 [lib]
 name = "frameworks_beam_integration"

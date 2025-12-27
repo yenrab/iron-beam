@@ -25,6 +25,7 @@ infrastructure_path_handling = { path = "../../infrastructure/infrastructure_pat
 infrastructure_process_execution = { path = "../../infrastructure/infrastructure_process_execution" }
 infrastructure_compile_server = { path = "../../infrastructure/infrastructure_compile_server" }
 infrastructure_compiler_frontend = { path = "../../infrastructure/infrastructure_compiler_frontend" }
+infrastructure_utilities = { path = "../../infrastructure/infrastructure_utilities" }
 
 # Async trait support
 async-trait = "0.1"

@@ -217,6 +217,12 @@ impl CompilationPass for DebugInfoPass {
 /// Pass for final bytecode linking
 pub struct LinkingPass;
 
+pub struct CodeGenerationPass;
+
+pub struct AnalysisPass;
+
+pub struct OptimizationPass;
+
 #[async_trait::async_trait]
 impl CompilationPass for LinkingPass {
     async fn execute(&self, context: &mut CompilationContext) -> CompilerResult<()> {
@@ -231,6 +237,96 @@ impl CompilationPass for LinkingPass {
 
     fn phase(&self) -> CompilationPhase {
         CompilationPhase::Linking
+    }
+}
+
+#[async_trait::async_trait]
+impl CompilationPass for CodeGenerationPass {
+    async fn execute(&self, _context: &mut CompilationContext) -> CompilerResult<()> {
+        // Code generation is handled by interfaces_compiler_api::BytecodeGenerator
+        // This pass marks that code generation should occur
+        Ok(())
+    }
+
+    fn name(&self) -> &'static str {
+        "code_generation"
+    }
+
+    fn phase(&self) -> CompilationPhase {
+        CompilationPhase::CodeGeneration
+    }
+}
+
+#[async_trait::async_trait]
+impl CompilationPass for AnalysisPass {
+    async fn execute(&self, context: &mut CompilationContext) -> CompilerResult<()> {
+        // Check that we have a parsed AST
+        let ast = context.ast.as_ref().ok_or_else(|| {
+            CompilerError::InvalidArgument("No AST available for analysis".to_string())
+        })?;
+
+        // Validate module structure
+        if ast.name.as_str().is_empty() {
+            return Err(CompilerError::InvalidArgument(
+                "Module must have a name".to_string()
+            ));
+        }
+
+        // Check for required module attribute
+        let has_module_attr = ast.attributes.iter().any(|attr| {
+            matches!(attr.value, entities_erlang_syntax::AttributeValue::Module(_))
+        });
+
+        if !has_module_attr {
+            return Err(CompilerError::InvalidArgument(
+                "Module must have a -module() attribute".to_string()
+            ));
+        }
+
+        // Validate that module name matches context
+        if ast.name != context.module_name {
+            return Err(CompilerError::InvalidArgument(
+                format!("Module name '{}' does not match expected name '{}'",
+                       ast.name.as_str(), context.module_name.as_str())
+            ));
+        }
+
+        // Basic validation complete
+        context.metadata.insert("analyzed".to_string(), "true".to_string());
+        context.metadata.insert("module_name".to_string(), ast.name.as_str().to_string());
+        context.metadata.insert("attributes_count".to_string(), ast.attributes.len().to_string());
+        context.metadata.insert("functions_count".to_string(), ast.functions.len().to_string());
+
+        Ok(())
+    }
+
+    fn name(&self) -> &'static str {
+        "analysis"
+    }
+
+    fn phase(&self) -> CompilationPhase {
+        CompilationPhase::Analysis
+    }
+}
+
+#[async_trait::async_trait]
+impl CompilationPass for OptimizationPass {
+    async fn execute(&self, context: &mut CompilationContext) -> CompilerResult<()> {
+        // In a real implementation, this would apply various optimizations
+        // based on the optimization level
+
+        let opt_level = format!("{:?}", context.options.optimization_level);
+        context.metadata.insert("optimized".to_string(), opt_level);
+
+        Ok(())
+    }
+
+    fn name(&self) -> &'static str {
+        "optimization"
+    }
+
+    fn phase(&self) -> CompilationPhase {
+        CompilationPhase::Optimization
     }
 }
 

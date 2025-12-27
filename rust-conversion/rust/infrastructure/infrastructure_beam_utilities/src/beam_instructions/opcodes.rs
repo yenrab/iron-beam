@@ -78,6 +78,11 @@ pub enum BeamOpcode {
     Badmatch = 72,  // genop_badmatch_1
     IfEnd = 73,  // genop_if_end_0
     CaseEnd = 74,  // genop_case_end_1
+
+    // Pattern matching
+    SelectVal = 75,  // genop_select_val_3
+    SelectTupleArity = 76,  // genop_select_tuple_arity_3
+    TestArity = 77,  // genop_test_arity_3
     Try = 104,  // genop_try_2
     TryEnd = 105,  // genop_try_end_1
     TryCase = 106,  // genop_try_case_1
@@ -186,6 +191,9 @@ impl BeamOpcode {
             BeamOpcode::Jump => 187,  // op_jump_f
             BeamOpcode::IfEnd => 157,  // op_if_end
             BeamOpcode::CaseEnd => 38,  // op_case_end_s
+            BeamOpcode::SelectVal => 59,  // op_select_val_sL
+            BeamOpcode::SelectTupleArity => 60,  // op_select_tuple_arity_sL
+            BeamOpcode::TestArity => 61,  // op_test_arity_sL (placeholder)
             BeamOpcode::PutList2 => 207,  // op_put_list2_sssd
             BeamOpcode::GetHd => 50,  // op_get_hd_Sd
             BeamOpcode::GetTl => 52,  // op_get_tl_Sd
@@ -281,6 +289,8 @@ impl BeamOpcode {
             72 => Some(BeamOpcode::Badmatch),
             73 => Some(BeamOpcode::IfEnd),
             74 => Some(BeamOpcode::CaseEnd),
+            59 => Some(BeamOpcode::SelectVal),
+            60 => Some(BeamOpcode::SelectTupleArity),
             104 => Some(BeamOpcode::Try),
             105 => Some(BeamOpcode::TryEnd),
             106 => Some(BeamOpcode::TryCase),

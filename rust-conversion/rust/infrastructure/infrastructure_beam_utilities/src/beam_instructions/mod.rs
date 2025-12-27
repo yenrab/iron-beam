@@ -6,7 +6,9 @@
 pub mod opcodes;
 pub mod parser;
 pub mod types;
+pub mod encoder;
 
 pub use opcodes::*;
 pub use parser::*;
 pub use types::*;
+pub use encoder::*;

@@ -173,7 +173,7 @@ impl Default for NIFRegistry {
 }
 
 /// NIF information
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct NIFInfo {
     pub module: String,
     pub functions: Vec<NIFunction>,

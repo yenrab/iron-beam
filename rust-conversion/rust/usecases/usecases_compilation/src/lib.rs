@@ -79,6 +79,7 @@ use serde::{Deserialize, Serialize};
 use entities_erlang_syntax::*;
 use infrastructure_error_handling::{CompilerError, CompilerResult};
 use infrastructure_path_handling::path;
+use infrastructure_utilities::{erl_parse, erl_scan};
 
 // Re-export key types for convenience
 pub use compilation::*;
@@ -131,6 +132,7 @@ impl CompilationOrchestrator {
         let context = CompilationContext {
             module_name: module_name.clone(),
             source_text: source_text.to_string(),
+            ast: None,
             options: self.options.clone(),
             metadata: HashMap::new(),
         };
@@ -281,6 +283,7 @@ pub enum OutputFormat {
 pub struct CompilationContext {
     pub module_name: Atom,
     pub source_text: String,
+    pub ast: Option<entities_erlang_syntax::Module>,
     pub options: CompilationOptions,
     pub metadata: HashMap<String, String>,
 }
@@ -290,6 +293,7 @@ impl CompilationContext {
         Self {
             module_name,
             source_text,
+            ast: None,
             options: CompilationOptions::default(),
             metadata: HashMap::new(),
         }

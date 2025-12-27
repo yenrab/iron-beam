@@ -101,7 +101,6 @@ use usecases_compilation::*;
 use interfaces_compiler_api::*;
 
 // Re-export key framework components
-pub use bytecode::*;
 pub use runtime::*;
 pub use external::*;
 
@@ -109,16 +108,15 @@ pub use external::*;
 pub use infrastructure_beamasm::jit;
 
 // Framework modules
-mod bytecode;
 mod runtime;
 mod external;
 
 /// Main BEAM integration coordinator
 ///
 /// This is the primary interface for BEAM virtual machine integration.
-/// It coordinates bytecode generation, runtime loading, and external framework bindings.
+/// It coordinates runtime loading and external framework bindings.
+/// BEAM bytecode generation is handled at the interfaces layer.
 pub struct BeamIntegration {
-    bytecode_generator: BytecodeGenerator,
     module_loader: ModuleLoader,
     jit_allocator: Option<infrastructure_beamasm::jit::JitAllocator>,
     external_bindings: ExternalBindings,
@@ -129,7 +127,6 @@ impl BeamIntegration {
     /// Create a new BEAM integration instance
     pub fn new() -> Self {
         Self {
-            bytecode_generator: BytecodeGenerator::new(),
             module_loader: ModuleLoader::new(),
             jit_allocator: None,
             external_bindings: ExternalBindings::new(),
@@ -143,30 +140,22 @@ impl BeamIntegration {
         Ok(self)
     }
 
-    /// Compile and load a module into the BEAM runtime
+    /// Load a BEAM module into the runtime
     ///
-    /// This is the primary integration method that takes a compilation result
-    /// and makes it available in the BEAM runtime environment.
-    pub async fn compile_and_load(
+    /// This method takes a BeamFile and loads it into the BEAM runtime environment.
+    pub async fn load_beam_file(
         &mut self,
-        compilation_result: &CompilationResult,
+        beam_file: &BeamFile,
     ) -> BeamResult<LoadedModule> {
-        // Generate BEAM bytecode
-        let beam_file = self.bytecode_generator.generate_beam_file(compilation_result)?;
-
-        // Note: JIT optimization would happen here if we had a bytecode optimizer
-        // The current infrastructure_beamasm provides memory allocation for JIT,
-        // but bytecode optimization would be a separate component
-
         // Load into runtime
-        let loaded_module = self.module_loader.load_module(&beam_file)?;
+        let loaded_module = self.module_loader.load_module(beam_file)?;
 
         // Register external bindings if needed
         self.external_bindings.register_module_bindings(&loaded_module)?;
 
         // Store reference
-        let module_name = compilation_result.module_name.to_string();
-        self.loaded_modules.insert(module_name.clone(), loaded_module.clone());
+        let module_name = beam_file.module_name.clone();
+        self.loaded_modules.insert(module_name, loaded_module.clone());
 
         Ok(loaded_module)
     }
@@ -209,7 +198,7 @@ impl BeamIntegration {
     }
 
     /// Shutdown the BEAM integration
-    pub async fn shutdown(self) -> BeamResult<()> {
+    pub async fn shutdown(mut self) -> BeamResult<()> {
         // Clean up all loaded modules
         for module in self.loaded_modules.values() {
             self.module_loader.unload_module(module)?;

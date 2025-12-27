@@ -7,6 +7,7 @@ including module loading, function calling, and process management.
 
 use super::*;
 use entities_process::*;
+use interfaces_compiler_api::*;
 
 /// BEAM module loader
 pub struct ModuleLoader {

@@ -11,9 +11,11 @@ use super::*;
 #[derive(Debug, Clone, )]
 pub struct CompilationResult {
     pub module_name: Atom,
+    pub ast: entities_erlang_syntax::Module,
     pub bytecode: Vec<u8>,
     pub warnings: Vec<CompilationWarning>,
     pub metadata: CompilationMetadata,
+    pub context_metadata: std::collections::HashMap<String, String>,
 }
 
 /// Warning generated during compilation
@@ -231,8 +233,12 @@ mod tests {
 
     #[test]
     fn test_compilation_result_creation() {
+        use entities_erlang_syntax::*;
+
+        let ast = Module::new(Atom::new("test_module"));
         let result = CompilationResult {
             module_name: Atom::new("test_module"),
+            ast,
             bytecode: vec![1, 2, 3, 4],
             warnings: vec![],
             metadata: CompilationMetadata {
@@ -241,6 +247,7 @@ mod tests {
                 bytecode_size: 500,
                 optimization_level: OptimizationLevel::Standard,
             },
+            context_metadata: std::collections::HashMap::new(),
         };
 
         assert_eq!(result.module_name.as_str(), "test_module");

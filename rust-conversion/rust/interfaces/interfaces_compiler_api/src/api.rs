@@ -19,11 +19,19 @@ pub struct CompilationOutput {
 }
 
 impl CompilationOutput {
-    pub fn from_result(result: CompilationResult) -> Self {
-        Self {
+    pub fn from_result(result: CompilationResult) -> Result<Self, String> {
+        // Generate real BEAM bytecode using local generator
+        let bytecode_generator = crate::bytecode::BytecodeGenerator::new();
+        let beam_file = bytecode_generator.generate_beam_file(&result)
+            .map_err(|e| format!("BEAM generation failed: {}", e))?;
+
+        // Convert BeamFile to raw bytes
+        let bytecode = beam_file.to_bytes();
+
+        Ok(Self {
             module_name: result.module_name.to_string(),
             success: true, // CompilationResult doesn't have failure variants in this design
-            bytecode: Some(result.bytecode),
+            bytecode: Some(bytecode),
             warnings: result.warnings.into_iter()
                 .map(|w| APIWarning {
                     message: w.message,
@@ -35,7 +43,7 @@ impl CompilationOutput {
             errors: Vec::new(), // Would be populated if CompilationResult had errors
             compilation_time_ms: result.metadata.compilation_time_ms,
             metadata: HashMap::new(), // Would convert CompilationMetadata
-        }
+        })
     }
 
     pub fn failure(module_name: &str, errors: Vec<String>) -> Self {
@@ -65,7 +73,9 @@ impl BatchCompilationOutput {
         let total_modules = result.results.len() + error_count;
 
         let results: HashMap<String, CompilationOutput> = result.results.into_iter()
-            .map(|(k, v)| (k.to_string(), CompilationOutput::from_result(v)))
+            .map(|(k, v)| (k.to_string(), CompilationOutput::from_result(v).unwrap_or_else(|e| {
+                CompilationOutput::failure(&k.to_string(), vec![e])
+            })))
             .collect();
 
         let errors: HashMap<String, CompilationOutput> = result.errors.into_iter()
@@ -359,7 +369,7 @@ mod tests {
             },
         };
 
-        let output = CompilationOutput::from_result(result);
+        let output = CompilationOutput::from_result(result).unwrap();
         assert_eq!(output.module_name, "test_module");
         assert!(output.success);
         assert_eq!(output.bytecode, Some(vec![1, 2, 3, 4]));

@@ -338,8 +338,12 @@ mod tests {
     fn test_compilation_report() {
         let mut report = CompilationReport::new();
 
+        use entities_erlang_syntax::*;
+
+        let ast = Module::new(Atom::new("test"));
         let result = CompilationResult {
             module_name: Atom::new("test"),
+            ast,
             bytecode: vec![1, 2, 3],
             warnings: vec![
                 CompilationWarning {
@@ -354,6 +358,7 @@ mod tests {
                 bytecode_size: 25,
                 optimization_level: OptimizationLevel::Standard,
             },
+            context_metadata: std::collections::HashMap::new(),
         };
 
         report.add_result(result);
