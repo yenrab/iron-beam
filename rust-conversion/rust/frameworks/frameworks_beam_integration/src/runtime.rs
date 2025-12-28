@@ -84,7 +84,7 @@ impl ModuleLoader {
     }
 
     /// Spawn a new BEAM process
-    pub fn spawn_process(&mut self, module: &LoadedModule, function: &str) -> BeamResult<entities_process::ProcessId> {
+    pub fn spawn_process(&mut self, _module: &LoadedModule, _function: &str) -> BeamResult<entities_process::ProcessId> {
         // Simulate process spawning
         self.process_count += 1;
         Ok(self.process_count as entities_process::ProcessId)
@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_scheduler() {
-        let mut scheduler = Scheduler::new();
+        let scheduler = Scheduler::new();
 
         let stats = scheduler.get_stats();
         assert!(stats.scheduler_count > 0);

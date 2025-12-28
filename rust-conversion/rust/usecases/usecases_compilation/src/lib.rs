@@ -48,11 +48,14 @@ let pipeline = CompilationPipeline::new();
 use usecases_compilation::CompilationResult;
 
 // Robust error handling with recovery
+let ast = entities_erlang_syntax::Module::new(entities_erlang_syntax::Atom::new("test".to_string()));
 let result = CompilationResult {
-    module_name: "test".into(),
+    module_name: entities_erlang_syntax::Atom::new("test".to_string()),
+    ast,
     bytecode: vec![],
     warnings: vec![],
     metadata: Default::default(),
+    context_metadata: std::collections::HashMap::new(),
 };
 
 println!("Compiled module: {}", result.module_name.as_str());
@@ -452,7 +455,8 @@ mod tests {
 
         // This will currently fail because we haven't implemented the full pipeline
         // but it tests that the orchestrator interface works
-        let result = orchestrator.compile_module("dummy source", &Atom::new("test")).await;
+        let source = "-module(test).\n-export([]).\n";
+        let result = orchestrator.compile_module(source, &Atom::new("test")).await;
 
         // Now the pipeline is implemented (mock), so it should succeed
         assert!(result.is_ok());

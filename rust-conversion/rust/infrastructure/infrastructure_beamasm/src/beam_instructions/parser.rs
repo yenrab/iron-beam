@@ -485,8 +485,8 @@ impl BeamParser {
                     super::BeamOpcode::Label => {
                         // Update entry label for current function
                         if let Some(ref mut func) = current_function {
-                            if let Some(BeamArg::Label(label)) = instruction.args.first() {
-                                func.entry_label = *label;
+                            if let Some(BeamArg::Literal(label)) = instruction.args.first() {
+                                func.entry_label = *label as u32;
                             }
                         }
                     }
@@ -597,5 +597,548 @@ impl BeamParser {
     /// Read a u32 argument
     fn read_u32_arg(cursor: &mut Cursor<&[u8]>) -> Result<u32, BeamParseError> {
         Self::read_u32_be(cursor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_beam_parse_error_debug() {
+        let err = BeamParseError::InvalidHeader;
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("InvalidHeader"));
+
+        let err = BeamParseError::UnknownOpcode(123);
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("UnknownOpcode"));
+        assert!(debug_str.contains("123"));
+    }
+
+    #[test]
+    fn test_beam_parse_error_display() {
+        let err = BeamParseError::InvalidHeader;
+        let display_str = format!("{}", err);
+        assert_eq!(display_str, "Invalid code header");
+
+        let err = BeamParseError::UnknownOpcode(456);
+        let display_str = format!("{}", err);
+        assert_eq!(display_str, "Unknown opcode: 456");
+
+        let err = BeamParseError::UnexpectedEnd;
+        let display_str = format!("{}", err);
+        assert_eq!(display_str, "Unexpected end of code");
+    }
+
+    #[test]
+    fn test_beam_parse_error_from_io_error() {
+        use std::io;
+        let io_err = io::Error::new(io::ErrorKind::UnexpectedEof, "test error");
+        let parse_err: BeamParseError = io_err.into();
+        match parse_err {
+            BeamParseError::IoError(_) => {}, // Expected
+            _ => panic!("Expected IoError variant"),
+        }
+    }
+
+    #[test]
+    fn test_get_opcode_arity_basic_opcodes() {
+        // Test some basic opcodes
+        assert_eq!(BeamParser::get_opcode_arity(1), 1); // label
+        assert_eq!(BeamParser::get_opcode_arity(2), 3); // func_info
+        assert_eq!(BeamParser::get_opcode_arity(3), 0); // int_code_end
+        assert_eq!(BeamParser::get_opcode_arity(4), 2); // call
+        assert_eq!(BeamParser::get_opcode_arity(12), 2); // allocate
+        assert_eq!(BeamParser::get_opcode_arity(19), 0); // return
+    }
+
+    #[test]
+    fn test_get_opcode_arity_arithmetic_opcodes() {
+        // Test arithmetic opcodes
+        assert_eq!(BeamParser::get_opcode_arity(20), 0); // add (special case)
+        assert_eq!(BeamParser::get_opcode_arity(21), 0); // subtract
+        assert_eq!(BeamParser::get_opcode_arity(27), 4); // m_plus
+        assert_eq!(BeamParser::get_opcode_arity(28), 4); // m_minus
+        assert_eq!(BeamParser::get_opcode_arity(39), 3); // is_lt
+        assert_eq!(BeamParser::get_opcode_arity(41), 3); // is_eq
+    }
+
+    #[test]
+    fn test_get_opcode_arity_function_opcodes() {
+        // Test function-related opcodes
+        assert_eq!(BeamParser::get_opcode_arity(7), 2); // call_ext
+        assert_eq!(BeamParser::get_opcode_arity(8), 3); // call_ext_last
+        assert_eq!(BeamParser::get_opcode_arity(9), 2); // bif0
+        assert_eq!(BeamParser::get_opcode_arity(10), 4); // bif1
+        assert_eq!(BeamParser::get_opcode_arity(11), 5); // bif2
+    }
+
+    #[test]
+    fn test_get_opcode_arity_memory_opcodes() {
+        // Test memory-related opcodes
+        assert_eq!(BeamParser::get_opcode_arity(64), 2); // move
+        assert_eq!(BeamParser::get_opcode_arity(65), 3); // get_list
+        assert_eq!(BeamParser::get_opcode_arity(66), 3); // get_tuple_element
+        assert_eq!(BeamParser::get_opcode_arity(69), 3); // put_list
+        assert_eq!(BeamParser::get_opcode_arity(70), 2); // put_tuple
+    }
+
+    #[test]
+    fn test_get_opcode_arity_control_flow_opcodes() {
+        // Test control flow opcodes
+        assert_eq!(BeamParser::get_opcode_arity(61), 1); // jump
+        assert_eq!(BeamParser::get_opcode_arity(62), 2); // catch
+        assert_eq!(BeamParser::get_opcode_arity(59), 3); // select_val
+        assert_eq!(BeamParser::get_opcode_arity(60), 3); // select_tuple_arity
+    }
+
+    #[test]
+    fn test_get_opcode_arity_extended_opcodes() {
+        // Test some extended opcodes
+        assert_eq!(BeamParser::get_opcode_arity(128), 2); // put_literal
+        assert_eq!(BeamParser::get_opcode_arity(153), 1); // line
+        assert_eq!(BeamParser::get_opcode_arity(172), 1); // init_yregs
+        assert_eq!(BeamParser::get_opcode_arity(179), 0); // nif_start
+    }
+
+    #[test]
+    fn test_get_opcode_arity_unknown_opcodes() {
+        // Test unknown opcodes (should return 0)
+        assert_eq!(BeamParser::get_opcode_arity(99999), 0);
+        assert_eq!(BeamParser::get_opcode_arity(u32::MAX), 0);
+    }
+
+    #[test]
+    fn test_read_u8_success() {
+        let data = vec![0x42, 0xFF];
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_u8(&mut cursor);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0x42);
+
+        let result = BeamParser::read_u8(&mut cursor);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0xFF);
+    }
+
+    #[test]
+    fn test_read_u8_eof() {
+        let data = vec![0x42];
+        let mut cursor = Cursor::new(&data[..]);
+
+        // Read the available byte
+        let result = BeamParser::read_u8(&mut cursor);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0x42);
+
+        // Try to read past EOF
+        let result = BeamParser::read_u8(&mut cursor);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeamParseError::IoError(_) => {}, // Expected
+            _ => panic!("Expected IoError"),
+        }
+    }
+
+    #[test]
+    fn test_read_u32_be_success() {
+        // Test big-endian u32 reading: 0x12345678
+        let data = vec![0x12, 0x34, 0x56, 0x78, 0xFF, 0xFF];
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_u32_be(&mut cursor);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0x12345678);
+    }
+
+    #[test]
+    fn test_read_u32_be_eof() {
+        let data = vec![0x12, 0x34]; // Not enough bytes
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_u32_be(&mut cursor);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeamParseError::IoError(_) => {}, // Expected
+            _ => panic!("Expected IoError"),
+        }
+    }
+
+    #[test]
+    fn test_read_u32_be_multiple() {
+        let data = vec![0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02];
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result1 = BeamParser::read_u32_be(&mut cursor);
+        assert!(result1.is_ok());
+        assert_eq!(result1.unwrap(), 1);
+
+        let result2 = BeamParser::read_u32_be(&mut cursor);
+        assert!(result2.is_ok());
+        assert_eq!(result2.unwrap(), 2);
+    }
+
+    #[test]
+    fn test_read_arg_small_integer() {
+        // Test small integer encoding (0-127)
+        let data = vec![42]; // Small integer 42
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BeamArg::Literal(42) => {}, // Expected
+            _ => panic!("Expected Literal(42)"),
+        }
+    }
+
+    #[test]
+    fn test_read_arg_atom() {
+        // Test atom encoding (same as small integer for values 0-127)
+        let data = vec![5]; // Atom index 5
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BeamArg::Literal(5) => {}, // Expected
+            _ => panic!("Expected Literal(5)"),
+        }
+    }
+
+    #[test]
+    fn test_read_arg_extended_literal() {
+        // Test extended literal encoding (0x80-0xBF)
+        let data = vec![0x80, 0x00, 0x00, 0x00, 0x42]; // Extended literal 0x42
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BeamArg::Literal(0x42) => {}, // Expected
+            _ => panic!("Expected Literal(0x42)"),
+        }
+    }
+
+    #[test]
+    fn test_read_arg_register_x() {
+        // Test X register encoding (0xC0-0xDF)
+        let data = vec![0xC5]; // X register 5
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BeamArg::Register { index: 5, is_y: false } => {}, // Expected
+            _ => panic!("Expected X register 5"),
+        }
+    }
+
+    #[test]
+    fn test_read_arg_register_y() {
+        // Test Y register encoding (0xE0-0xFF)
+        let data = vec![0xE3]; // Y register 3
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BeamArg::Register { index: 3, is_y: true } => {}, // Expected
+            _ => panic!("Expected Y register 3"),
+        }
+    }
+
+    #[test]
+    fn test_read_arg_invalid_tag() {
+        // Test invalid tag (this shouldn't happen in valid BEAM, but test error handling)
+        // Actually, all byte values are handled, so this should work
+        let data = vec![0x42]; // Valid small integer
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_ok()); // Should work for any valid byte
+    }
+
+    #[test]
+    fn test_read_arg_eof() {
+        // Test EOF during argument reading
+        let data = vec![]; // Empty data
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeamParseError::IoError(_) => {}, // Expected
+            _ => panic!("Expected IoError"),
+        }
+    }
+
+    #[test]
+    fn test_parse_instruction_simple() {
+        // Test parsing a simple instruction with no arguments
+        let data = vec![]; // No argument data needed
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::parse_instruction(&mut cursor, 3); // int_code_end (0 args)
+        assert!(result.is_ok());
+        let instruction = result.unwrap();
+        assert_eq!(instruction.opcode, 3);
+        assert!(instruction.args.is_empty());
+    }
+
+    #[test]
+    fn test_parse_instruction_with_args() {
+        // Test parsing an instruction with arguments
+        let data = vec![42, 0xC1]; // Small int 42, X register 1
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::parse_instruction(&mut cursor, 64); // move (2 args)
+        assert!(result.is_ok());
+        let instruction = result.unwrap();
+        assert_eq!(instruction.opcode, 64);
+        assert_eq!(instruction.args.len(), 2);
+        match &instruction.args[0] {
+            BeamArg::Literal(42) => {},
+            _ => panic!("Expected Literal(42)"),
+        }
+        match &instruction.args[1] {
+            BeamArg::Register { index: 1, is_y: false } => {},
+            _ => panic!("Expected X register 1"),
+        }
+    }
+
+    #[test]
+    fn test_parse_instruction_eof() {
+        // Test parsing instruction when arguments would go past EOF
+        let data = vec![42]; // Only one argument's worth of data
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::parse_instruction(&mut cursor, 64); // move (2 args)
+        assert!(result.is_err()); // Should fail due to insufficient data
+    }
+
+    #[test]
+    fn test_parse_header_success() {
+        // Test parsing a valid header
+        let data = vec![
+            0x00, 0x00, 0x00, 0x10, // sub_size: 16
+            0x00, 0x00, 0x00, 0x01, // instruction_set: 1
+            0x00, 0x00, 0x00, 0xFF, // max_opcode: 255
+            0x00, 0x00, 0x00, 0x05, // label_count: 5
+            0x00, 0x00, 0x00, 0x03, // function_count: 3
+        ];
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::parse_header(&mut cursor);
+        assert!(result.is_ok());
+        let header = result.unwrap();
+        assert_eq!(header.sub_size, 16);
+        assert_eq!(header.instruction_set, 1);
+        assert_eq!(header.max_opcode, 255);
+        assert_eq!(header.label_count, 5);
+        assert_eq!(header.function_count, 3);
+    }
+
+    #[test]
+    fn test_parse_header_eof() {
+        // Test parsing header with insufficient data
+        let data = vec![0x00, 0x00]; // Not enough for full header
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::parse_header(&mut cursor);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeamParseError::IoError(_) => {}, // Expected
+            _ => panic!("Expected IoError"),
+        }
+    }
+
+    #[test]
+    fn test_parse_code_minimal() {
+        // Test parsing minimal valid BEAM code
+        let data = vec![
+            // Header (20 bytes)
+            0x00, 0x00, 0x00, 0x14, // sub_size: 20 (header size)
+            0x00, 0x00, 0x00, 0x01, // instruction_set: 1
+            0x00, 0x00, 0x00, 0xFF, // max_opcode: 255
+            0x00, 0x00, 0x00, 0x00, // label_count: 0
+            0x00, 0x00, 0x00, 0x00, // function_count: 0
+            // No instructions (empty code)
+        ];
+
+        let result = BeamParser::parse_code(&data);
+        assert!(result.is_ok());
+        let code = result.unwrap();
+        assert_eq!(code.header.sub_size, 20);
+        assert_eq!(code.header.instruction_set, 1);
+        assert!(code.functions.is_empty());
+        assert_eq!(code.raw_code, data);
+    }
+
+    #[test]
+    fn test_parse_code_with_instruction() {
+        // Test parsing BEAM code with a single instruction
+        let data = vec![
+            // Header (20 bytes)
+            0x00, 0x00, 0x00, 0x14, // sub_size: 20
+            0x00, 0x00, 0x00, 0x01, // instruction_set: 1
+            0x00, 0x00, 0x00, 0xFF, // max_opcode: 255
+            0x00, 0x00, 0x00, 0x00, // label_count: 0
+            0x00, 0x00, 0x00, 0x00, // function_count: 0
+            // Instruction: int_code_end (opcode 3, 0 args)
+            3,
+        ];
+
+        let result = BeamParser::parse_code(&data);
+        assert!(result.is_ok());
+        let code = result.unwrap();
+        assert_eq!(code.functions.len(), 0); // No functions defined
+        // Note: instructions would be parsed but not assigned to functions without func_info
+    }
+
+    #[test]
+    fn test_parse_code_with_function() {
+        // Test parsing BEAM code with a function
+        let data = vec![
+            // Header (20 bytes)
+            0x00, 0x00, 0x00, 0x14, // sub_size: 20
+            0x00, 0x00, 0x00, 0x01, // instruction_set: 1
+            0x00, 0x00, 0x00, 0xFF, // max_opcode: 255
+            0x00, 0x00, 0x00, 0x01, // label_count: 1
+            0x00, 0x00, 0x00, 0x01, // function_count: 1
+            // Function definition
+            2, 1, 2, 3, // func_info opcode 2, args: module=1, function=2, arity=3
+            1, 5, // label opcode 1, label=5
+            19, // return opcode 19, 0 args
+        ];
+
+        let result = BeamParser::parse_code(&data);
+        assert!(result.is_ok());
+        let code = result.unwrap();
+        assert_eq!(code.functions.len(), 1);
+        let func = &code.functions[0];
+        assert_eq!(func.module, 1);
+        assert_eq!(func.function, 2);
+        assert_eq!(func.arity, 3);
+        assert_eq!(func.entry_label, 5);
+        // Note: The actual instruction count may vary due to parsing logic
+        assert!(!func.instructions.is_empty());
+    }
+
+    #[test]
+    fn test_parse_code_empty() {
+        // Test parsing empty code
+        let data = vec![];
+        let result = BeamParser::parse_code(&data);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeamParseError::IoError(_) => {}, // Expected EOF
+            _ => panic!("Expected IoError"),
+        }
+    }
+
+    #[test]
+    fn test_parse_code_invalid_header() {
+        // Test parsing code with invalid header (too short)
+        let data = vec![0x00, 0x00]; // Incomplete header
+        let result = BeamParser::parse_code(&data);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeamParseError::IoError(_) => {}, // Expected EOF during header read
+            _ => panic!("Expected IoError"),
+        }
+    }
+
+    #[test]
+    fn test_parse_code_unknown_opcode() {
+        // Test parsing code with unknown opcode
+        let data = vec![
+            // Header (20 bytes)
+            0x00, 0x00, 0x00, 0x14, // sub_size: 20
+            0x00, 0x00, 0x00, 0x01, // instruction_set: 1
+            0x00, 0x00, 0x00, 0xFF, // max_opcode: 255
+            0x00, 0x00, 0x00, 0x00, // label_count: 0
+            0x00, 0x00, 0x00, 0x00, // function_count: 0
+            // Unknown opcode
+            255, // Unknown opcode (assuming 255 is not defined)
+        ];
+
+        let result = BeamParser::parse_code(&data);
+        assert!(result.is_ok()); // Should succeed even with unknown opcode
+        // The parser doesn't validate opcodes, just parses their arguments
+    }
+
+    #[test]
+    fn test_read_u32_arg() {
+        // Test the read_u32_arg method (alias for read_u32_be)
+        let data = vec![0x12, 0x34, 0x56, 0x78];
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_u32_arg(&mut cursor);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0x12345678);
+    }
+
+    #[test]
+    fn test_parse_instruction_various_opcodes() {
+        // Test parsing instructions with different arities
+        let test_cases = vec![
+            (3, vec![], 0), // int_code_end: 0 args
+            (19, vec![], 0), // return: 0 args
+            (61, vec![42], 1), // jump: 1 arg
+            (64, vec![42, 0xC1], 2), // move: 2 args
+        ];
+
+        for (opcode, arg_data, expected_args) in test_cases {
+            let mut cursor = Cursor::new(&arg_data[..]);
+            let result = BeamParser::parse_instruction(&mut cursor, opcode);
+            assert!(result.is_ok(), "Failed to parse opcode {}", opcode);
+            let instruction = result.unwrap();
+            assert_eq!(instruction.opcode, opcode);
+            assert_eq!(instruction.args.len(), expected_args);
+        }
+    }
+
+    #[test]
+    fn test_edge_case_register_indices() {
+        // Test edge cases for register encoding
+        let test_cases = vec![
+            (0xC0, 0, false), // X register 0
+            (0xDF, 31, false), // X register 31 (max)
+            (0xE0, 0, true), // Y register 0
+            (0xFF, 31, true), // Y register 31 (max)
+        ];
+
+        for (tag, expected_index, expected_is_y) in test_cases {
+            let data = vec![tag];
+            let mut cursor = Cursor::new(&data[..]);
+
+            let result = BeamParser::read_arg(&mut cursor);
+            assert!(result.is_ok(), "Failed for tag 0x{:02X}", tag);
+            match result.unwrap() {
+                BeamArg::Register { index, is_y } => {
+                    assert_eq!(index, expected_index, "Wrong index for tag 0x{:02X}", tag);
+                    assert_eq!(is_y, expected_is_y, "Wrong is_y for tag 0x{:02X}", tag);
+                }
+                _ => panic!("Expected Register for tag 0x{:02X}", tag),
+            }
+        }
+    }
+
+    #[test]
+    fn test_large_literal_values() {
+        // Test large literal values in extended encoding
+        let data = vec![0x80, 0xFF, 0xFF, 0xFF, 0xFF]; // 0xFFFFFFFF
+        let mut cursor = Cursor::new(&data[..]);
+
+        let result = BeamParser::read_arg(&mut cursor);
+        assert!(result.is_ok());
+        match result.unwrap() {
+            BeamArg::Literal(0xFFFFFFFF) => {}, // Expected
+            _ => panic!("Expected large literal"),
+        }
     }
 }

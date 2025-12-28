@@ -146,7 +146,7 @@ impl CompilationPass for ParsingPass {
             }
             Err(e) => {
                 // Fallback to hardcoded parsing for known test files
-                eprintln!("Parsing failed for {}: {}", context.module_name.as_str(), e);
+                eprintln!("Parsing failed for {}: {}, falling back to hardcoded parsing", context.module_name.as_str(), e);
                 self.fallback_hardcoded_parsing(context)
             }
         }

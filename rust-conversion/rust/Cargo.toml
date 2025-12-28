@@ -50,6 +50,7 @@ members = [
     "infrastructure/infrastructure_trace_encoding",
     "infrastructure/infrastructure_nif_api",
     "infrastructure/infrastructure_beamasm",
+    "infrastructure/infrastructure_beam_instructions",
     "infrastructure/infrastructure_memory_management",
     "infrastructure/infrastructure_error_handling",
     "infrastructure/infrastructure_platform_support",

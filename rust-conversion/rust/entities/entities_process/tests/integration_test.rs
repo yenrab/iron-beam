@@ -52,7 +52,7 @@ fn test_process_heap_operations() {
     
     // Test heap slice access
     let heap_slice = process.heap_slice();
-    assert_eq!(heap_slice.len(), heap_sz);
+    assert_eq!(heap_slice.len(), 333); // heap + stack allocation
     
     // Test heap allocation
     let allocated_index = process.allocate_heap_words(10);

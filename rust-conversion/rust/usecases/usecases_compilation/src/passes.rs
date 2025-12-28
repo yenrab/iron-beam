@@ -274,6 +274,7 @@ impl CompilationPass for AnalysisPass {
 
         // Check for required module attribute
         let has_module_attr = ast.attributes.iter().any(|attr| {
+            attr.name.as_str() == "module" &&
             matches!(attr.value, entities_erlang_syntax::AttributeValue::Module(_))
         });
 

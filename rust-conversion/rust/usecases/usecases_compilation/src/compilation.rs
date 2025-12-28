@@ -261,6 +261,7 @@ mod tests {
         let mut results = HashMap::new();
         results.insert(Atom::new("module1"), CompilationResult {
             module_name: Atom::new("module1"),
+            ast: entities_erlang_syntax::Module::new(Atom::new("module1")),
             bytecode: vec![],
             warnings: vec![],
             metadata: CompilationMetadata {
@@ -269,6 +270,7 @@ mod tests {
                 bytecode_size: 50,
                 optimization_level: OptimizationLevel::Standard,
             },
+            context_metadata: std::collections::HashMap::new(),
         });
 
         let errors = vec![
@@ -290,6 +292,7 @@ mod tests {
                 let mut map = HashMap::new();
                 map.insert(Atom::new("mod1"), CompilationResult {
                     module_name: Atom::new("mod1"),
+                    ast: entities_erlang_syntax::Module::new(Atom::new("mod1")),
                     bytecode: vec![],
                     warnings: vec![
                         CompilationWarning {
@@ -309,6 +312,7 @@ mod tests {
                         bytecode_size: 100,
                         optimization_level: OptimizationLevel::Standard,
                     },
+                    context_metadata: std::collections::HashMap::new(),
                 });
                 map
             },

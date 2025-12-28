@@ -192,9 +192,9 @@ fn test_atom_table_limits_integration() {
     let result = table.put_index(b"overflow", AtomEncoding::SevenBitAscii, false);
     assert!(result.is_ok(), "Should be able to add unlimited atoms");
     
-    // Verify existing atoms still work
-    assert_eq!(table.get(b"atom_0", AtomEncoding::SevenBitAscii), Some(0));
-    assert_eq!(table.get(b"atom_99", AtomEncoding::SevenBitAscii), Some(99));
+    // Verify existing atoms still work (1-based indexing)
+    assert_eq!(table.get(b"atom_0", AtomEncoding::SevenBitAscii), Some(1));
+    assert_eq!(table.get(b"atom_99", AtomEncoding::SevenBitAscii), Some(100));
 }
 
 #[test]

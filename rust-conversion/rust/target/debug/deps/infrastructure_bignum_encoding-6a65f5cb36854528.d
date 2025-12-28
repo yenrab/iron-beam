@@ -1,0 +1,10 @@
+/Volumes/Files_1/iron-beam/rust-conversion/rust/target/debug/deps/infrastructure_bignum_encoding-6a65f5cb36854528.d: infrastructure/infrastructure_bignum_encoding/src/lib.rs infrastructure/infrastructure_bignum_encoding/src/common.rs infrastructure/infrastructure_bignum_encoding/src/bignum_codec.rs infrastructure/infrastructure_bignum_encoding/src/rational_codec.rs
+
+/Volumes/Files_1/iron-beam/rust-conversion/rust/target/debug/deps/libinfrastructure_bignum_encoding-6a65f5cb36854528.rlib: infrastructure/infrastructure_bignum_encoding/src/lib.rs infrastructure/infrastructure_bignum_encoding/src/common.rs infrastructure/infrastructure_bignum_encoding/src/bignum_codec.rs infrastructure/infrastructure_bignum_encoding/src/rational_codec.rs
+
+/Volumes/Files_1/iron-beam/rust-conversion/rust/target/debug/deps/libinfrastructure_bignum_encoding-6a65f5cb36854528.rmeta: infrastructure/infrastructure_bignum_encoding/src/lib.rs infrastructure/infrastructure_bignum_encoding/src/common.rs infrastructure/infrastructure_bignum_encoding/src/bignum_codec.rs infrastructure/infrastructure_bignum_encoding/src/rational_codec.rs
+
+infrastructure/infrastructure_bignum_encoding/src/lib.rs:
+infrastructure/infrastructure_bignum_encoding/src/common.rs:
+infrastructure/infrastructure_bignum_encoding/src/bignum_codec.rs:
+infrastructure/infrastructure_bignum_encoding/src/rational_codec.rs:

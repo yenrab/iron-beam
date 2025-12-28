@@ -595,7 +595,10 @@ impl Parser {
     }
 
     fn parse_fun(&mut self) -> Result<Expr, ParseError> {
-        // We've already consumed 'fun', now parse: fun(Params) -> Body end
+        // Consume 'fun' token
+        self.expect(TokenKind::Fun)?;
+
+        // Now parse: fun(Params) -> Body end
         self.expect(TokenKind::LeftParen)?;
 
         // Parse parameters: comma-separated list of variables
@@ -1255,8 +1258,8 @@ mod tests {
                 assert_eq!(params[0], "X");
                 match &*body {
                     Expr::BinOp { op: BinOp::Mul, left, right } => {
-                        assert_eq!(*left, Expr::Var("X".to_string()));
-                        assert_eq!(*right, Expr::Integer(2));
+                        assert_eq!(*left, Box::new(Expr::Var("X".to_string())));
+                        assert_eq!(*right, Box::new(Expr::Integer(2)));
                     }
                     _ => panic!("Expected multiplication in fun body"),
                 }

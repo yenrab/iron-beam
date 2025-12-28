@@ -5,7 +5,7 @@
 
 use crate::common::{BeamAssembler, BeamAssemblerError, AssemblerState, Export, FunEntry, args::ArgVal};
 use crate::jit::JitAllocator;
-use infrastructure_beam_utilities::beam_instructions::{BeamParser, BeamInstruction, BeamArg, BeamOpcode, BeamFunction};
+use infrastructure_beam_instructions::beam_instructions::{BeamParser, BeamInstruction, BeamArg, BeamOpcode, BeamFunction};
 use crate::asmjit_wrapper::a64;
 use code_management_code_loading::BeamLoader;
 use capstone::prelude::*;
@@ -641,7 +641,7 @@ impl ArmBeamAssembler {
 
     /// Generate ARM64 instruction code using asmjit
     fn generate_arm_instruction_code_asmjit(assembler: &mut crate::asmjit_wrapper::Assembler, instruction: &BeamInstruction) -> Result<(), BeamAssemblerError> {
-        use infrastructure_beam_utilities::beam_instructions::BeamOpcode;
+        use infrastructure_beam_instructions::beam_instructions::BeamOpcode;
         use crate::asmjit_wrapper::a64;
 
         match instruction.opcode_enum() {
@@ -1087,6 +1087,482 @@ impl ArmBeamAssembler {
             0x00, 0x00, 0x80, 0xd2,  // mov x0, #0  (return 0 for success)
             0xc0, 0x03, 0x5f, 0xd6,  // ret
         ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use infrastructure_beam_instructions::beam_instructions::{BeamInstruction, BeamArg, BeamFunction};
+
+    // Capstone-based disassembly tests are skipped as they require external dependencies
+    // that may not be available in all test environments
+
+    #[test]
+    fn test_arm_beam_assembler_new_empty_beam_data() {
+        let result = ArmBeamAssembler::new(42, 10, 5, &[]);
+        assert!(result.is_ok());
+        let assembler = result.unwrap();
+        assert_eq!(assembler.module, 42);
+        assert_eq!(assembler.num_labels, 10);
+        assert_eq!(assembler.num_functions, 5);
+        assert!(assembler.functions.is_empty());
+        assert!(assembler.e_register_offset.is_none());
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_new_invalid_beam_data() {
+        // Test with invalid BEAM data
+        let invalid_beam_data = vec![0xFF, 0xFF, 0xFF, 0xFF];
+        let result = ArmBeamAssembler::new(42, 10, 5, &invalid_beam_data);
+        // Should fail to parse but still succeed (functions will be empty)
+        assert!(result.is_ok());
+        let assembler = result.unwrap();
+        // Functions may be empty if BEAM parsing fails
+        // This is acceptable - the assembler can still function without pre-parsed functions
+        let _ = assembler.functions.len(); // Just ensure it doesn't panic
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_get_base_address() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let addr = assembler.get_base_address();
+        // Base address may be null in test environment before code generation
+        // The important thing is that the call doesn't panic
+        let _ = addr; // Ensure it's accessible
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_get_offset() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let offset = assembler.get_offset();
+        // Currently returns 0 as placeholder
+        assert_eq!(offset, 0);
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_get_code_invalid_label() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let result = assembler.get_code(999);
+        assert!(matches!(result, Err(crate::common::BeamAssemblerError::InvalidLabel)));
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_get_lambda_invalid_index() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let result = assembler.get_lambda(999);
+        assert!(matches!(result, Err(crate::common::BeamAssemblerError::InvalidFunctionIndex)));
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_get_rodata() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let result = assembler.get_rodata("test_label");
+        assert_eq!(result, None); // Always returns None
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_embed_rodata() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let result = assembler.embed_rodata("test_label", &[1, 2, 3]);
+        assert!(result.is_ok()); // Always succeeds
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_embed_bss() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let result = assembler.embed_bss("test_label", 100);
+        assert!(result.is_ok()); // Always succeeds
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_emit() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let args = vec![crate::common::args::ArgVal::word(42)];
+        let result = assembler.emit(123, &args);
+        assert!(result.is_ok()); // Always succeeds
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_patch_catches() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let result = assembler.patch_catches(std::ptr::null_mut());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0); // Always returns 0
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_patch_import() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let export = crate::common::Export {
+            module: 1,
+            function: 2,
+            arity: 3,
+            address: std::ptr::null(),
+        };
+        let result = assembler.patch_import(std::ptr::null_mut(), 0, &export);
+        assert!(result.is_ok()); // Always succeeds
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_patch_literal() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let result = assembler.patch_literal(std::ptr::null_mut(), 0, 42);
+        assert!(result.is_ok()); // Always succeeds
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_patch_lambda() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let fun_entry = crate::common::FunEntry {
+            address: std::ptr::null(),
+            arity: 3,
+            index: 4,
+        };
+        let result = assembler.patch_lambda(std::ptr::null_mut(), 0, &fun_entry);
+        assert!(result.is_ok()); // Always succeeds
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_patch_strings() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let strtab = vec![1, 2, 3, 4];
+        let result = assembler.patch_strings(std::ptr::null_mut(), &strtab);
+        assert!(result.is_ok()); // Always succeeds
+    }
+
+    #[test]
+    fn test_generate_arm_function_mappings_empty_functions() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let base_addr = 0x1000 as *const u8;
+        let mappings = assembler.generate_arm_function_mappings(base_addr);
+        // Even with no functions, common BEAM labels are included
+        assert!(mappings.len() > 0); // Should have common label mappings
+        // All mappings should point to the same base address
+        for (_, _) in mappings {
+            // Each mapping should be valid (we don't check the label value here)
+        }
+    }
+
+    #[test]
+    fn test_generate_arm_function_mappings_with_functions() {
+        // Create a mock assembler with functions
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        assembler.functions = vec![
+            BeamFunction {
+                module: 1,
+                function: 2,
+                arity: 0,
+                entry_label: 5,
+                instructions: vec![],
+            },
+            BeamFunction {
+                module: 1,
+                function: 3,
+                arity: 1,
+                entry_label: 10,
+                instructions: vec![],
+            },
+        ];
+
+        let base_addr = 0x1000 as *const u8;
+        let mappings = assembler.generate_arm_function_mappings(base_addr);
+
+        // Should include mappings for function entry labels and common labels
+        assert!(!mappings.is_empty());
+        // Should include label 5 and 10 from functions
+        let labels: Vec<usize> = mappings.iter().map(|(_, label)| *label).collect();
+        assert!(labels.contains(&5));
+        assert!(labels.contains(&10));
+    }
+
+    #[test]
+    fn test_generate_arm_function_mappings_common_labels() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let base_addr = 0x1000 as *const u8;
+        let mappings = assembler.generate_arm_function_mappings(base_addr);
+
+        // Should include common BEAM labels even with no functions
+        let labels: Vec<usize> = mappings.iter().map(|(_, label)| *label).collect();
+        assert!(labels.contains(&0)); // Common labels should be included
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_arithmetic() {
+        let instruction = BeamInstruction::new(20, vec![]); // Add
+        let cost = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction);
+        assert_eq!(cost, 1);
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_memory() {
+        let instruction = BeamInstruction::new(14, vec![]); // Move
+        let cost = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction);
+        assert_eq!(cost, 2);
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_control_flow() {
+        let instruction = BeamInstruction::new(164, vec![]); // IsEq
+        let cost = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction);
+        assert_eq!(cost, 1);
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_jump() {
+        let instruction = BeamInstruction::new(187, vec![]); // Jump
+        let cost = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction);
+        assert_eq!(cost, 1);
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_call() {
+        let instruction = BeamInstruction::new(7, vec![]); // CallExt
+        let cost = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction);
+        assert_eq!(cost, 5);
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_bif() {
+        let instruction = BeamInstruction::new(64, vec![]); // BIF
+        let cost = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction);
+        assert_eq!(cost, 10);
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_unknown() {
+        let instruction = BeamInstruction::new(99999, vec![]); // Unknown
+        let cost = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction);
+        assert_eq!(cost, 1); // Default cost
+    }
+
+    #[test]
+    fn test_detect_control_flow_pattern() {
+        let instructions = vec![];
+        let pattern = ArmBeamAssembler::detect_control_flow_pattern(&instructions);
+        assert_eq!(pattern, None); // Always returns None
+    }
+
+    #[test]
+    fn test_generate_arm_beam_code_legacy() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let code = assembler.generate_arm_beam_code();
+
+        // Should return the hardcoded legacy code
+        assert_eq!(code.len(), 8);
+        assert_eq!(code, vec![
+            0x00, 0x00, 0x80, 0xd2,  // mov x0, #0
+            0xc0, 0x03, 0x5f, 0xd6,  // ret
+        ]);
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_debug_fields() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+
+        // Test that fields are properly initialized
+        assert_eq!(assembler.module, 42);
+        assert_eq!(assembler.num_labels, 10);
+        assert_eq!(assembler.num_functions, 5);
+        assert!(assembler.functions.is_empty());
+        assert!(assembler.e_register_offset.is_none());
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_with_dummy_functions() {
+        // Test with invalid BEAM data that creates dummy functions
+        let invalid_data = vec![0xFF, 0x00, 0xFF, 0x00];
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &invalid_data).unwrap();
+
+        // Functions may be empty if BEAM parsing fails
+        // The important thing is that construction succeeds
+        let _ = assembler.functions.len(); // Just ensure it's accessible
+
+        // If there are functions, they might be dummy ones
+        if !assembler.functions.is_empty() {
+            // Check that dummy functions have reasonable values
+            let func = &assembler.functions[0];
+            // Dummy functions should have basic valid structure
+            let _ = func.module; // Should be accessible
+            let _ = func.function;
+            let _ = func.arity;
+        }
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_large_parameters() {
+        // Test with large parameter values
+        let assembler = ArmBeamAssembler::new(
+            u64::MAX,
+            usize::MAX,
+            usize::MAX,
+            &[]
+        ).unwrap();
+
+        assert_eq!(assembler.module, u64::MAX);
+        assert_eq!(assembler.num_labels, usize::MAX);
+        assert_eq!(assembler.num_functions, usize::MAX);
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_state_initialization() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+
+        // Test that AssemblerState is properly initialized
+        // We can't directly test the internal state, but we can test that
+        // methods that depend on it work without panicking
+        let base_addr = assembler.get_base_address();
+        let _ = base_addr; // Just ensure the call succeeds
+
+        let offset = assembler.get_offset();
+        let _ = offset; // Ensure the call succeeds
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_clone_behavior() {
+        // Test that the assembler can be used in contexts requiring Clone-like behavior
+        let assembler1 = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        let assembler2 = ArmBeamAssembler::new(43, 11, 6, &[]).unwrap();
+
+        // They should have different configurations
+        assert_ne!(assembler1.module, assembler2.module);
+        assert_ne!(assembler1.num_labels, assembler2.num_labels);
+        assert_ne!(assembler1.num_functions, assembler2.num_functions);
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_function_processing() {
+        // Test that functions are processed correctly during construction
+        let valid_beam_data = vec![
+            // Minimal valid BEAM header (simplified)
+            0x46, 0x4F, 0x52, 0x31, // "FOR1"
+            0x00, 0x00, 0x00, 0x08, // Size
+            0x00, 0x00, 0x00, 0x00, // Version
+        ];
+
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &valid_beam_data).unwrap();
+        // Functions may be empty if BEAM parsing fails or no functions are found
+        // The important thing is that construction succeeds
+        let _ = assembler.functions.len(); // Just ensure it's accessible
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_memory_operations() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+
+        // Test memory-related operations don't panic
+        let result1 = assembler.embed_rodata("test", &[1, 2, 3]);
+        assert!(result1.is_ok());
+
+        let result2 = assembler.embed_bss("test_bss", 100);
+        assert!(result2.is_ok());
+
+        let result3 = assembler.patch_strings(std::ptr::null_mut(), &[1, 2, 3]);
+        assert!(result3.is_ok());
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_error_handling() {
+        let assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+
+        // Test error conditions
+        let result1 = assembler.get_code(999);
+        assert!(result1.is_err());
+
+        let result2 = assembler.get_lambda(999);
+        assert!(result2.is_err());
+
+        // get_rodata should return None, not error
+        let result3 = assembler.get_rodata("nonexistent");
+        assert_eq!(result3, None);
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_patch_operations() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+
+        // Test all patch operations
+        let result1 = assembler.patch_catches(std::ptr::null_mut());
+        assert!(result1.is_ok());
+
+        let result2 = assembler.patch_import(std::ptr::null_mut(), 0, &crate::common::Export {
+            module: 1, function: 2, arity: 3, address: std::ptr::null()
+        });
+        assert!(result2.is_ok());
+
+        let result3 = assembler.patch_literal(std::ptr::null_mut(), 0, 42);
+        assert!(result3.is_ok());
+
+        let result4 = assembler.patch_lambda(std::ptr::null_mut(), 0, &crate::common::FunEntry {
+            address: std::ptr::null(), arity: 3, index: 4
+        });
+        assert!(result4.is_ok());
+    }
+
+    #[test]
+    fn test_arm_beam_assembler_emit_various_args() {
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+
+        // Test emit with different argument types
+        let args1 = vec![];
+        let result1 = assembler.emit(123, &args1);
+        assert!(result1.is_ok());
+
+        let args2 = vec![crate::common::args::ArgVal::word(42)];
+        let result2 = assembler.emit(123, &args2);
+        assert!(result2.is_ok());
+
+        let args3 = vec![
+            crate::common::args::ArgVal::word(1),
+            crate::common::args::ArgVal::word(2),
+            crate::common::args::ArgVal::word(3),
+        ];
+        let result3 = assembler.emit(123, &args3);
+        assert!(result3.is_ok());
+    }
+
+    #[test]
+    fn test_generate_arm_function_mappings_duplicates() {
+        // Test that duplicate labels are handled correctly
+        let mut assembler = ArmBeamAssembler::new(42, 10, 5, &[]).unwrap();
+        assembler.functions = vec![
+            BeamFunction {
+                module: 1, function: 1, arity: 0, entry_label: 5, instructions: vec![],
+            },
+            BeamFunction {
+                module: 1, function: 2, arity: 0, entry_label: 5, instructions: vec![], // Same label
+            },
+        ];
+
+        let base_addr = 0x1000 as *const u8;
+        let mappings = assembler.generate_arm_function_mappings(base_addr);
+
+        // Should deduplicate labels
+        let labels: Vec<usize> = mappings.iter().map(|(_, label)| *label).collect();
+        let count_5 = labels.iter().filter(|&&l| l == 5).count();
+        assert_eq!(count_5, 1); // Should only appear once
+    }
+
+    #[test]
+    fn test_calculate_instruction_reduction_cost_edge_cases() {
+        // Test edge cases for reduction cost calculation
+
+        // Zero opcode
+        let instruction1 = BeamInstruction::new(0, vec![]);
+        let cost1 = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction1);
+        assert_eq!(cost1, 1); // Default
+
+        // Very large opcode
+        let instruction2 = BeamInstruction::new(u32::MAX, vec![]);
+        let cost2 = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction2);
+        assert_eq!(cost2, 1); // Default
+
+        // Instructions with different opcodes that map to same cost
+        let instruction3 = BeamInstruction::new(20, vec![]); // Add
+        let instruction4 = BeamInstruction::new(21, vec![]); // Subtract (same cost as add)
+        let cost3 = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction3);
+        let cost4 = ArmBeamAssembler::calculate_instruction_reduction_cost(&instruction4);
+        assert_eq!(cost3, cost4); // Same cost category
     }
 }
 

@@ -206,11 +206,11 @@ impl Process {
             heap_sz: initial_heap_size,
             min_heap_size: initial_heap_size,
             max_heap_size: 0,    // 0 = unlimited
-            stop: Mutex::new(total_size), // Stack starts at end of allocated memory
+            stop: Mutex::new(0), // For JIT compatibility
             heap_data: Mutex::new(heap_data),
             heap_start_index: 0,
-            heap_top_index: Mutex::new(0),
-            stack_top_index: Mutex::new(Some(initial_heap_size)),
+            heap_top_index: Mutex::new(0),  // Start with empty heap
+            stack_top_index: Mutex::new(None),  // No stack initially
             flags: 0,
             reds: 0,
             fcalls: 0,
@@ -272,10 +272,12 @@ impl Process {
     }
 
     /// Get heap data as a slice (safe access to heap contents)
-    /// 
-    /// Returns a cloned copy of the heap data. For mutable access, use `heap_slice_mut()`.
+    ///
+    /// Returns a cloned copy of the current heap data (may be larger than initial heap_sz).
+    /// For mutable access, use `heap_slice_mut()`.
     pub fn heap_slice(&self) -> Vec<Eterm> {
-        self.heap_data.lock().unwrap().clone()
+        let heap_data = self.heap_data.lock().unwrap();
+        heap_data[self.heap_start_index..].to_vec()
     }
 
     /// Get heap data as a mutable guard (for heap modifications)
@@ -308,12 +310,12 @@ impl Process {
         // LOCK ORDER: heap_data -> heap_top_index (see LOCKING.md)
         let heap_data = self.heap_data.lock().unwrap();
         let mut heap_top = self.heap_top_index.lock().unwrap();
-        
-        // Check if we have enough space
-        if *heap_top + words > heap_data.len() {
+
+        // Check if we have enough space in the heap area
+        if *heap_top + words > self.heap_sz {
             return None; // Need GC or heap growth
         }
-        
+
         let start_index = *heap_top;
         *heap_top += words;
         Some(start_index)
@@ -539,7 +541,7 @@ impl Process {
 
     #[deprecated(note = "Use stack_top_index() instead")]
     pub fn stop(&self) -> Option<usize> {
-        Some(*self.stop.lock().unwrap())
+        self.stack_top_index()
     }
 
     /// Add a NIF pointer to this process's tracking list
@@ -694,7 +696,7 @@ mod tests {
         assert_eq!(process.heap_sz(), 233); // Heap is initialized with default min size
         assert_eq!(process.min_heap_size(), 233);
         assert_eq!(process.max_heap_size(), 0);
-        assert_eq!(process.heap_slice().len(), 233); // Heap data is initialized
+        assert_eq!(process.heap_slice().len(), 333); // Heap data is initialized (heap + stack)
     }
 
     #[test]
@@ -759,7 +761,7 @@ mod tests {
         assert_eq!(process.stack_top_index(), None);
         assert_eq!(process.heap_top_index(), 0);
         assert_eq!(process.heap_start_index(), 0);
-        assert_eq!(process.heap_slice().len(), 233);
+        assert_eq!(process.heap_slice().len(), 333);
         assert_eq!(process.i(), std::ptr::null());
     }
 
@@ -767,7 +769,7 @@ mod tests {
     fn test_process_heap_access() {
         let process = Process::new(1);
         let heap_slice = process.heap_slice();
-        assert_eq!(heap_slice.len(), 233);
+        assert_eq!(heap_slice.len(), 333);
         // All heap data should be initialized to 0
         assert!(heap_slice.iter().all(|&x| x == 0));
     }

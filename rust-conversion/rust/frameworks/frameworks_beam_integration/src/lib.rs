@@ -97,7 +97,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use entities_erlang_syntax::*;
 use entities_process::*;
-use usecases_compilation::*;
 use interfaces_compiler_api::*;
 
 // Re-export key framework components
@@ -253,6 +252,43 @@ pub struct RuntimeStats {
     pub jit_enabled: bool,
 }
 
+/// BEAM file representation
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BeamFile {
+    /// Module name
+    pub module_name: String,
+    /// BEAM bytecode
+    pub bytecode: Vec<u8>,
+    /// Module attributes
+    pub attributes: HashMap<String, String>,
+    /// Exported functions
+    pub exports: Vec<String>,
+}
+
+impl BeamFile {
+    /// Create a new BEAM file
+    pub fn new(module_name: String) -> Self {
+        Self {
+            module_name,
+            bytecode: Vec::new(),
+            attributes: HashMap::new(),
+            exports: Vec::new(),
+        }
+    }
+
+    /// Convert to byte representation
+    pub fn to_bytes(&self) -> Vec<u8> {
+        // Simple BEAM file format simulation
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"BEAM"); // Magic header
+        bytes.extend_from_slice(&(self.module_name.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.module_name.as_bytes());
+        bytes.extend_from_slice(&(self.bytecode.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&self.bytecode);
+        bytes
+    }
+}
+
 /// BEAM result type
 pub type BeamResult<T> = Result<T, BeamError>;
 
@@ -279,6 +315,9 @@ pub enum BeamError {
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("JIT allocator error: {0}")]
+    JitAllocatorError(#[from] infrastructure_beamasm::jit::JitAllocatorError),
 }
 
 #[cfg(test)]
@@ -355,10 +394,10 @@ mod tests {
 
     #[test]
     fn test_process_id_and_reference() {
-        let pid = ProcessId(12345);
+        let pid = 12345u64;
         let reference = Reference(vec![1, 2, 3, 4]);
 
-        assert_eq!(pid.0, 12345);
+        assert_eq!(pid, 12345);
         assert_eq!(reference.0.len(), 4);
     }
 }

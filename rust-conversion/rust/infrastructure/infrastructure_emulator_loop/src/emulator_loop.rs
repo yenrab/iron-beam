@@ -17,31 +17,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::registers::RegisterManager;
 
-/// Scheduler error types (local definition to avoid dependency)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ScheduleError {
-    /// Process is exiting
-    ProcessExiting,
-    /// Run queue is full
-    QueueFull,
-    /// Invalid priority level
-    InvalidPriority,
-    /// Scheduler is not active
-    SchedulerInactive,
-}
-
-impl std::fmt::Display for ScheduleError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ScheduleError::ProcessExiting => write!(f, "Process is exiting"),
-            ScheduleError::QueueFull => write!(f, "Run queue is full"),
-            ScheduleError::InvalidPriority => write!(f, "Invalid priority level"),
-            ScheduleError::SchedulerInactive => write!(f, "Scheduler is not active"),
-        }
-    }
-}
-
-impl std::error::Error for ScheduleError {}
+// Use ScheduleError from usecases_scheduling
+pub use usecases_scheduling::ScheduleError;
 
 /// Emulator loop error types
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,8 +39,8 @@ pub enum EmulatorLoopError {
     JitExecutionFailed(String),
 }
 
-impl From<ScheduleError> for EmulatorLoopError {
-    fn from(err: ScheduleError) -> Self {
+impl From<usecases_scheduling::ScheduleError> for EmulatorLoopError {
+    fn from(err: usecases_scheduling::ScheduleError) -> Self {
         EmulatorLoopError::ScheduleError(err)
     }
 }
@@ -336,6 +313,8 @@ pub fn process_main(
         // Tests should not set non-null instruction pointers unless they're actual JIT code
         return Err(EmulatorLoopError::InvalidInstructionPointer);
     }
+
+    #[allow(unreachable_code)]
     
     // Copy registers from process to emulator loop
     use super::registers::copy_in_registers;

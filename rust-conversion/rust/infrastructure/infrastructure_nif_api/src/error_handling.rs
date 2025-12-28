@@ -578,14 +578,22 @@ mod tests {
                     std::thread::sleep(std::time::Duration::from_millis(10 * attempt));
                 }
                 
-                // Test non-exception atoms
-                let non_exception_atoms = vec!["ok", "true", "false", "undefined", "test", "hello"];
+                // Test non-exception atoms (use unique names to avoid test interference)
+                let test_id = attempt;
+                let non_exception_atoms = vec![
+                    format!("ok_{}", test_id),
+                    format!("true_{}", test_id),
+                    format!("false_{}", test_id),
+                    format!("undefined_{}", test_id),
+                    format!("test_{}", test_id),
+                    format!("hello_{}", test_id)
+                ];
                 
                 // Small delay after creating env to ensure it's ready
                 std::thread::sleep(std::time::Duration::from_millis(5));
                 
                 for atom_name in non_exception_atoms {
-                    let atom = enif_make_atom(&env, atom_name);
+                    let atom = enif_make_atom(&env, &atom_name);
                     
                     // Small delay after creating atom to ensure it's registered
                     std::thread::sleep(std::time::Duration::from_millis(2));

@@ -173,7 +173,6 @@ impl Default for NIFRegistry {
 }
 
 /// NIF information
-#[derive(Clone)]
 pub struct NIFInfo {
     pub module: String,
     pub functions: Vec<NIFunction>,
@@ -201,7 +200,6 @@ impl NIFInfo {
 }
 
 /// NIF function definition
-#[derive(Debug, Clone)]
 pub struct NIFunction {
     pub name: String,
     pub arity: usize,
@@ -284,7 +282,7 @@ impl PortRegistry {
     }
 
     /// Close all ports for a module
-    pub fn close_module_ports(&mut self, module_name: &str) -> BeamResult<()> {
+    pub fn close_module_ports(&mut self, _module_name: &str) -> BeamResult<()> {
         // Close ports associated with the module
         // In a real implementation, this would track port ownership
         Ok(())
@@ -358,7 +356,6 @@ impl Default for DriverRegistry {
 }
 
 /// Driver information
-#[derive(Debug, Clone)]
 pub struct DriverInfo {
     pub name: String,
     pub implementation: Box<dyn Fn(&str, &[u8]) -> BeamResult<Vec<u8>> + Send + Sync>,

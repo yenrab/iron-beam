@@ -1,0 +1,11 @@
+/Volumes/Files_1/iron-beam/rust-conversion/rust/target/llvm-cov-target/debug/deps/infrastructure_data_handling-c78108a86ba1f508.d: infrastructure/infrastructure_data_handling/src/lib.rs infrastructure/infrastructure_data_handling/src/decode_term.rs infrastructure/infrastructure_data_handling/src/decode_atom.rs infrastructure/infrastructure_data_handling/src/decode_binary.rs infrastructure/infrastructure_data_handling/src/encode_atom.rs infrastructure/infrastructure_data_handling/src/encode_binary.rs infrastructure/infrastructure_data_handling/src/print_term.rs
+
+/Volumes/Files_1/iron-beam/rust-conversion/rust/target/llvm-cov-target/debug/deps/infrastructure_data_handling-c78108a86ba1f508: infrastructure/infrastructure_data_handling/src/lib.rs infrastructure/infrastructure_data_handling/src/decode_term.rs infrastructure/infrastructure_data_handling/src/decode_atom.rs infrastructure/infrastructure_data_handling/src/decode_binary.rs infrastructure/infrastructure_data_handling/src/encode_atom.rs infrastructure/infrastructure_data_handling/src/encode_binary.rs infrastructure/infrastructure_data_handling/src/print_term.rs
+
+infrastructure/infrastructure_data_handling/src/lib.rs:
+infrastructure/infrastructure_data_handling/src/decode_term.rs:
+infrastructure/infrastructure_data_handling/src/decode_atom.rs:
+infrastructure/infrastructure_data_handling/src/decode_binary.rs:
+infrastructure/infrastructure_data_handling/src/encode_atom.rs:
+infrastructure/infrastructure_data_handling/src/encode_binary.rs:
+infrastructure/infrastructure_data_handling/src/print_term.rs:

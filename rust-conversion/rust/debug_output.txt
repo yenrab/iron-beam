@@ -1,0 +1,4 @@
+Compiling test_pattern_matching.erl
+  → test_pattern_matching.beam
+✓ Compiled test_pattern_matching.erl
+Compiled 1 files: 1 succeeded, 0 failed

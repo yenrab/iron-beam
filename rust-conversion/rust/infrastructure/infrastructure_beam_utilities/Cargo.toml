@@ -11,6 +11,8 @@ authors = ["Erlang/OTP Rust Conversion"]
 byteorder = "1.5"
 # Error handling
 thiserror = "1.0"
+# BEAM instruction utilities (moved to separate crate to break circular dependency)
+infrastructure_beam_instructions = { path = "../infrastructure_beam_instructions" }
 
 [lib]
 name = "infrastructure_beam_utilities"

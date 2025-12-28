@@ -357,13 +357,22 @@ mod tests {
         
         copy_out_registers(&process, &reg_array);
         
-        // Should only copy MAX_X_REGS registers (arity is capped at MAX_X_REGS)
+        // Should only copy arity registers (255), capped at MAX_X_REGS
         let heap_data = process.heap_slice();
         let heap_start = process.heap_start_index();
-        
-        for i in 0..MAX_X_REGS {
+        let arity = process.arity() as usize;
+        let expected_copies = arity.min(MAX_X_REGS).min(reg_array.len());
+
+        for i in 0..expected_copies {
             if heap_start + i < heap_data.len() {
                 assert_eq!(heap_data[heap_start + i], i as u64);
+            }
+        }
+
+        // Verify that registers beyond arity were not copied (should be 0)
+        for i in expected_copies..expected_copies.min(heap_data.len().saturating_sub(heap_start)) {
+            if heap_start + i < heap_data.len() {
+                assert_eq!(heap_data[heap_start + i], 0);
             }
         }
     }

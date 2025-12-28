@@ -20,13 +20,20 @@ pub struct CompilationOutput {
 
 impl CompilationOutput {
     pub fn from_result(result: CompilationResult) -> Result<Self, String> {
-        // Generate real BEAM bytecode using local generator
-        let bytecode_generator = crate::bytecode::BytecodeGenerator::new();
-        let beam_file = bytecode_generator.generate_beam_file(&result)
-            .map_err(|e| format!("BEAM generation failed: {}", e))?;
-
-        // Convert BeamFile to raw bytes
-        let bytecode = beam_file.to_bytes();
+        // Use existing bytecode if available, otherwise generate new BEAM bytecode
+        let bytecode = if !result.bytecode.is_empty() {
+            result.bytecode
+        } else {
+            let bytecode_generator = crate::bytecode::BytecodeGenerator::new();
+            let beam_file = match bytecode_generator.generate_beam_file(&result) {
+                Ok(file) => file,
+                Err(e) => {
+                    eprintln!("BEAM generation failed: {}", e);
+                    return Err(format!("BEAM generation failed: {}", e));
+                }
+            };
+            beam_file.to_bytes()
+        };
 
         Ok(Self {
             module_name: result.module_name.to_string(),
@@ -367,6 +374,8 @@ mod tests {
                 bytecode_size: 500,
                 optimization_level: OptimizationLevel::Standard,
             },
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_module")),
+            context_metadata: std::collections::HashMap::new(),
         };
 
         let output = CompilationOutput::from_result(result).unwrap();
@@ -399,6 +408,8 @@ mod tests {
                 bytecode_size: 50,
                 optimization_level: OptimizationLevel::Standard,
             },
+            ast: entities_erlang_syntax::Module::new(Atom::new("mod1")),
+            context_metadata: std::collections::HashMap::new(),
         });
 
         let batch_result = BatchCompilationResult { results, errors: vec![] };

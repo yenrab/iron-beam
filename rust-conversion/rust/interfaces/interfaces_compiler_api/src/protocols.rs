@@ -293,8 +293,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_lsp_server() {
-        let api = CompilerAPI::new();
-        let lsp_server = lsp_protocol::LanguageServer::new(api);
+        let compiler_api = CompilerAPI::new();
+        let lsp_server = lsp_protocol::LanguageServer::new(compiler_api);
 
         let init_params = serde_json::json!({
             "processId": 12345,
@@ -313,7 +313,7 @@ mod tests {
     fn test_process_request_compile() {
         // Test the request processing logic
         let request = r#"{"method": "compile", "params": {"module": "test", "source": "module test.\nstart() -> ok."}}"#;
-        let api = CompilerAPI::new();
+        let compiler_api = CompilerAPI::new();
 
         // This would normally be async, but we're testing the JSON parsing
         let parsed: serde_json::Value = serde_json::from_str(request).unwrap();
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_process_request_info() {
         let request = r#"{"method": "info"}"#;
-        let api = CompilerAPI::new();
+        let compiler_api = CompilerAPI::new();
 
         // Test JSON parsing
         let parsed: serde_json::Value = serde_json::from_str(request).unwrap();
@@ -333,8 +333,8 @@ mod tests {
 
     #[test]
     fn test_rest_api_routes() {
-        let api = CompilerAPI::new();
-        let rest_server = rest_api::RESTServer::new(api);
+        let compiler_api = CompilerAPI::new();
+        let rest_server = rest_api::RESTServer::new(compiler_api);
 
         let routes = rest_server.routes();
         assert!(routes.contains(&"POST /compile".to_string()));
@@ -344,8 +344,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_build_server_dependencies() {
-        let api = CompilerAPI::new();
-        let build_server = build_protocol::BuildServer::new(api);
+        let compiler_api = CompilerAPI::new();
+        let build_server = build_protocol::BuildServer::new(compiler_api);
 
         let deps = build_server.get_dependencies("test_module").await.unwrap();
         assert_eq!(deps.module, "test_module");

@@ -13,12 +13,13 @@ between the compiler core and external consumers.
 ## External Integration Points
 
 ### 1. Public Compiler API
-```rust
+```rust,ignore
 use interfaces_compiler_api::CompilerAPI;
 
 // External tools can compile Erlang code
 let api = CompilerAPI::new();
-let result = api.compile_source("module.erl", source_code).await?;
+let source_code = "-module(test).\n-export([hello/0]).\nhello() -> ok.";
+let result = api.compile_source("test", source_code).await?;
 ```
 
 ### 2. Serialization Interfaces
@@ -26,18 +27,18 @@ let result = api.compile_source("module.erl", source_code).await?;
 use interfaces_compiler_api::serialization::*;
 
 // AST serialization for tooling (currently not implemented)
-// let ast = parse_erlang_source(source_code)?;
-// let serialized = serialize_ast(&ast)?; // Not implemented
-// let deserialized_ast = deserialize_ast(&serialized)?; // Not implemented
+// Note: Serialization functions currently return errors
+// let result = etf::serialize_ast(&ast); // Returns error: not implemented
+// let result = etf::deserialize_ast(&data); // Returns error: not implemented
 ```
 
 ### 3. Plugin System
 ```rust
-use interfaces_compiler_api::plugins::*;
+use interfaces_compiler_api::{CompilerAPI, plugins::*};
 
 // Extend compiler with custom passes
-let mut compiler = Compiler::new();
-compiler.register_plugin(Box::new(MyOptimizationPass));
+let mut api = CompilerAPI::new();
+// api.register_plugin(Box::new(my_plugin)); // Plugin registration API
 ```
 
 ## Architecture Compliance
@@ -80,8 +81,8 @@ pub use protocols::*;
 
 // API modules
 mod api;
-mod serialization;
-mod plugins;
+pub mod serialization;
+pub mod plugins;
 mod protocols;
 mod bytecode;
 

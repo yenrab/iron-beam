@@ -1241,7 +1241,7 @@ mod tests {
             bit_offset: 4,
             bit_size: 16, // 2 bytes, but with bit offset
         };
-        
+
         let result = ExternalTerm::encode(&term, None);
         assert!(result.is_ok());
         let encoded = result.unwrap();
@@ -1252,5 +1252,347 @@ mod tests {
         // But the actual value depends on the data being copied
         // Just verify the structure is correct
         assert!(encoded.len() > 7); // Should have length + last_bits + data
+    }
+
+    #[test]
+    fn test_external_term_encode_binary_complex_bit_operations() {
+        // Test various bit offset and size combinations to exercise the simplified bit copying logic
+        let data = vec![0b11111111, 0b10101010, 0b11001100, 0b11110000, 0b00001111];
+
+        // Test case 1: bit_offset = 1, bit_size = 7 (should use BIT_BINARY_EXT)
+        let term1 = Term::Binary {
+            data: data.clone(),
+            bit_offset: 1,
+            bit_size: 7,
+        };
+        let result1 = ExternalTerm::encode(&term1, None);
+        assert!(result1.is_ok());
+        let encoded1 = result1.unwrap();
+        assert_eq!(encoded1[0], 131); // Version magic
+        assert_eq!(encoded1[1], 77);  // BIT_BINARY_EXT = 77
+
+        // Test case 2: bit_offset = 3, bit_size = 12
+        let term2 = Term::Binary {
+            data: data.clone(),
+            bit_offset: 3,
+            bit_size: 12,
+        };
+        let result2 = ExternalTerm::encode(&term2, None);
+        assert!(result2.is_ok());
+        let encoded2 = result2.unwrap();
+        assert_eq!(encoded2[0], 131);
+        assert_eq!(encoded2[1], 77);  // BIT_BINARY_EXT
+
+        // Test case 3: bit_offset = 0, bit_size not multiple of 8 (should use BIT_BINARY_EXT)
+        let term3 = Term::Binary {
+            data: data.clone(),
+            bit_offset: 0,
+            bit_size: 10, // 10 bits = 1 byte + 2 bits, not byte-aligned
+        };
+        let result3 = ExternalTerm::encode(&term3, None);
+        assert!(result3.is_ok());
+        let encoded3 = result3.unwrap();
+        assert_eq!(encoded3[0], 131);
+        assert_eq!(encoded3[1], 77);  // BIT_BINARY_EXT
+    }
+
+    #[test]
+    fn test_external_term_encode_fun_local_with_env_error() {
+        // Test the UnsupportedType error for local functions with environments
+        use entities_data_handling::atom::AtomTable;
+        let table = AtomTable::new();
+        let module_index = table.put_index(b"test", AtomEncoding::SevenBitAscii, false).unwrap();
+        let function_index = table.put_index(b"func", AtomEncoding::SevenBitAscii, false).unwrap();
+
+        let term = Term::Fun {
+            is_local: true,
+            module: module_index as u32,
+            function: function_index as u32,
+            arity: 2,
+            old_uniq: None,
+            env: vec![Term::Small(42)], // Non-empty environment triggers error
+        };
+
+        let result = ExternalTerm::encode(&term, Some(&table));
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), EncodeError::UnsupportedType);
+    }
+
+    #[test]
+    fn test_external_term_encode_complex_nested_structures() {
+        // Test deeply nested structures to exercise recursive encoding
+        let nested_map = Term::Map(vec![
+            (Term::Small(1), Term::Small(100)), // Use numbers instead of atoms to avoid atom table issues
+            (Term::Small(2), Term::Tuple(vec![Term::Small(1), Term::Small(2), Term::Small(3)])),
+        ]);
+
+        let complex_term = Term::Tuple(vec![
+            Term::Small(42),
+            nested_map,
+            Term::Small(99), // Simplify - use a simple term instead of complex list
+        ]);
+
+        let result = ExternalTerm::encode(&complex_term, None);
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[0], 131); // Version magic
+        assert_eq!(encoded[1], 104); // SMALL_TUPLE_EXT
+        assert_eq!(encoded[2], 3);   // Arity = 3
+
+        // Verify round-trip
+        let decoded = ExternalTerm::decode(&encoded).unwrap();
+        assert_eq!(complex_term, decoded);
+    }
+
+    #[test]
+    fn test_external_term_encode_very_large_tuple() {
+        // Test encoding very large tuples to ensure proper header encoding
+        let mut elements = Vec::new();
+        for i in 0..70000 { // Large tuple requiring LARGE_TUPLE_EXT
+            elements.push(Term::Small(i as i64 % 100)); // Keep values small
+        }
+        let large_tuple = Term::Tuple(elements);
+
+        let result = ExternalTerm::encode(&large_tuple, None);
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[0], 131); // Version magic
+        assert_eq!(encoded[1], 105); // LARGE_TUPLE_EXT = 105
+    }
+
+    #[test]
+    fn test_external_term_encode_nil_roundtrip() {
+        // Test encoding nil (empty list) with round-trip verification
+        let nil_term = Term::Nil;
+        let result = ExternalTerm::encode(&nil_term, None);
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded, vec![131, 106]); // Version + NIL_EXT
+
+        // Verify round-trip
+        let decoded = ExternalTerm::decode(&encoded).unwrap();
+        assert_eq!(nil_term, decoded);
+    }
+
+    #[test]
+    fn test_external_term_encode_mixed_atom_encodings() {
+        // Test atoms requiring different encoding strategies
+        use entities_data_handling::atom::{AtomTable, AtomEncoding};
+
+        let table = AtomTable::new();
+
+        // Test Latin1 atom
+        let latin1_bytes = vec![0xE9, 0xA9]; // café in Latin1
+        let latin1_index = table.put_index(&latin1_bytes, AtomEncoding::Latin1, false).unwrap();
+
+        // Test UTF-8 atom
+        let utf8_bytes = "café".as_bytes().to_vec();
+        let utf8_index = table.put_index(&utf8_bytes, AtomEncoding::Utf8, false).unwrap();
+
+        // Test 7-bit ASCII atom
+        let ascii_index = table.put_index(b"hello", AtomEncoding::SevenBitAscii, false).unwrap();
+
+        // Encode tuple with all three atom types
+        let mixed_tuple = Term::Tuple(vec![
+            Term::Atom(latin1_index as u32),
+            Term::Atom(utf8_index as u32),
+            Term::Atom(ascii_index as u32),
+        ]);
+
+        let result = ExternalTerm::encode(&mixed_tuple, Some(&table));
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[0], 131); // Version magic
+        assert_eq!(encoded[1], 104); // SMALL_TUPLE_EXT
+        assert_eq!(encoded[2], 3);   // Arity = 3
+    }
+
+    #[test]
+    fn test_external_term_encode_pid_port_ref_various_sizes() {
+        // Test PIDs, ports, and refs with various ID sizes to exercise different encoding paths
+        use entities_data_handling::atom::AtomTable;
+        let table = AtomTable::new();
+        let node_index = table.put_index(b"test@node", AtomEncoding::Utf8, false).unwrap();
+
+        // Test PID with large ID (should use NEW_PID_EXT = 88)
+        let large_pid = Term::Pid {
+            node: node_index as u32,
+            id: 0xFFFFFFFF, // Large ID
+            serial: 123,
+            creation: 456,
+        };
+
+        let result = ExternalTerm::encode(&large_pid, Some(&table));
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[0], 131); // Version magic
+        assert_eq!(encoded[1], 88);  // NEW_PID_EXT
+
+        // Test port with large ID (should use NEW_PORT_EXT = 89 or V4_PORT_EXT = 120)
+        let large_port = Term::Port {
+            node: node_index as u32,
+            id: 0xFFFFFFFF,
+            creation: 789,
+        };
+
+        let result = ExternalTerm::encode(&large_port, Some(&table));
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[0], 131);
+        assert!(encoded[1] == 89 || encoded[1] == 120); // NEW_PORT_EXT or V4_PORT_EXT
+
+        // Test ref with multiple IDs (should use NEWER_REFERENCE_EXT = 90)
+        let multi_id_ref = Term::Ref {
+            node: node_index as u32,
+            ids: vec![100, 200, 300, 400, 500], // Multiple IDs
+            creation: 999,
+        };
+
+        let result = ExternalTerm::encode(&multi_id_ref, Some(&table));
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[0], 131);
+        assert_eq!(encoded[1], 90);  // NEWER_REFERENCE_EXT
+    }
+
+    #[test]
+    fn test_external_term_encode_error_conditions() {
+        // Test various error conditions that should cause encoding failures
+
+        // Test binary with insufficient data
+        let small_data = vec![1, 2, 3];
+        let insufficient_binary = Term::Binary {
+            data: small_data,
+            bit_offset: 0,
+            bit_size: 100, // More bits than available data
+        };
+
+        let result = ExternalTerm::encode(&insufficient_binary, None);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), EncodeError::EncodingFailed);
+
+        // Test binary with invalid bit offset
+        let data = vec![1, 2, 3, 4];
+        let invalid_bit_offset = Term::Binary {
+            data: data.clone(),
+            bit_offset: 32, // Offset beyond data length
+            bit_size: 8,
+        };
+
+        let result = ExternalTerm::encode(&invalid_bit_offset, None);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), EncodeError::EncodingFailed);
+    }
+
+    #[test]
+    fn test_external_term_decode_error_handling() {
+        // Test various decode error conditions
+
+        // Test decoding with wrong version byte
+        let wrong_version = vec![130, 97, 42]; // Wrong version (130 instead of 131)
+        let result = ExternalTerm::decode(&wrong_version);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), DecodeError::InvalidFormat);
+
+        // Test decoding incomplete SMALL_INTEGER_EXT
+        let incomplete_small_int = vec![131, 97]; // Version + tag, missing value
+        let result = ExternalTerm::decode(&incomplete_small_int);
+        assert!(result.is_err()); // Should fail due to incomplete data
+
+        // Test decoding with unknown tag (should be handled by decode_ei_term)
+        let unknown_tag = vec![131, 255, 0, 0, 0, 0]; // Unknown tag
+        let result = ExternalTerm::decode(&unknown_tag);
+        // This depends on how decode_ei_term handles unknown tags
+        // At minimum, it shouldn't panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_external_term_encode_atom_encoding_fallbacks() {
+        // Test various atom encoding fallback scenarios
+
+        use entities_data_handling::atom::{AtomTable, AtomEncoding};
+
+        // Create atom with mixed encoding requirements
+        let table = AtomTable::new();
+
+        // Atom with null bytes (should fail UTF-8 and fall back)
+        let null_bytes = vec![72, 0, 76, 0]; // "H\0L\0"
+        let null_index = table.put_index(&null_bytes, AtomEncoding::Latin1, false).unwrap();
+
+        let term = Term::Atom(null_index as u32);
+        let result = ExternalTerm::encode(&term, Some(&table));
+        assert!(result.is_ok()); // Should succeed with Latin1 encoding
+
+        // Atom that would be invalid in both UTF-8 and Latin1
+        // (This is hard to construct with the current API, but the fallback logic exists)
+    }
+
+    #[test]
+    fn test_external_term_encode_maximum_structure_sizes() {
+        // Test encoding structures at the limits of what the format supports
+
+        // Maximum small tuple size (255 elements with SMALL_TUPLE_EXT)
+        let mut max_small_tuple_elements = Vec::new();
+        for i in 0..255 {
+            max_small_tuple_elements.push(Term::Small(i as i64));
+        }
+        let max_small_tuple = Term::Tuple(max_small_tuple_elements);
+
+        let result = ExternalTerm::encode(&max_small_tuple, None);
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[0], 131); // Version magic
+        assert_eq!(encoded[1], 104); // SMALL_TUPLE_EXT
+        assert_eq!(encoded[2], 255); // Maximum arity for SMALL_TUPLE_EXT
+    }
+
+    #[test]
+    fn test_external_term_encode_extreme_values() {
+        // Test encoding extreme numeric values
+
+        // Very large bignum
+        use entities_utilities::BigNumber;
+        let huge_bignum = BigNumber::from_i64(1234567890123456789); // Very large number
+        let term = Term::Big(huge_bignum);
+        let result = ExternalTerm::encode(&term, None);
+        assert!(result.is_ok());
+
+        // Very large float (IEEE 754 limits)
+        let huge_float = f64::MAX / 2.0;
+        let term = Term::Float(huge_float);
+        let result = ExternalTerm::encode(&term, None);
+        assert!(result.is_ok());
+        let encoded = result.unwrap();
+        assert_eq!(encoded[1], 70); // NEW_FLOAT_EXT
+
+        // Very small float
+        let tiny_float = f64::MIN_POSITIVE;
+        let term = Term::Float(tiny_float);
+        let result = ExternalTerm::encode(&term, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_external_term_encode_decode_stress_test() {
+        // Stress test with many round-trip encodings/decodings
+
+        let complex_term = Term::Tuple(vec![
+            Term::Small(42),
+            Term::Float(3.14159),
+            Term::Tuple(vec![Term::Small(1), Term::Small(2)]),
+            Term::Binary {
+                data: vec![1, 2, 3, 4, 5],
+                bit_offset: 0,
+                bit_size: 40,
+            },
+        ]);
+
+        // Perform multiple round-trips to ensure stability
+        for _ in 0..10 {
+            let encoded = ExternalTerm::encode(&complex_term, None).unwrap();
+            let decoded = ExternalTerm::decode(&encoded).unwrap();
+            assert_eq!(complex_term, decoded);
+        }
     }
 }

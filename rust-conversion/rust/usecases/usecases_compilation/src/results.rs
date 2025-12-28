@@ -242,7 +242,7 @@ pub struct CompilationCache {
 }
 
 #[derive(Debug, Clone)]
-struct CachedCompilation {
+pub struct CachedCompilation {
     bytecode: Vec<u8>,
     source_hash: String,
     timestamp: std::time::SystemTime,
