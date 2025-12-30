@@ -281,28 +281,48 @@ impl BeamTransformer {
         instruction: &BeamInstruction,
         reader: &mut BytecodeReader,
     ) -> TransformationResult {
-        if instruction.opcode == 12 { // genop_allocate_2
-            if instruction.args.len() >= 2 {
-                if let (BeamArg::Literal(n_regs), BeamArg::Literal(_live_regs)) =
-                    (&instruction.args[0], &instruction.args[1]) {
+        if instruction.opcode != 12 { // Not an allocate instruction
+            return TransformationResult::NotApplicable;
+        }
 
-                // Peek at next instruction
-                if let Ok(Some(next_instr)) = reader.peek_instruction() {
+        // Check if we have the right number of arguments
+        if instruction.args.len() < 2 {
+            return TransformationResult::NotApplicable;
+        }
+
+        // Check if arguments are literals
+        if let (BeamArg::Literal(n_regs), BeamArg::Literal(_live_regs)) =
+            (&instruction.args[0], &instruction.args[1]) {
+
+            // Try to peek at next instruction
+            match reader.peek_instruction() {
+                Ok(Some(next_instr)) => {
                     if next_instr.opcode == 172 && next_instr.args.len() >= 1 { // genop_init_yregs_1
-                            if let BeamArg::Literal(init_n) = &next_instr.args[0] {
-                        if n_regs == init_n {
-                            // Combine allocate + init_yregs → allocate_heap
-                            // Skip the next instruction since we're combining them
-                            let _ = reader.read_instruction();
-                            return TransformationResult::Applied;
-                                }
+                        if let BeamArg::Literal(init_n) = &next_instr.args[0] {
+                            if n_regs == init_n {
+                                // Combine allocate + init_yregs → allocate_heap
+                                // Skip the next instruction since we're combining them
+                                let _ = reader.read_instruction();
+                                return TransformationResult::Applied;
                             }
                         }
                     }
+                    // Next instruction exists but doesn't match our pattern
+                    TransformationResult::NotApplicable
+                }
+                Ok(None) => {
+                    // No more instructions available
+                    TransformationResult::InsufficientData
+                }
+                Err(_) => {
+                    // Error peeking at instruction
+                    TransformationResult::InsufficientData
                 }
             }
+        } else {
+            // Arguments are not literals
+            TransformationResult::NotApplicable
         }
-        TransformationResult::InsufficientData
     }
 
     /// Transform move + call patterns for optimization
@@ -355,6 +375,11 @@ impl<'a> BytecodeReader<'a> {
         if let Some(instr) = self.peeked_instruction.take() {
             println!("[READER DEBUG] Returning peeked instruction: opcode={}, args={:?}",
                      instr.opcode, instr.args);
+            // Advance position as if we just read this instruction
+            // Calculate how many bytes this instruction would consume
+            let opcode = instr.opcode as u8;
+            let (_, bytes_read) = self.decode_arguments(instr.opcode)?;
+            self.position += 1 + bytes_read; // opcode (1) + args
             return Ok(Some(instr));
         }
 
@@ -383,7 +408,28 @@ impl<'a> BytecodeReader<'a> {
     /// Peek at the next instruction without consuming it
     fn peek_instruction(&mut self) -> Result<Option<&BeamInstruction>, BeamFileReadResult> {
         if self.peeked_instruction.is_none() {
-            self.peeked_instruction = self.read_instruction()?;
+            // Read instruction without advancing position permanently
+            // We need to temporarily read it
+            if self.position >= self.data.len() {
+                return Ok(None);
+            }
+
+            let saved_position = self.position;
+            let opcode = self.data[self.position];
+            self.position += 1;
+
+            let (args, bytes_read) = self.decode_arguments(opcode as u32)?;
+            self.position += bytes_read;
+
+            let instruction = BeamInstruction {
+                opcode: opcode as u32,
+                args,
+            };
+
+            // Store the instruction for later
+            self.peeked_instruction = Some(instruction);
+            // Restore position so peek doesn't consume
+            self.position = saved_position;
         }
         Ok(self.peeked_instruction.as_ref())
     }
@@ -560,7 +606,7 @@ impl BytecodeWriter {
 }
 
 /// Representation of a BEAM instruction for transformation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct BeamInstruction {
     opcode: u32,
     args: Vec<BeamArg>,
@@ -2146,6 +2192,679 @@ mod tests {
         let beam = result.unwrap();
         assert_eq!(beam.code_size, 10);
         assert_eq!(beam.code_data.len(), 10);
+    }
+
+    // Additional comprehensive tests for all beam_loader functionality
+
+    #[test]
+    fn test_beam_file_read_result_variants_comprehensive() {
+        // Test all BeamFileReadResult variants have proper Debug and Copy traits
+        let variants = vec![
+            BeamFileReadResult::Success,
+            BeamFileReadResult::CorruptFileHeader,
+            BeamFileReadResult::MissingAtomTable,
+            BeamFileReadResult::ObsoleteAtomTable,
+            BeamFileReadResult::CorruptAtomTable,
+            BeamFileReadResult::MissingCodeChunk,
+            BeamFileReadResult::CorruptCodeChunk,
+            BeamFileReadResult::MissingExportTable,
+            BeamFileReadResult::CorruptExportTable,
+            BeamFileReadResult::MissingImportTable,
+            BeamFileReadResult::CorruptImportTable,
+            BeamFileReadResult::CorruptLambdaTable,
+            BeamFileReadResult::CorruptLineTable,
+            BeamFileReadResult::CorruptLiteralTable,
+            BeamFileReadResult::CorruptLocalsTable,
+            BeamFileReadResult::CorruptTypeTable,
+            BeamFileReadResult::CorruptDebugTable,
+        ];
+
+        for variant in variants {
+            // Test Debug trait
+            let debug_str = format!("{:?}", variant);
+            assert!(!debug_str.is_empty());
+            // Debug format is just the variant name, not with enum name prefix
+            assert!(debug_str == "Success" ||
+                    debug_str == "CorruptFileHeader" ||
+                    debug_str == "MissingAtomTable" ||
+                    debug_str.contains("Corrupt") ||
+                    debug_str.contains("Missing") ||
+                    debug_str.contains("Obsolete"));
+
+            // Test Copy trait (all variants should be copyable)
+            let copied = variant;
+            assert_eq!(variant, copied);
+
+            // Test Clone trait
+            let cloned = variant.clone();
+            assert_eq!(variant, cloned);
+
+            // Test PartialEq trait
+            assert_eq!(variant, variant);
+        }
+    }
+
+    #[test]
+    fn test_beam_file_read_result_equality() {
+        let r1 = BeamFileReadResult::Success;
+        let r2 = BeamFileReadResult::Success;
+        let r3 = BeamFileReadResult::CorruptFileHeader;
+
+        assert_eq!(r1, r2);
+        assert_ne!(r1, r3);
+    }
+
+    #[test]
+    fn test_beam_file_construction() {
+        let beam = BeamFile {
+            module: 1,
+            code_data: vec![1, 2, 3, 4],
+            code_size: 4,
+            exports: vec![(1, 2, 3), (4, 5, 6)],
+            imports: vec![(7, 8, 9)],
+            atoms: vec!["".to_string(), "module".to_string(), "func".to_string()],
+            has_on_load: true,
+            attributes_data: Some(vec![10, 11, 12]),
+            compile_info_data: Some(vec![13, 14, 15]),
+        };
+
+        assert_eq!(beam.module, 1);
+        assert_eq!(beam.code_data, vec![1, 2, 3, 4]);
+        assert_eq!(beam.code_size, 4);
+        assert_eq!(beam.exports, vec![(1, 2, 3), (4, 5, 6)]);
+        assert_eq!(beam.imports, vec![(7, 8, 9)]);
+        assert_eq!(beam.atoms, vec!["".to_string(), "module".to_string(), "func".to_string()]);
+        assert!(beam.has_on_load);
+        assert_eq!(beam.attributes_data, Some(vec![10, 11, 12]));
+        assert_eq!(beam.compile_info_data, Some(vec![13, 14, 15]));
+    }
+
+    #[test]
+    fn test_beam_file_default_state() {
+        // Test that BeamFile has reasonable default values when read from minimal BEAM file
+        let data = vec![0u8; 16];
+        let data = vec![
+            b'F', b'O', b'R', b'1',  // FOR1
+            8, 0, 0, 0,             // form size (8)
+            b'B', b'E', b'A', b'M',  // BEAM
+        ];
+
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+
+        assert_eq!(beam.module, 0);
+        assert!(beam.code_data.is_empty());
+        assert_eq!(beam.code_size, 0);
+        assert!(beam.exports.is_empty());
+        assert!(beam.imports.is_empty());
+        assert!(beam.atoms.is_empty());
+        assert!(!beam.has_on_load);
+        assert!(beam.attributes_data.is_none());
+        assert!(beam.compile_info_data.is_none());
+    }
+
+    #[test]
+    fn test_beam_file_clone_and_equality() {
+        let beam1 = BeamFile {
+            module: 1,
+            code_data: vec![1, 2, 3],
+            code_size: 3,
+            exports: vec![(1, 2, 3)],
+            imports: vec![(4, 5, 6)],
+            atoms: vec!["atom".to_string()],
+            has_on_load: true,
+            attributes_data: Some(vec![7, 8]),
+            compile_info_data: Some(vec![9, 10]),
+        };
+
+        let beam2 = beam1.clone();
+        assert_eq!(beam1, beam2);
+
+        let beam3 = BeamFile {
+            module: 2, // Different
+            ..beam1.clone()
+        };
+        assert_ne!(beam1, beam3);
+    }
+
+    #[test]
+    fn test_transformation_result_variants() {
+        let variants = vec![
+            TransformationResult::Applied,
+            TransformationResult::NotApplicable,
+            TransformationResult::InsufficientData,
+        ];
+
+        for variant in variants {
+            // Test Debug trait
+            let debug_str = format!("{:?}", variant);
+            assert!(!debug_str.is_empty());
+
+            // Test Clone trait
+            let cloned = variant.clone();
+            assert_eq!(variant, cloned);
+
+            // Test PartialEq trait
+            assert_eq!(variant, variant);
+        }
+    }
+
+    #[test]
+    fn test_transformation_result_equality() {
+        assert_eq!(TransformationResult::Applied, TransformationResult::Applied);
+        assert_ne!(TransformationResult::Applied, TransformationResult::NotApplicable);
+    }
+
+    #[test]
+    fn test_beam_transformer_try_transform_instruction() {
+        // Test with NIL line instruction (opcode 153)
+        let nil_line = BeamInstruction {
+            opcode: 153,
+            args: vec![BeamArg::Literal(0)],
+        };
+
+        let mut reader = BytecodeReader::new(&[]);
+        let result = BeamTransformer::try_transform_instruction(&nil_line, &mut reader);
+        assert_eq!(result, TransformationResult::Applied);
+
+        // Test with non-NIL line instruction
+        let regular_line = BeamInstruction {
+            opcode: 153,
+            args: vec![BeamArg::Literal(1)],
+        };
+
+        let result = BeamTransformer::try_transform_instruction(&regular_line, &mut reader);
+        assert_eq!(result, TransformationResult::NotApplicable);
+    }
+
+    #[test]
+    fn test_beam_transformer_transform_nil_lines() {
+        // NIL line (literal 0)
+        let nil_line = BeamInstruction {
+            opcode: 153,
+            args: vec![BeamArg::Literal(0)],
+        };
+        assert_eq!(BeamTransformer::transform_nil_lines(&nil_line), TransformationResult::Applied);
+
+        // Non-NIL line
+        let regular_line = BeamInstruction {
+            opcode: 153,
+            args: vec![BeamArg::Literal(1)],
+        };
+        assert_eq!(BeamTransformer::transform_nil_lines(&regular_line), TransformationResult::NotApplicable);
+
+        // Wrong opcode
+        let wrong_opcode = BeamInstruction {
+            opcode: 152,
+            args: vec![BeamArg::Literal(0)],
+        };
+        assert_eq!(BeamTransformer::transform_nil_lines(&wrong_opcode), TransformationResult::NotApplicable);
+
+        // No args
+        let no_args = BeamInstruction {
+            opcode: 153,
+            args: vec![],
+        };
+        assert_eq!(BeamTransformer::transform_nil_lines(&no_args), TransformationResult::NotApplicable);
+    }
+
+    #[test]
+    fn test_beam_transformer_transform_generic_arithmetic() {
+        // Test generic arithmetic opcode (378)
+        let generic_add = BeamInstruction {
+            opcode: 378,
+            args: vec![
+                BeamArg::Register { index: 0, is_y: false }, // X0
+                BeamArg::Register { index: 1, is_y: false }, // X1
+                BeamArg::Register { index: 2, is_y: false }, // X2
+            ],
+        };
+
+        let result = BeamTransformer::transform_generic_arithmetic(&generic_add);
+        assert_eq!(result, TransformationResult::NotApplicable); // Currently returns NotApplicable
+
+        // Wrong opcode
+        let wrong_opcode = BeamInstruction {
+            opcode: 100,
+            args: vec![],
+        };
+        assert_eq!(BeamTransformer::transform_generic_arithmetic(&wrong_opcode), TransformationResult::NotApplicable);
+    }
+
+    #[test]
+    fn test_beam_transformer_transform_allocate_init_yregs() {
+        // Test allocate instruction (opcode 12) without next instruction
+        let allocate = BeamInstruction {
+            opcode: 12,
+            args: vec![
+                BeamArg::Literal(2), // n_regs
+                BeamArg::Literal(0), // live_regs
+            ],
+        };
+
+        // Without next instruction, should return InsufficientData (can't peek)
+        let mut reader1 = BytecodeReader::new(&[]);
+        let result = BeamTransformer::transform_allocate_init_yregs(&allocate, &mut reader1);
+        assert_eq!(result, TransformationResult::InsufficientData);
+
+        // Wrong opcode should return NotApplicable regardless of data
+        let wrong_opcode = BeamInstruction {
+            opcode: 10,
+            args: vec![],
+        };
+        let mut reader2 = BytecodeReader::new(&[1, 2, 3]); // Some dummy data
+        let result = BeamTransformer::transform_allocate_init_yregs(&wrong_opcode, &mut reader2);
+        assert_eq!(result, TransformationResult::NotApplicable);
+    }
+
+    #[test]
+    fn test_beam_transformer_transform_move_call_patterns() {
+        let mut reader = BytecodeReader::new(&[]);
+
+        // Test move instruction (opcode 64) to X0
+        let move_to_x0 = BeamInstruction {
+            opcode: 64,
+            args: vec![
+                BeamArg::Literal(42), // value
+                BeamArg::Register { index: 0, is_y: false }, // X0
+            ],
+        };
+
+        let result = BeamTransformer::transform_move_call_patterns(&move_to_x0, &mut reader);
+        assert_eq!(result, TransformationResult::NotApplicable);
+
+        // Move to different register
+        let move_to_x1 = BeamInstruction {
+            opcode: 64,
+            args: vec![
+                BeamArg::Literal(42),
+                BeamArg::Register { index: 1, is_y: false }, // X1
+            ],
+        };
+
+        let result = BeamTransformer::transform_move_call_patterns(&move_to_x1, &mut reader);
+        assert_eq!(result, TransformationResult::NotApplicable);
+
+        // Wrong opcode
+        let wrong_opcode = BeamInstruction {
+            opcode: 65,
+            args: vec![],
+        };
+        let result = BeamTransformer::transform_move_call_patterns(&wrong_opcode, &mut reader);
+        assert_eq!(result, TransformationResult::NotApplicable);
+    }
+
+    #[test]
+    fn test_beam_transformer_helper_functions() {
+        // Test is_x_register
+        assert!(BeamTransformer::is_x_register(&BeamArg::Register { index: 0, is_y: false }));
+        assert!(BeamTransformer::is_x_register(&BeamArg::Register { index: 5, is_y: false }));
+        assert!(!BeamTransformer::is_x_register(&BeamArg::Register { index: 0, is_y: true }));
+        assert!(!BeamTransformer::is_x_register(&BeamArg::Literal(0)));
+
+        // Test is_x0_register
+        assert!(BeamTransformer::is_x0_register(&BeamArg::Register { index: 0, is_y: false }));
+        assert!(!BeamTransformer::is_x0_register(&BeamArg::Register { index: 1, is_y: false }));
+        assert!(!BeamTransformer::is_x0_register(&BeamArg::Register { index: 0, is_y: true }));
+        assert!(!BeamTransformer::is_x0_register(&BeamArg::Literal(0)));
+    }
+
+    #[test]
+    fn test_bytecode_reader_new() {
+        let data = vec![1, 2, 3, 4];
+        let reader = BytecodeReader::new(&data);
+
+        assert_eq!(reader.position, 0);
+        assert!(reader.peeked_instruction.is_none());
+    }
+
+    #[test]
+    fn test_bytecode_reader_read_instruction_empty() {
+        let data = vec![];
+        let mut reader = BytecodeReader::new(&data);
+
+        let result = reader.read_instruction();
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_bytecode_reader_peek_instruction() {
+        // Create data for a complete move instruction (opcode 64, 2 args)
+        // For opcode 64 (move), all args are treated as registers
+        let data = vec![64, 192, 193]; // opcode 64, X register 0, X register 1
+        let mut reader = BytecodeReader::new(&data);
+
+        // First peek
+        let result = reader.peek_instruction();
+        assert!(result.is_ok());
+        let peeked = result.unwrap();
+        assert!(peeked.is_some());
+        let instr = peeked.unwrap();
+        assert_eq!(instr.opcode, 64);
+        assert_eq!(reader.position, 0); // Position should not advance
+
+        // Second peek should return same instruction
+        let result2 = reader.peek_instruction();
+        assert!(result2.is_ok());
+        let peeked2 = result2.unwrap();
+        assert!(peeked2.is_some());
+        assert_eq!(peeked2.unwrap().opcode, 64);
+
+        // Now read should consume it
+        let read_result = reader.read_instruction();
+        assert!(read_result.is_ok());
+        let read_instr = read_result.unwrap();
+        assert!(read_instr.is_some());
+        assert_eq!(read_instr.unwrap().opcode, 64);
+        assert_eq!(reader.position, 3); // Position should advance by opcode(1) + 2 args(2) = 3
+    }
+
+    #[test]
+    fn test_bytecode_reader_decode_arguments() {
+        let data = vec![0, 0x80, 0, 0, 0, 0]; // small int 0, extended literal 0
+        let reader = BytecodeReader::new(&data);
+
+        // Test decoding for opcode with 2 arguments
+        let result = reader.decode_arguments(64); // move operation
+        assert!(result.is_ok());
+        let (args, bytes_read) = result.unwrap();
+        assert_eq!(args.len(), 2);
+        assert_eq!(bytes_read, 6);
+    }
+
+    #[test]
+    fn test_bytecode_reader_decode_arguments_errors() {
+        let data = vec![0]; // Incomplete data
+        let reader = BytecodeReader::new(&data);
+
+        // Test with insufficient data
+        let result = reader.decode_arguments(64); // move operation needs 2 args
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), BeamFileReadResult::CorruptCodeChunk);
+    }
+
+    #[test]
+    fn test_bytecode_reader_get_arg_count() {
+        // Test various opcodes
+        assert_eq!(BytecodeReader::get_arg_count(64), 2); // move
+        assert_eq!(BytecodeReader::get_arg_count(12), 2); // allocate
+        assert_eq!(BytecodeReader::get_arg_count(153), 1); // line
+    }
+
+    #[test]
+    fn test_bytecode_writer_new() {
+        let writer = BytecodeWriter::new();
+        assert!(writer.data.is_empty());
+    }
+
+    #[test]
+    fn test_bytecode_writer_write_instruction() {
+        let mut writer = BytecodeWriter::new();
+
+        let instruction = BeamInstruction {
+            opcode: 100,
+            args: vec![
+                BeamArg::Literal(42),
+                BeamArg::Register { index: 1, is_y: false },
+            ],
+        };
+
+        let result = writer.write_instruction(&instruction);
+        assert!(result.is_ok());
+        assert!(!writer.data.is_empty());
+        assert_eq!(writer.data[0], 100); // opcode
+    }
+
+    #[test]
+    fn test_bytecode_writer_write_beam_arg() {
+        let mut data = vec![];
+
+        // Test small literal
+        let result = BytecodeWriter::write_beam_arg(&mut data, &BeamArg::Literal(42));
+        assert!(result.is_ok());
+        assert_eq!(data, vec![42]);
+
+        // Test extended literal
+        data.clear();
+        let result = BytecodeWriter::write_beam_arg(&mut data, &BeamArg::Literal(300));
+        assert!(result.is_ok());
+        assert_eq!(data.len(), 5); // 1 tag + 4 bytes
+        assert_eq!(data[0], 0x80); // extended literal tag
+
+        // Test X register
+        data.clear();
+        let result = BytecodeWriter::write_beam_arg(&mut data, &BeamArg::Register { index: 5, is_y: false });
+        assert!(result.is_ok());
+        assert_eq!(data, vec![0xC5]); // 0xC0 | 5
+
+        // Test Y register
+        data.clear();
+        let result = BytecodeWriter::write_beam_arg(&mut data, &BeamArg::Register { index: 3, is_y: true });
+        assert!(result.is_ok());
+        assert_eq!(data, vec![0xE3]); // 0xE0 | 3
+    }
+
+    #[test]
+    fn test_bytecode_writer_into_bytes() {
+        let mut writer = BytecodeWriter::new();
+        writer.data = vec![1, 2, 3, 4];
+
+        let data = writer.into_bytes();
+        assert_eq!(data, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_beam_instruction_construction() {
+        let instruction = BeamInstruction {
+            opcode: 64,
+            args: vec![
+                BeamArg::Literal(42),
+                BeamArg::Register { index: 0, is_y: false },
+            ],
+        };
+
+        assert_eq!(instruction.opcode, 64);
+        assert_eq!(instruction.args.len(), 2);
+    }
+
+    #[test]
+    fn test_beam_instruction_equality() {
+        let instr1 = BeamInstruction {
+            opcode: 64,
+            args: vec![BeamArg::Literal(42)],
+        };
+
+        let instr2 = BeamInstruction {
+            opcode: 64,
+            args: vec![BeamArg::Literal(42)],
+        };
+
+        let instr3 = BeamInstruction {
+            opcode: 65,
+            args: vec![BeamArg::Literal(42)],
+        };
+
+        assert_eq!(instr1, instr2);
+        assert_ne!(instr1, instr3);
+    }
+
+    #[test]
+    fn test_beam_instruction_clone() {
+        let instr = BeamInstruction {
+            opcode: 100,
+            args: vec![BeamArg::Literal(1)],
+        };
+
+        let cloned = instr.clone();
+        assert_eq!(instr, cloned);
+    }
+
+    #[test]
+    fn test_beam_transformer_transform_for_jit() {
+        // Test with minimal code chunk (too small for transformation)
+        let mut bytecode = vec![0u8; 20]; // BEAM code header size
+        let result = BeamTransformer::transform_for_jit(&mut bytecode);
+        assert!(result.is_ok()); // Should skip transformation for small chunks
+
+        // Test with code chunk that's exactly header size
+        let mut bytecode = vec![0u8; 20];
+        let result = BeamTransformer::transform_for_jit(&mut bytecode);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_beam_loader_prepare_loading_invalid_module() {
+        let data = vec![0u8; 16];
+        let data = vec![
+            b'F', b'O', b'R', b'1',
+            8, 0, 0, 0,
+            b'B', b'E', b'A', b'M',
+        ];
+
+        // Test with wrong module atom
+        let result = BeamLoader::prepare_loading(&data, Some(999));
+        assert_eq!(result, Err(BeamFileReadResult::CorruptFileHeader));
+    }
+
+    #[test]
+    fn test_beam_load_error_variants_comprehensive() {
+        let variants = vec![
+            BeamLoadError::ModuleNotFound,
+            BeamLoadError::OldCodeExists,
+            BeamLoadError::InvalidModule,
+        ];
+
+        for variant in variants {
+            // Test Debug trait
+            let debug_str = format!("{:?}", variant);
+            assert!(!debug_str.is_empty());
+
+            // Test Clone trait
+            let cloned = variant.clone();
+            assert_eq!(variant, cloned);
+
+            // Test PartialEq trait
+            assert_eq!(variant, variant);
+        }
+    }
+
+    #[test]
+    fn test_beam_load_error_equality() {
+        let e1 = BeamLoadError::InvalidModule;
+        let e2 = BeamLoadError::InvalidModule;
+        let e3 = BeamLoadError::ModuleNotFound;
+
+        assert_eq!(e1, e2);
+        assert_ne!(e1, e3);
+    }
+
+    #[test]
+    fn test_beam_file_read_atom_table_simple() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        // Form size = BEAM(4) + chunk(4 + 9) = 17, but aligned to 4 bytes = 20
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+
+        // AtU8 chunk with 1 atom
+        data[pos..pos+4].copy_from_slice(b"AtU8");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&9u32.to_be_bytes()); // Size = count(4) + length(1) + data(4)
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&1u32.to_be_bytes()); // Count = 1 (positive = simple format)
+        pos += 4;
+        data[pos] = 4; // Length of "test"
+        pos += 1;
+        data[pos..pos+4].copy_from_slice(b"test");
+        pos += 4;
+
+        // Pad to 4-byte alignment
+        while pos % 4 != 0 {
+            pos += 1;
+        }
+
+        data.truncate(pos);
+
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.atoms, vec!["".to_string(), "test".to_string()]);
+    }
+
+    #[test]
+    fn test_beam_file_read_atom_table_empty() {
+        let mut data = vec![0u8; 32];
+        let mut pos = 0;
+
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&20u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+
+        // AtU8 chunk with 0 atoms
+        data[pos..pos+4].copy_from_slice(b"AtU8");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&4u32.to_be_bytes()); // Size
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&0u32.to_be_bytes()); // Count
+        pos += 4;
+
+        data.truncate(pos);
+
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.atoms, vec!["".to_string()]); // Only empty list atom
+    }
+
+    #[test]
+    #[ignore] // Import table parsing not yet implemented
+    fn test_beam_file_read_import_table() {
+        // TODO: Implement import table parsing and enable this test
+        // The loader currently only parses AtU8, Attr, CInf, Code, and ExpT chunks
+    }
+
+    #[test]
+    fn test_beam_file_read_chunk_alignment_edge_cases() {
+        // Test with chunk that requires maximum alignment padding
+        let mut data = vec![0u8; 36];
+        let mut pos = 0;
+
+        // FOR1 header
+        data[pos..pos+4].copy_from_slice(b"FOR1");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&24u32.to_le_bytes());
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(b"BEAM");
+        pos += 4;
+
+        // Code chunk with size 3 (needs 1 byte padding)
+        data[pos..pos+4].copy_from_slice(b"Code");
+        pos += 4;
+        data[pos..pos+4].copy_from_slice(&3u32.to_be_bytes());
+        pos += 4;
+        data[pos..pos+3].copy_from_slice(&[1, 2, 3]);
+        pos += 3;
+        // 1 byte padding to align to 4-byte boundary
+        pos += 1;
+
+        data.truncate(pos);
+
+        let result = BeamLoader::read_beam_file(&data);
+        assert!(result.is_ok());
+        let beam = result.unwrap();
+        assert_eq!(beam.code_data, vec![1, 2, 3]);
     }
 }
 

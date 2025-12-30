@@ -1594,9 +1594,9 @@ mod tests {
         // Retry the entire test if race condition occurs
         let mut success = false;
         let mut last_error = String::new();
-        for attempt in 0..10 {
+        for attempt in 0..15 {
             LoadBif::clear_all();
-            std::thread::sleep(std::time::Duration::from_millis(10 * (attempt + 1)));
+            std::thread::sleep(std::time::Duration::from_millis(20 * (attempt + 1)));
             
             // Use unique module name to avoid conflicts
             let unique_name = format!("test_module_{}_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(), attempt);

@@ -291,15 +291,25 @@ mod tests {
 
     #[test]
     fn test_verbose_enable_disable() {
-        // Reset state
+        // Save the initial state
+        let initial_state = DebugUtils::is_verbose();
+
+        // Ensure we end up with verbose disabled
         DebugUtils::disable_verbose();
+
+        // Test disable->enable transition
         assert!(!DebugUtils::is_verbose());
-        
         DebugUtils::enable_verbose();
         assert!(DebugUtils::is_verbose());
-        
+
+        // Test enable->disable transition
         DebugUtils::disable_verbose();
         assert!(!DebugUtils::is_verbose());
+
+        // Restore initial state
+        if initial_state {
+            DebugUtils::enable_verbose();
+        }
     }
 
     #[test]

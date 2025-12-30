@@ -588,4 +588,453 @@ mod tests {
         assert_eq!(access.name.as_str(), "person");
         assert_eq!(access.field.as_str(), "name");
     }
+
+    // Additional comprehensive tests for all expression types
+
+    #[test]
+    fn test_expression_enum_variants() {
+        // Test all Expression enum variants for basic construction
+        let literal = Expression::Literal(Literal::Integer(Integer::from_i64(42)));
+        assert!(matches!(literal, Expression::Literal(_)));
+
+        let variable = Expression::Variable(Variable::new("X"));
+        assert!(matches!(variable, Expression::Variable(_)));
+
+        let func_call = Expression::FunctionCall(FunctionCall::local(
+            Atom::new("test"),
+            vec![Expression::Literal(1.into())],
+        ));
+        assert!(matches!(func_call, Expression::FunctionCall(_)));
+
+        let fun = Expression::Fun(Fun::new(vec![]));
+        assert!(matches!(fun, Expression::Fun(_)));
+
+        let case_expr = Expression::Case(Case::new(
+            Expression::Variable(Variable::new("X")),
+            vec![],
+        ));
+        assert!(matches!(case_expr, Expression::Case(_)));
+
+        let if_expr = Expression::If(If::new(vec![]));
+        assert!(matches!(if_expr, Expression::If(_)));
+
+        let receive = Expression::Receive(Receive::with_clauses(vec![]));
+        assert!(matches!(receive, Expression::Receive(_)));
+
+        let try_expr = Expression::Try(Try {
+            body: vec![],
+            catch_clauses: vec![],
+            after: None,
+        });
+        assert!(matches!(try_expr, Expression::Try(_)));
+
+        let binary = Expression::Binary(BinaryExpr { segments: vec![] });
+        assert!(matches!(binary, Expression::Binary(_)));
+
+        let list = Expression::List(ListExpr::proper(vec![]));
+        assert!(matches!(list, Expression::List(_)));
+
+        let tuple = Expression::Tuple(TupleExpr::new(vec![]));
+        assert!(matches!(tuple, Expression::Tuple(_)));
+
+        let map = Expression::Map(MapExpr::construction(vec![]));
+        assert!(matches!(map, Expression::Map(_)));
+
+        let record = Expression::Record(RecordExpr::construction(
+            Atom::new("test"),
+            vec![],
+        ));
+        assert!(matches!(record, Expression::Record(_)));
+
+        let list_comp = Expression::ListComprehension(ListComprehension {
+            expression: Box::new(Expression::Literal(1.into())),
+            qualifiers: vec![],
+        });
+        assert!(matches!(list_comp, Expression::ListComprehension(_)));
+
+        let binary_comp = Expression::BinaryComprehension(BinaryComprehension {
+            expression: Box::new(Expression::Literal(1.into())),
+            qualifiers: vec![],
+        });
+        assert!(matches!(binary_comp, Expression::BinaryComprehension(_)));
+
+        let block = Expression::Block(Block::new(vec![]));
+        assert!(matches!(block, Expression::Block(_)));
+
+        let parenthesized = Expression::Parenthesized(Box::new(Expression::Literal(42.into())));
+        assert!(matches!(parenthesized, Expression::Parenthesized(_)));
+
+        let unary = Expression::UnaryOp(UnaryOp::new(
+            UnaryOperator::Minus,
+            Expression::Literal(42.into()),
+        ));
+        assert!(matches!(unary, Expression::UnaryOp(_)));
+
+        let binary_op = Expression::BinaryOp(BinaryOp::new(
+            BinaryOperator::Plus,
+            Expression::Literal(1.into()),
+            Expression::Literal(2.into()),
+        ));
+        assert!(matches!(binary_op, Expression::BinaryOp(_)));
+
+        let record_access = Expression::RecordAccess(RecordAccess::new(
+            Expression::Variable(Variable::new("Rec")),
+            Atom::new("record"),
+            Atom::new("field"),
+        ));
+        assert!(matches!(record_access, Expression::RecordAccess(_)));
+
+        let map_access = Expression::MapAccess(MapAccess::new(
+            Expression::Variable(Variable::new("Map")),
+            Expression::Literal("key".into()),
+        ));
+        assert!(matches!(map_access, Expression::MapAccess(_)));
+    }
+
+    #[test]
+    fn test_fun_expression() {
+        let clause = Clause::new(
+            vec![Pattern::Variable(Variable::new("X"))],
+            vec![],
+            vec![Expression::Variable(Variable::new("X"))],
+        );
+
+        let fun = Fun::new(vec![clause]);
+        assert_eq!(fun.clauses.len(), 1);
+
+        // Test empty fun
+        let empty_fun = Fun::new(vec![]);
+        assert!(empty_fun.clauses.is_empty());
+    }
+
+    #[test]
+    fn test_case_expression_comprehensive() {
+        let var = Expression::Variable(Variable::new("Value"));
+        let clause = Clause::new(
+            vec![Pattern::Literal(Literal::Integer(Integer::from_i64(1)))],
+            vec![],
+            vec![Expression::Literal("one".into())],
+        );
+
+        let case = Case::new(var, vec![clause]);
+        assert_eq!(case.clauses.len(), 1);
+        assert!(matches!(case.expression.as_ref(), Expression::Variable(_)));
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let clause = IfExprClause {
+            guard: vec![Guard::Expression(Expression::Literal(true.into()))],
+            body: vec![Expression::Literal("true".into())],
+        };
+
+        let if_expr = If::new(vec![clause]);
+        assert_eq!(if_expr.clauses.len(), 1);
+
+        // Test empty if
+        let empty_if = If::new(vec![]);
+        assert!(empty_if.clauses.is_empty());
+    }
+
+    #[test]
+    fn test_if_expr_clause() {
+        let clause = IfExprClause {
+            guard: vec![Guard::Expression(Expression::Literal(true.into()))],
+            body: vec![Expression::Literal(42.into())],
+        };
+
+        assert_eq!(clause.guard.len(), 1);
+        assert_eq!(clause.body.len(), 1);
+    }
+
+    #[test]
+    fn test_receive_expression() {
+        // Test receive with clauses only
+        let clause = Clause::new(
+            vec![Pattern::Variable(Variable::new("Msg"))],
+            vec![],
+            vec![Expression::Variable(Variable::new("Msg"))],
+        );
+        let receive_clauses = Receive::with_clauses(vec![clause.clone()]);
+        assert!(receive_clauses.clauses.is_some());
+        assert!(receive_clauses.timeout.is_none());
+        assert!(receive_clauses.after.is_none());
+
+        // Test receive with timeout
+        let timeout_expr = Expression::Literal(Literal::Integer(Integer::from_i64(5000)));
+        let after_body = vec![Expression::Literal(Literal::Atom(Atom::new("timeout")))];
+        let receive_timeout = Receive::with_timeout(
+            vec![clause],
+            timeout_expr,
+            after_body,
+        );
+        assert!(receive_timeout.clauses.is_some());
+        assert!(receive_timeout.timeout.is_some());
+        assert!(receive_timeout.after.is_some());
+    }
+
+    #[test]
+    fn test_try_expression() {
+        let body = vec![Expression::Literal(1.into())];
+        let catch_clause = CatchClause::new(
+            Some(Atom::new("error")),
+            Pattern::Variable(Variable::new("Reason")),
+            Some(Variable::new("Stack")),
+            vec![],
+            vec![Expression::Literal("caught".into())],
+        );
+
+        let try_expr = Try {
+            body,
+            catch_clauses: vec![catch_clause],
+            after: Some(vec![Expression::Literal("cleanup".into())]),
+        };
+
+        assert_eq!(try_expr.body.len(), 1);
+        assert_eq!(try_expr.catch_clauses.len(), 1);
+        assert!(try_expr.after.is_some());
+    }
+
+    #[test]
+    fn test_catch_expr_clause() {
+        let clause = CatchExprClause {
+            class: Some(Atom::new("error")),
+            reason: Pattern::Variable(Variable::new("Reason")),
+            stack: None,
+            guard: vec![Guard::Expression(Expression::Literal(true.into()))],
+            body: vec![Expression::Literal("handled".into())],
+        };
+
+        assert_eq!(clause.class.as_ref().unwrap().as_str(), "error");
+        assert_eq!(clause.guard.len(), 1);
+        assert_eq!(clause.body.len(), 1);
+        assert!(clause.stack.is_none());
+    }
+
+    #[test]
+    fn test_binary_expression() {
+        let segments = vec![BinarySegment {
+            value: b"test".to_vec(),
+            size: Some(Integer::from_i64(4)),
+            unit: Some(Integer::from_i64(8)),
+        }];
+
+        let binary = BinaryExpr { segments };
+        assert_eq!(binary.segments.len(), 1);
+    }
+
+    #[test]
+    fn test_record_expression() {
+        // Test construction
+        let fields = vec![RecordFieldExpr {
+            name: Atom::new("name"),
+            value: Expression::Literal("test".into()),
+        }];
+        let record = RecordExpr::construction(Atom::new("person"), fields);
+        assert_eq!(record.name.as_str(), "person");
+        assert!(record.base.is_none());
+        assert_eq!(record.fields.len(), 1);
+
+        // Test update
+        let base = Expression::Variable(Variable::new("Person"));
+        let update_fields = vec![RecordFieldExpr {
+            name: Atom::new("age"),
+            value: Expression::Literal(25.into()),
+        }];
+        let update_record = RecordExpr::update(Atom::new("person"), base, update_fields);
+        assert_eq!(update_record.name.as_str(), "person");
+        assert!(update_record.base.is_some());
+        assert_eq!(update_record.fields.len(), 1);
+    }
+
+    #[test]
+    fn test_record_field_expr() {
+        let field = RecordFieldExpr {
+            name: Atom::new("field"),
+            value: Expression::Literal(42.into()),
+        };
+
+        assert_eq!(field.name.as_str(), "field");
+    }
+
+    #[test]
+    fn test_comprehensions() {
+        // Test list comprehension
+        let generator = ComprehensionQualifier::Generator(
+            Pattern::Variable(Variable::new("X")),
+            Expression::Variable(Variable::new("List")),
+        );
+        let filter = ComprehensionQualifier::Filter(Expression::BinaryOp(BinaryOp::new(
+            BinaryOperator::Greater,
+            Expression::Variable(Variable::new("X")),
+            Expression::Literal(0.into()),
+        )));
+
+        let list_comp = ListComprehension {
+            expression: Box::new(Expression::Variable(Variable::new("X"))),
+            qualifiers: vec![generator.clone(), filter],
+        };
+        assert_eq!(list_comp.qualifiers.len(), 2);
+
+        // Test binary comprehension
+        let binary_comp = BinaryComprehension {
+            expression: Box::new(Expression::Variable(Variable::new("X"))),
+            qualifiers: vec![generator],
+        };
+        assert_eq!(binary_comp.qualifiers.len(), 1);
+    }
+
+    #[test]
+    fn test_comprehension_qualifier() {
+        // Test generator
+        let generator = ComprehensionQualifier::Generator(
+            Pattern::Variable(Variable::new("X")),
+            Expression::Variable(Variable::new("List")),
+        );
+        assert!(matches!(generator, ComprehensionQualifier::Generator(_, _)));
+
+        // Test filter
+        let filter = ComprehensionQualifier::Filter(Expression::Literal(true.into()));
+        assert!(matches!(filter, ComprehensionQualifier::Filter(_)));
+    }
+
+    #[test]
+    fn test_block_expression() {
+        let expressions = vec![
+            Expression::Variable(Variable::new("X")),
+            Expression::Literal(42.into()),
+        ];
+        let block = Block::new(expressions);
+        assert_eq!(block.expressions.len(), 2);
+    }
+
+    #[test]
+    fn test_map_access() {
+        let map_access = MapAccess::new(
+            Expression::Variable(Variable::new("Map")),
+            Expression::Literal("key".into()),
+        );
+
+        assert!(matches!(map_access.map.as_ref(), Expression::Variable(_)));
+        assert!(matches!(map_access.key.as_ref(), Expression::Literal(_)));
+    }
+
+    #[test]
+    fn test_unary_operators() {
+        // Test all unary operators
+        let operators = vec![
+            UnaryOperator::Plus,
+            UnaryOperator::Minus,
+            UnaryOperator::Not,
+            UnaryOperator::Bnot,
+        ];
+
+        for op in operators {
+            let unary = UnaryOp::new(op.clone(), Expression::Literal(42.into()));
+            assert_eq!(unary.operator, op);
+        }
+    }
+
+    #[test]
+    fn test_binary_operators() {
+        // Test all binary operators
+        let operators = vec![
+            BinaryOperator::Plus,
+            BinaryOperator::Minus,
+            BinaryOperator::Multiply,
+            BinaryOperator::Divide,
+            BinaryOperator::Modulo,
+            BinaryOperator::Div,
+            BinaryOperator::Rem,
+            BinaryOperator::Equal,
+            BinaryOperator::NotEqual,
+            BinaryOperator::Less,
+            BinaryOperator::LessEqual,
+            BinaryOperator::Greater,
+            BinaryOperator::GreaterEqual,
+            BinaryOperator::ExactEqual,
+            BinaryOperator::ExactNotEqual,
+            BinaryOperator::And,
+            BinaryOperator::Or,
+            BinaryOperator::Xor,
+            BinaryOperator::AndAlso,
+            BinaryOperator::OrElse,
+            BinaryOperator::Band,
+            BinaryOperator::Bor,
+            BinaryOperator::Bxor,
+            BinaryOperator::Bsl,
+            BinaryOperator::Bsr,
+            BinaryOperator::Append,
+            BinaryOperator::Subtract,
+            BinaryOperator::Send,
+        ];
+
+        for op in operators {
+            let binary = BinaryOp::new(
+                op.clone(),
+                Expression::Literal(1.into()),
+                Expression::Literal(2.into()),
+            );
+            assert_eq!(binary.operator, op);
+        }
+    }
+
+    #[test]
+    fn test_complex_expression_nesting() {
+        // Test deeply nested expressions
+        let nested = Expression::BinaryOp(BinaryOp::new(
+            BinaryOperator::Plus,
+            Expression::UnaryOp(UnaryOp::new(
+                UnaryOperator::Minus,
+                Expression::Parenthesized(Box::new(Expression::Literal(42.into()))),
+            )),
+            Expression::FunctionCall(FunctionCall::external(
+                Atom::new("math"),
+                Atom::new("sqrt"),
+                vec![Expression::Literal(16.into())],
+            )),
+        ));
+
+        // Verify the structure
+        if let Expression::BinaryOp(binary) = nested {
+            assert_eq!(binary.operator, BinaryOperator::Plus);
+            assert!(matches!(binary.left.as_ref(), Expression::UnaryOp(_)));
+            assert!(matches!(binary.right.as_ref(), Expression::FunctionCall(_)));
+        } else {
+            panic!("Expected BinaryOp");
+        }
+    }
+
+    #[test]
+    fn test_expression_equality() {
+        let expr1 = Expression::Literal(Literal::Integer(Integer::from_i64(42)));
+        let expr2 = Expression::Literal(Literal::Integer(Integer::from_i64(42)));
+        let expr3 = Expression::Literal(Literal::Integer(Integer::from_i64(43)));
+
+        assert_eq!(expr1, expr2);
+        assert_ne!(expr1, expr3);
+    }
+
+    #[test]
+    fn test_edge_cases() {
+        // Test empty collections
+        let empty_list = ListExpr::proper(vec![]);
+        assert!(empty_list.elements.is_empty());
+
+        let empty_tuple = TupleExpr::new(vec![]);
+        assert!(empty_tuple.elements.is_empty());
+
+        let empty_map = MapExpr::construction(vec![]);
+        assert!(empty_map.entries.is_empty());
+
+        let empty_record = RecordExpr::construction(Atom::new("empty"), vec![]);
+        assert!(empty_record.fields.is_empty());
+
+        // Test single element collections
+        let single_list = ListExpr::proper(vec![Expression::Literal(1.into())]);
+        assert_eq!(single_list.elements.len(), 1);
+
+        let single_tuple = TupleExpr::new(vec![Expression::Literal(1.into())]);
+        assert_eq!(single_tuple.elements.len(), 1);
+    }
 }

@@ -2964,6 +2964,10 @@ mod tests {
 
         println!("Testing preload timing and verification functions");
 
+        // Clear module registry, export table, and prepared code to ensure clean state for testing
+        usecases_bifs::load::LoadBif::clear_all();
+        entities_io_operations::export::get_global_export_table().clear();
+
         // Test verify_beam_execution_setup with no preloaded modules
         // This should fail because no modules are loaded
         let result = verify_beam_execution_setup();
