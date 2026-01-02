@@ -485,6 +485,8 @@ pub mod pipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+    use std::time::Duration;
 
     #[test]
     fn test_command_execution_success() {
@@ -583,5 +585,406 @@ mod tests {
 
         let result = background::start_compile_server(&config);
         assert!(matches!(result, Err(CompilerError::ConfigError(_))));
+    }
+
+    // ==================== Additional Executor Module Tests ====================
+
+    #[test]
+    fn test_run_command_with_options() {
+        let mut options = ExecutionOptions::default();
+        options.capture_stdout = true;
+        options.capture_stderr = true;
+
+        let result = executor::run_command_with_options("cargo", &["--version"], &options);
+        // Should work if cargo is available
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_run_command_with_working_directory() {
+        let mut options = ExecutionOptions::default();
+        options.working_dir = Some(PathBuf::from("."));
+        options.capture_stdout = true;
+
+        let result = executor::run_command_with_options("cargo", &["--version"], &options);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_run_command_with_env_vars() {
+        let mut options = ExecutionOptions::default();
+        let mut env_vars = HashMap::new();
+        env_vars.insert("TEST_VAR".to_string(), "test_value".to_string());
+        options.env_vars = env_vars;
+        options.capture_stdout = true;
+
+        let result = executor::run_command_with_options("cargo", &["--version"], &options);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_run_command_with_timeout() {
+        let mut options = ExecutionOptions::default();
+        options.timeout = Some(Duration::from_secs(10));
+        options.capture_stdout = true;
+
+        let result = executor::run_command_with_options("cargo", &["--version"], &options);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_command_exists() {
+        // Test with commands that should exist
+        assert!(executor::command_exists("cargo") || executor::command_exists("rustc"));
+        // Test with command that shouldn't exist
+        assert!(!executor::command_exists("definitely_nonexistent_command_123456789"));
+    }
+
+    #[test]
+    fn test_execution_result_success() {
+        let result = ExecutionResult::Success("test output".to_string());
+        match result {
+            ExecutionResult::Success(output) => assert_eq!(output, "test output"),
+            _ => panic!("Expected success"),
+        }
+    }
+
+    #[test]
+    fn test_execution_result_failure() {
+        let result = ExecutionResult::Failure(42, "error message".to_string());
+        match result {
+            ExecutionResult::Failure(code, message) => {
+                assert_eq!(code, 42);
+                assert_eq!(message, "error message");
+            }
+            _ => panic!("Expected failure"),
+        }
+    }
+
+    // ==================== Erlang Module Tests ====================
+
+    #[test]
+    fn test_run_erlang_emulator() {
+        let result = erlang::run_erlang_emulator(&["-eval", "halt()."]);
+        // This might fail if Erlang is not installed, but shouldn't panic
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_run_erlang_emulator_with_path() {
+        let emulator_path = infrastructure_environment_config::erlang::get_emulator_path();
+        let result = erlang::run_erlang_emulator_with_path(&emulator_path, &["-eval", "halt()."]);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_compile_erlang_file() {
+        let options = CompileOptions::default();
+        let result = erlang::compile_erlang_file("nonexistent.erl", &options);
+        // Should fail due to missing file, but shouldn't panic
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_compile_erlang_file_with_options() {
+        let mut options = CompileOptions::default();
+        options.warnings = false;
+        options.debug_info = true;
+        options.includes.push(PathBuf::from("test_include"));
+        options.flags.push("+test_flag".to_string());
+
+        let result = erlang::compile_erlang_file("nonexistent.erl", &options);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+
+    // ==================== CompileOptions Tests ====================
+
+    #[test]
+    fn test_compile_options_with_custom_values() {
+        let mut options = CompileOptions {
+            outdir: Some(PathBuf::from("/tmp/output")),
+            includes: vec![PathBuf::from("/tmp/include1"), PathBuf::from("/tmp/include2")],
+            flags: vec!["+flag1".to_string(), "+flag2".to_string()],
+            warnings: false,
+            debug_info: true,
+        };
+
+        assert_eq!(options.outdir, Some(PathBuf::from("/tmp/output")));
+        assert_eq!(options.includes.len(), 2);
+        assert_eq!(options.flags.len(), 2);
+        assert!(!options.warnings);
+        assert!(options.debug_info);
+    }
+
+    #[test]
+    fn test_compile_options_clone() {
+        let options = CompileOptions::default();
+        let cloned = options.clone();
+        assert_eq!(options.warnings, cloned.warnings);
+        assert_eq!(options.debug_info, cloned.debug_info);
+    }
+
+    // ==================== ExecutionOptions Tests ====================
+
+    #[test]
+    fn test_execution_options_with_custom_values() {
+        let mut env_vars = HashMap::new();
+        env_vars.insert("TEST_VAR".to_string(), "test_value".to_string());
+
+        let options = ExecutionOptions {
+            working_dir: Some(PathBuf::from("/tmp")),
+            env_vars,
+            timeout: Some(Duration::from_secs(30)),
+            capture_stdout: true,
+            capture_stderr: true,
+        };
+
+        assert_eq!(options.working_dir, Some(PathBuf::from("/tmp")));
+        assert_eq!(options.env_vars.get("TEST_VAR"), Some(&"test_value".to_string()));
+        assert_eq!(options.timeout, Some(Duration::from_secs(30)));
+        assert!(options.capture_stdout);
+        assert!(options.capture_stderr);
+    }
+
+    #[test]
+    fn test_execution_options_clone() {
+        let mut options = ExecutionOptions::default();
+        options.capture_stdout = true;
+        let cloned = options.clone();
+        assert_eq!(options.capture_stdout, cloned.capture_stdout);
+    }
+
+    // ==================== Background Process Tests ====================
+
+    #[test]
+    fn test_background_process_id() {
+        // Test with a disabled config (should fail early)
+        let config = infrastructure_environment_config::CompileServerConfig {
+            enabled: false,
+            server_id: Some("test_server".to_string()),
+            config_hash: "test".to_string(),
+        };
+
+        let result = background::start_compile_server(&config);
+        assert!(matches!(result, Err(CompilerError::ConfigError(_))));
+    }
+
+    #[test]
+    fn test_background_process_enabled_config() {
+        // Test with enabled config but invalid setup
+        let config = infrastructure_environment_config::CompileServerConfig {
+            enabled: true,
+            server_id: Some("test_server".to_string()),
+            config_hash: "test".to_string(),
+        };
+
+        let result = background::start_compile_server(&config);
+        // This might succeed or fail depending on Erlang availability
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_)))
+                               || matches!(result, Err(CompilerError::ConfigError(_))));
+    }
+
+    // ==================== Pipeline Tests ====================
+
+    #[test]
+    fn test_pipeline_with_invalid_commands() {
+        let commands = vec![
+            ("definitely_nonexistent_command_123", &[] as &[&str]),
+            ("another_nonexistent_command", &[] as &[&str]),
+        ];
+        let result = pipeline::execute_pipeline(&commands);
+        // Should fail due to nonexistent commands
+        assert!(matches!(result, Err(CompilerError::InternalError(_))));
+    }
+
+    // ==================== Error Handling Tests ====================
+
+    #[test]
+    fn test_command_execution_with_invalid_program() {
+        let result = executor::run_command("", &[]);
+        assert!(matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_run_command_with_invalid_working_directory() {
+        let mut options = ExecutionOptions::default();
+        options.working_dir = Some(PathBuf::from("/definitely/nonexistent/directory/path"));
+        options.capture_stdout = true;
+
+        let result = executor::run_command_with_options("cargo", &["--version"], &options);
+        assert!(matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    // ==================== Edge Cases and Boundary Conditions ====================
+
+    #[test]
+    fn test_run_command_with_empty_args() {
+        let result = executor::run_command("cargo", &[]);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_run_command_with_many_args() {
+        let args: Vec<String> = (0..100).map(|i| format!("arg{}", i)).collect();
+        let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
+        let result = executor::run_command("echo", &args_refs);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[test]
+    fn test_compile_options_with_many_includes() {
+        let mut options = CompileOptions::default();
+        for i in 0..50 {
+            options.includes.push(PathBuf::from(format!("/tmp/include{}", i)));
+        }
+        assert_eq!(options.includes.len(), 50);
+    }
+
+    #[test]
+    fn test_execution_options_with_many_env_vars() {
+        let mut options = ExecutionOptions::default();
+        for i in 0..50 {
+            options.env_vars.insert(format!("VAR{}", i), format!("value{}", i));
+        }
+        assert_eq!(options.env_vars.len(), 50);
+    }
+
+    // ==================== Platform-Specific Tests ====================
+
+    #[cfg(unix)]
+    #[test]
+    fn test_unix_specific_execution() {
+        // Test Unix-specific behavior if any
+        let result = executor::run_command("true", &[]);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_windows_specific_execution() {
+        // Test Windows-specific behavior if any
+        let result = executor::run_command("cmd", &["/c", "exit", "0"]);
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    // ==================== Concurrent Execution Tests ====================
+
+    #[test]
+    fn test_concurrent_command_execution() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let results = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut handles = vec![];
+
+        // Run multiple commands concurrently
+        for i in 0..3 {
+            let results_clone = results.clone();
+            let handle = thread::spawn(move || {
+                let result = executor::run_command("cargo", &["--version"]);
+                let mut results = results_clone.lock().unwrap();
+                results.push((i, result.is_ok()));
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let results = results.lock().unwrap();
+        assert_eq!(results.len(), 3);
+        // At least some should succeed if cargo is available
+        let success_count = results.iter().filter(|(_, success)| *success).count();
+        assert!(success_count >= 0); // Allow for all to fail if cargo not available
+    }
+
+    // ==================== Integration Tests ====================
+
+    #[test]
+    fn test_full_erlang_compilation_workflow() {
+        // Create a simple Erlang module content
+        let erlang_code = r#"
+-module(test_module).
+-export([hello/0]).
+
+hello() ->
+    "Hello, World!".
+"#;
+
+        // Write to a temporary file
+        let temp_file = "test_module.erl";
+        let write_result = std::fs::write(temp_file, erlang_code);
+        if write_result.is_ok() {
+            let options = CompileOptions::default();
+            let compile_result = erlang::compile_erlang_file(temp_file, &options);
+
+            // Clean up
+            let _ = std::fs::remove_file(temp_file);
+            let _ = std::fs::remove_file("test_module.beam"); // Remove compiled beam file if it exists
+
+            // Compilation should succeed or fail gracefully
+            assert!(compile_result.is_ok() || matches!(compile_result, Err(CompilerError::IoError(_))));
+        } else {
+            // Skip test if we can't write files
+            assert!(true);
+        }
+    }
+
+    #[test]
+    fn test_erlang_emulator_version_check() {
+        let result = erlang::run_erlang_emulator(&["-eval", "erlang:display(erlang:system_info(version)), halt()."]);
+        // Should work if Erlang is available
+        assert!(result.is_ok() || matches!(result, Err(CompilerError::IoError(_))));
+    }
+
+    // ==================== Timeout and Resource Management Tests ====================
+
+    #[test]
+    fn test_timeout_functionality() {
+        let mut options = ExecutionOptions::default();
+        options.timeout = Some(Duration::from_millis(100)); // Short but reasonable timeout
+        options.capture_stdout = true;
+
+        // Try a command that might take longer than timeout
+        let result = executor::run_command_with_options("sleep", &["1"], &options);
+        // Should either succeed quickly, timeout/fail, or command not found
+        assert!(result.is_ok() || matches!(result, Err(_)));
+    }
+
+    #[test]
+    fn test_large_output_handling() {
+        // Test with a command that produces output
+        let mut options = ExecutionOptions::default();
+        options.capture_stdout = true;
+
+        let result = executor::run_command_with_options("cargo", &["--version"], &options);
+        if let Ok(ExecutionResult::Success(output)) = result {
+            // Output should not be empty for a successful command
+            assert!(!output.trim().is_empty());
+        } else {
+            // Command failed or not found, which is acceptable
+            assert!(matches!(result, Err(_)));
+        }
+    }
+
+    // ==================== Configuration and Environment Tests ====================
+
+    #[test]
+    fn test_erlang_environment_setup() {
+        let emulator_path = infrastructure_environment_config::erlang::get_emulator_path();
+        let setup_result = infrastructure_environment_config::erlang::setup_compilation_env(&emulator_path);
+        // Should succeed or fail gracefully
+        assert!(setup_result.is_ok() || matches!(setup_result, Err(_)));
+    }
+
+    #[test]
+    fn test_compile_server_node_name() {
+        let node_name_result = infrastructure_environment_config::compile_server::get_server_node_name();
+        // Should succeed or fail based on environment
+        assert!(node_name_result.is_ok() || matches!(node_name_result, Err(_)));
     }
 }

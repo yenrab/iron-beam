@@ -118,9 +118,13 @@ pub mod path {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let metadata = fs::metadata(path).map_err(|e| CompilerError::IoError(e))?;
-            let permissions = metadata.permissions();
-            Ok(metadata.is_file() && permissions.mode() & 0o111 != 0)
+            match fs::metadata(path) {
+                Ok(metadata) => {
+                    let permissions = metadata.permissions();
+                    Ok(metadata.is_file() && permissions.mode() & 0o111 != 0)
+                }
+                Err(_) => Ok(false), // Nonexistent files are not executable
+            }
         }
 
         #[cfg(windows)]
@@ -138,8 +142,11 @@ pub mod path {
 
         #[cfg(not(any(unix, windows)))]
         {
-            // Fallback for other platforms
-            Ok(path_exists(path) && is_file(path).unwrap_or(false))
+            // Fallback for other platforms - nonexistent files are not executable
+            match is_file(path) {
+                Ok(is_file) => Ok(is_file),
+                Err(_) => Ok(false),
+            }
         }
     }
 
@@ -151,50 +158,45 @@ pub mod path {
     }
 
     /// Join paths safely
-    pub fn join_paths<P: AsRef<Path>>(base: P, relative: P) -> PathBuf {
+    pub fn join_paths<B: AsRef<Path>, R: AsRef<Path>>(base: B, relative: R) -> PathBuf {
         base.as_ref().join(relative)
     }
 
     /// Normalize a path (remove redundant components)
     pub fn normalize_path<P: AsRef<Path>>(path: P) -> PathBuf {
         let path = path.as_ref();
-
-        // Simple normalization - could be enhanced for more complex cases
-        let mut components = Vec::new();
+        let mut result = PathBuf::new();
+        let mut has_root = false;
 
         for component in path.components() {
             match component {
                 std::path::Component::Normal(name) => {
-                    if name == "." {
-                        // Skip current directory references
-                        continue;
-                    } else if name == ".." {
-                        // Handle parent directory references
-                        components.pop();
-                    } else {
-                        components.push(name.to_string_lossy().to_string());
+                    if name != "." {
+                        result.push(name);
                     }
                 }
                 std::path::Component::RootDir => {
-                    components.clear();
-                    components.push("".to_string()); // Root marker
+                    result = PathBuf::from("/");
+                    has_root = true;
                 }
                 std::path::Component::ParentDir => {
-                    components.pop();
+                    if has_root && result == PathBuf::from("/") {
+                        // Don't pop the root directory
+                        continue;
+                    }
+                    result.pop();
                 }
                 std::path::Component::CurDir => {
                     // Skip current directory references
-                    continue;
                 }
                 std::path::Component::Prefix(prefix) => {
-                    components.clear();
-                    components.push(prefix.as_os_str().to_string_lossy().to_string());
+                    result = PathBuf::from(prefix.as_os_str());
+                    has_root = true;
                 }
             }
         }
 
-        let normalized: PathBuf = components.iter().collect();
-        normalized
+        result
     }
 }
 
@@ -375,8 +377,11 @@ pub mod fs_utils {
     pub fn is_directory_writable<P: AsRef<Path>>(path: P) -> CompilerResult<bool> {
         let path = path.as_ref();
 
-        if !path::is_directory(path)? {
-            return Ok(false);
+        // First check if path exists and is a directory
+        match path::is_directory(path) {
+            Ok(true) => {} // It's a directory, continue
+            Ok(false) => return Ok(false), // Not a directory
+            Err(_) => return Ok(false), // Doesn't exist or can't access
         }
 
         // Try to create a temporary file to test writability
@@ -406,6 +411,8 @@ pub mod fs_utils {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::PathBuf;
 
     #[test]
     fn test_path_exists() {

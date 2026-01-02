@@ -890,9 +890,9 @@ mod tests {
             "test.erl".to_string(),
         ];
 
-        // This will fail due to missing Erlang/files, should return error
+        // This will fail due to missing/nonexistent file, should return exit code 1
         let result = cli::run_with_args(args).await;
-        assert!(result.is_err()); // Erlang not available should return error
+        assert!(matches!(result, Ok(1))); // Compilation failure should return exit code 1
     }
 
     #[tokio::test]
@@ -930,9 +930,9 @@ mod tests {
             "file2.erl".to_string(),
         ];
 
-        // Should parse successfully but compilation will fail due to missing Erlang
+        // Should parse successfully but compilation will fail due to missing files
         let result = cli::run_with_args(args).await;
-        assert!(result.is_err()); // Erlang not available should return error
+        assert!(matches!(result, Ok(1))); // Compilation failure should return exit code 1
     }
 
     #[test]
@@ -1623,14 +1623,14 @@ mod tests {
         let version_result = cli::run_with_args(vec!["erlc".to_string(), "--version".to_string()]).await;
         assert!(matches!(version_result, Ok(0)));
 
-        // Test compilation attempt (will fail due to missing Erlang/files)
+        // Test compilation attempt (will fail due to missing file)
         let compile_result = cli::run_with_args(vec![
             "erlc".to_string(),
             "-v".to_string(),
             "nonexistent.erl".to_string(),
         ]).await;
-        // Should return error (not panic)
-        assert!(compile_result.is_err()); // Erlang not available should return error
+        // Should return exit code 1 for compilation failure
+        assert!(matches!(compile_result, Ok(1)));
     }
 
     #[test]

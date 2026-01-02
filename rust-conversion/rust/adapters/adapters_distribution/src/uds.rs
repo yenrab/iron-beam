@@ -1241,7 +1241,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_empty_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_empty_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -2031,7 +2031,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_empty_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_empty_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = match UdsDistribution::listen(&path) {

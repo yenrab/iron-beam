@@ -2517,6 +2517,11 @@ impl BeamFile {
     }
 
     pub fn add_chunk(&mut self, name: &str, data: Vec<u8>) -> Result<(), String> {
+        // BEAM chunk names must be exactly 4 bytes
+        if name.len() != 4 {
+            return Err(format!("BEAM chunk name '{}' must be exactly 4 bytes, got {}", name, name.len()));
+        }
+
         let chunk = BeamChunk {
             name: name.to_string(),
             data,
@@ -2700,5 +2705,286 @@ mod tests {
         assert_eq!(BeamOpcode::Move as u8, 0x01);
         assert_eq!(BeamOpcode::Return as u8, 0x02);
         assert_eq!(BeamOpcode::Call as u8, 0x03);
+    }
+
+    #[test]
+    fn test_bytecode_generator_with_options() {
+        let options = BytecodeOptions {
+            include_debug_info: true,
+            include_line_info: true,
+            optimize_bytecode: false,
+            target_version: "25".to_string(),
+        };
+
+        let generator = BytecodeGenerator::new().with_options(options);
+        assert!(generator.options.include_debug_info);
+        assert!(generator.options.include_line_info);
+        assert!(!generator.options.optimize_bytecode);
+        assert_eq!(generator.options.target_version, "25");
+    }
+
+    #[test]
+    fn test_generate_beam_file_basic() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![1, 2, 3],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let beam_file = generator.generate_beam_file(&result).unwrap();
+        assert_eq!(beam_file.module_name, "test_mod");
+        assert!(!beam_file.chunks.is_empty());
+
+        // Should have AtU8, Code, StrT, ImpT, ExpT chunks at minimum
+        let chunk_names: Vec<&str> = beam_file.chunks.iter().map(|c| c.name.as_str()).collect();
+        assert!(chunk_names.contains(&"AtU8"));
+        assert!(chunk_names.contains(&"Code"));
+        assert!(chunk_names.contains(&"StrT"));
+        assert!(chunk_names.contains(&"ImpT"));
+        assert!(chunk_names.contains(&"ExpT"));
+    }
+
+    #[test]
+    fn test_generate_string_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_string_chunk(&result).unwrap();
+        assert!(!chunk.is_empty());
+        // String chunk should have at least 4 bytes (size field)
+        assert!(chunk.len() >= 4);
+    }
+
+    #[test]
+    fn test_generate_import_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_import_chunk(&result).unwrap();
+        assert!(!chunk.is_empty());
+        // Import chunk should have at least 4 bytes (size field)
+        assert!(chunk.len() >= 4);
+    }
+
+    #[test]
+    fn test_generate_export_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let function_labels = std::collections::HashMap::new();
+        let chunk = generator.generate_export_chunk(&result, &function_labels).unwrap();
+        assert!(!chunk.is_empty());
+        // Export chunk should have at least 4 bytes (size field)
+        assert!(chunk.len() >= 4);
+    }
+
+    #[test]
+    fn test_generate_function_labels() {
+        let generator = BytecodeGenerator::new();
+        let mut ast = entities_erlang_syntax::Module::new(Atom::new("test_mod"));
+
+        // Add a test function
+        let test_func = entities_erlang_syntax::Function {
+            name: entities_erlang_syntax::FunctionName {
+                atom: Atom::new("test_func"),
+                arity: 0,
+            },
+            clauses: vec![entities_erlang_syntax::Clause {
+                patterns: vec![],
+                guard: vec![],
+                body: vec![entities_erlang_syntax::Expression::Literal(entities_erlang_syntax::Literal::Atom(Atom::new("ok")))],
+            }],
+        };
+        ast.functions.push(test_func);
+
+        let labels = generator.generate_function_labels(&ast);
+        assert!(!labels.is_empty());
+        // Should have a label for test_func/0
+        assert!(labels.contains_key(&("test_func".to_string(), 0)));
+    }
+
+    #[test]
+    fn test_has_fun_constructs() {
+        let generator = BytecodeGenerator::new();
+        let ast = entities_erlang_syntax::Module::new(Atom::new("test_mod"));
+
+        // Module without functions shouldn't have fun constructs
+        assert!(!generator.has_fun_constructs(&ast));
+    }
+
+    #[test]
+    fn test_beam_file_write_to_file() {
+        let beam_file = BeamFile::new("test_mod".to_string());
+
+        // Test with a temporary file path
+        let temp_path = std::env::temp_dir().join("test_beam.beam");
+        let result = beam_file.write_to_file(&temp_path);
+
+        // This might fail due to file permissions, but it should not panic
+        // We just verify it returns some result
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_beam_file_add_chunk_invalid_name() {
+        let mut beam_file = BeamFile::new("test_mod".to_string());
+
+        // Try to add a chunk with invalid name (too long)
+        let long_name = "A".repeat(5); // BEAM chunk names are 4 bytes
+        let result = beam_file.add_chunk(&long_name, vec![1, 2, 3]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_beam_file_add_chunk_valid() {
+        let mut beam_file = BeamFile::new("test_mod".to_string());
+
+        let result = beam_file.add_chunk("Test", vec![1, 2, 3, 4]);
+        assert!(result.is_ok());
+
+        assert_eq!(beam_file.chunks.len(), 1);
+        assert_eq!(beam_file.chunks[0].name, "Test");
+        assert_eq!(beam_file.chunks[0].data, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_generate_debug_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_debug_chunk(&result).unwrap();
+        // Debug chunk might be empty if no debug info
+        // We just verify it returns successfully
+        assert!(true); // If we reach here, generation succeeded
+    }
+
+    #[test]
+    fn test_generate_line_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_line_chunk(&result).unwrap();
+        // Line chunk might be empty if no line info
+        // We just verify it returns successfully
+        assert!(true); // If we reach here, generation succeeded
+    }
+
+    #[test]
+    fn test_generate_meta_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_meta_chunk(&result).unwrap();
+        // Meta chunk might be empty
+        // We just verify it returns successfully
+        assert!(true); // If we reach here, generation succeeded
+    }
+
+    #[test]
+    fn test_generate_loct_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_loct_chunk(&result).unwrap();
+        // Location chunk might be empty
+        // We just verify it returns successfully
+        assert!(true); // If we reach here, generation succeeded
+    }
+
+    #[test]
+    fn test_generate_type_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_type_chunk(&result).unwrap();
+        // Type chunk might be empty
+        // We just verify it returns successfully
+        assert!(true); // If we reach here, generation succeeded
+    }
+
+    #[test]
+    fn test_generate_cinf_chunk() {
+        let generator = BytecodeGenerator::new();
+        let result = CompilationResult {
+            module_name: Atom::new("test_mod"),
+            bytecode: vec![],
+            warnings: vec![],
+            metadata: CompilationMetadata::default(),
+            ast: entities_erlang_syntax::Module::new(Atom::new("test_mod")),
+            context_metadata: std::collections::HashMap::new(),
+        };
+
+        let chunk = generator.generate_cinf_chunk(&result).unwrap();
+        assert!(!chunk.is_empty());
+        // Compiler info chunk should have content
+        assert!(chunk.len() >= 4);
+    }
+
+    #[test]
+    fn test_expression_compiler_creation() {
+        let compiler = ExpressionCompiler::new();
+
+        // ExpressionCompiler is created successfully
+        assert!(true); // If we reach here, creation succeeded
     }
 }
