@@ -1,8 +1,0 @@
-/Volumes/Files_1/iron-beam/rust-conversion/rust/target/llvm-cov-target/debug/deps/infrastructure_external_format-9e7041bcc3c05184.d: infrastructure/infrastructure_external_format/src/lib.rs infrastructure/infrastructure_external_format/src/encoding.rs infrastructure/infrastructure_external_format/src/decoding.rs infrastructure/infrastructure_external_format/src/size_calculation.rs
-
-/Volumes/Files_1/iron-beam/rust-conversion/rust/target/llvm-cov-target/debug/deps/infrastructure_external_format-9e7041bcc3c05184: infrastructure/infrastructure_external_format/src/lib.rs infrastructure/infrastructure_external_format/src/encoding.rs infrastructure/infrastructure_external_format/src/decoding.rs infrastructure/infrastructure_external_format/src/size_calculation.rs
-
-infrastructure/infrastructure_external_format/src/lib.rs:
-infrastructure/infrastructure_external_format/src/encoding.rs:
-infrastructure/infrastructure_external_format/src/decoding.rs:
-infrastructure/infrastructure_external_format/src/size_calculation.rs:
