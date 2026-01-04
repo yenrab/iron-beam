@@ -208,16 +208,35 @@ pub mod lsp {
         pub documentation: Option<String>,
     }
 
-    /// Completion item kind
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub enum CompletionKind {
-        Function,
-        Module,
-        Variable,
-        Type,
-        Macro,
-        Keyword,
-    }
+    /// Completion item kind (LSP numeric values)
+    pub type CompletionKind = u8;
+
+    // LSP Completion Item Kind constants
+    pub const COMPLETION_KIND_TEXT: CompletionKind = 1;
+    pub const COMPLETION_KIND_METHOD: CompletionKind = 2;
+    pub const COMPLETION_KIND_FUNCTION: CompletionKind = 3;
+    pub const COMPLETION_KIND_CONSTRUCTOR: CompletionKind = 4;
+    pub const COMPLETION_KIND_FIELD: CompletionKind = 5;
+    pub const COMPLETION_KIND_VARIABLE: CompletionKind = 6;
+    pub const COMPLETION_KIND_CLASS: CompletionKind = 7;
+    pub const COMPLETION_KIND_INTERFACE: CompletionKind = 8;
+    pub const COMPLETION_KIND_MODULE: CompletionKind = 9;
+    pub const COMPLETION_KIND_PROPERTY: CompletionKind = 10;
+    pub const COMPLETION_KIND_UNIT: CompletionKind = 11;
+    pub const COMPLETION_KIND_VALUE: CompletionKind = 12;
+    pub const COMPLETION_KIND_ENUM: CompletionKind = 13;
+    pub const COMPLETION_KIND_KEYWORD: CompletionKind = 14;
+    pub const COMPLETION_KIND_SNIPPET: CompletionKind = 15;
+    pub const COMPLETION_KIND_COLOR: CompletionKind = 16;
+    pub const COMPLETION_KIND_FILE: CompletionKind = 17;
+    pub const COMPLETION_KIND_REFERENCE: CompletionKind = 18;
+    pub const COMPLETION_KIND_FOLDER: CompletionKind = 19;
+    pub const COMPLETION_KIND_ENUM_MEMBER: CompletionKind = 20;
+    pub const COMPLETION_KIND_CONSTANT: CompletionKind = 21;
+    pub const COMPLETION_KIND_STRUCT: CompletionKind = 22;
+    pub const COMPLETION_KIND_EVENT: CompletionKind = 23;
+    pub const COMPLETION_KIND_OPERATOR: CompletionKind = 24;
+    pub const COMPLETION_KIND_TYPE_PARAMETER: CompletionKind = 25;
 
     /// LSP diagnostics for a module
     #[derive(Debug, Clone, )]
@@ -237,7 +256,7 @@ pub mod lsp {
     }
 
     /// Diagnostic severity levels
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub enum DiagnosticSeverity {
         Error = 1,
         Warning = 2,
@@ -459,13 +478,13 @@ mod tests {
     fn test_lsp_completion_item() {
         let item = lsp::CompletionItem {
             label: "lists:map/2".to_string(),
-            kind: lsp::CompletionKind::Function,
+            kind: lsp::COMPLETION_KIND_FUNCTION,
             detail: Some("Apply function to each element".to_string()),
             documentation: Some("maps a function over a list".to_string()),
         };
 
         assert_eq!(item.label, "lists:map/2");
-        assert!(matches!(item.kind, lsp::CompletionKind::Function));
+        assert_eq!(item.kind, lsp::COMPLETION_KIND_FUNCTION);
         assert!(item.detail.is_some());
         assert!(item.documentation.is_some());
     }

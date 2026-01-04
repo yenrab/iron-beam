@@ -126,8 +126,10 @@ pub mod utils {
     pub fn detect_format(data: &[u8]) -> &'static str {
         if data.len() > 0 && data[0] == 131 {
             "etf"
-        } else {
+        } else if data.len() > 0 {
             "binary"
+        } else {
+            "unknown"
         }
     }
 
@@ -168,6 +170,215 @@ mod tests {
     fn test_format_detection() {
         assert_eq!(utils::detect_format(&[131, 0, 0, 0]), "etf");
         assert_eq!(utils::detect_format(b"test"), "binary");
+        assert_eq!(utils::detect_format(&[]), "unknown");
+        assert_eq!(utils::detect_format(&[1, 2, 3]), "binary");
+    }
+
+    #[test]
+    fn test_binary_serialization_compilation_output() {
+        let output = CompilationOutput {
+            module_name: "test_module".to_string(),
+            success: true,
+            bytecode: Some(vec![1, 2, 3, 4, 5]),
+            warnings: vec![
+                APIWarning {
+                    message: "test warning".to_string(),
+                    line: 1,
+                    column: 1,
+                    code: "unused_variable".to_string(),
+                }
+            ],
+            errors: vec![],
+            compilation_time_ms: 100,
+            metadata: std::collections::HashMap::new(),
+        };
+
+        // Test serialization
+        let serialized = binary::serialize_compilation_output(&output);
+        assert!(serialized.is_ok());
+        let data = serialized.unwrap();
+        assert!(!data.is_empty());
+
+        // Test deserialization
+        let deserialized = binary::deserialize_compilation_output(&data);
+        assert!(deserialized.is_ok());
+        let restored = deserialized.unwrap();
+
+        // Verify the data matches
+        assert_eq!(restored.module_name, output.module_name);
+        assert_eq!(restored.bytecode, output.bytecode);
+        assert_eq!(restored.warnings.len(), output.warnings.len());
+        assert_eq!(restored.warnings[0].message, output.warnings[0].message);
+    }
+
+    #[test]
+    fn test_etf_serialization_ast() {
+        let module = Module::new(Atom::new("test"));
+
+        // ETF serialization is not implemented, should return error
+        let result = etf::serialize_ast(&module);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("ETF serialization not implemented"));
+    }
+
+    #[test]
+    fn test_etf_deserialization_ast() {
+        let data = vec![1, 2, 3, 4];
+
+        // ETF deserialization is not implemented, should return error
+        let result = etf::deserialize_ast(&data);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("ETF deserialization not implemented"));
+    }
+
+    #[test]
+    fn test_utils_compress_data() {
+        let data = b"Hello, World!";
+
+        // Compression is not implemented, should return error
+        let result = utils::compress_data(data);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Compression not implemented"));
+    }
+
+    #[test]
+    fn test_utils_decompress_data() {
+        let data = vec![1, 2, 3, 4];
+
+        // Decompression is not implemented, should return error
+        let result = utils::decompress_data(&data);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Decompression not implemented"));
+    }
+
+    #[test]
+    fn test_simplified_ast_struct_creation() {
+        // Test SimplifiedAST struct creation
+        let ast = ast_formats::SimplifiedAST {
+            module: "test_module".to_string(),
+            exports: vec!["func1/1".to_string(), "func2/2".to_string()], // Exports are just function name/arity strings
+            functions: vec![
+                ast_formats::SimplifiedFunction {
+                    name: "func1".to_string(),
+                    arity: 1,
+                    clauses: vec![
+                        ast_formats::SimplifiedClause {
+                            patterns: vec!["Arg1".to_string()],
+                            body: vec!["ok".to_string()],
+                        }
+                    ],
+                }
+            ],
+        };
+
+        assert_eq!(ast.module, "test_module");
+        assert_eq!(ast.exports.len(), 2);
+        assert_eq!(ast.exports[0], "func1/1");
+        assert_eq!(ast.exports[1], "func2/2");
+        assert_eq!(ast.functions.len(), 1);
+        assert_eq!(ast.functions[0].name, "func1");
+        assert_eq!(ast.functions[0].arity, 1);
+        assert_eq!(ast.functions[0].clauses.len(), 1);
+        assert_eq!(ast.functions[0].clauses[0].patterns, vec!["Arg1".to_string()]);
+        assert_eq!(ast.functions[0].clauses[0].body, vec!["ok".to_string()]);
+    }
+
+    #[test]
+    fn test_simplified_ast_from_module_with_functions() {
+        let mut module = Module::new(Atom::new("test_module"));
+
+        // Add a function to the module
+        let mut test_func = Function::new(
+            FunctionName {
+                atom: Atom::new("test_func"),
+                arity: 1,
+            },
+            vec![], // Empty clauses for this test
+        );
+
+        // Add a clause to the function
+        let clause = Clause::new(
+            vec![], // No patterns for simplicity
+            vec![], // No guards
+            vec![Expression::Literal(Literal::Atom(Atom::new("ok")))], // Simple body
+        );
+        test_func.clauses.push(clause);
+        module.functions.push(test_func);
+
+        let simplified = ast_formats::SimplifiedAST::from_module(&module);
+
+        assert_eq!(simplified.module, "test_module");
+        assert_eq!(simplified.functions.len(), 1);
+        assert_eq!(simplified.functions[0].name, "test_func");
+        assert_eq!(simplified.functions[0].arity, 1);
+        assert_eq!(simplified.functions[0].clauses.len(), 1);
+    }
+
+    #[test]
+    fn test_simplified_ast_from_module_complex() {
+        let mut module = Module::new(Atom::new("complex_module"));
+
+        // Add export attribute
+        module.add_attribute(Attribute::new(
+            Atom::new("export"),
+            AttributeValue::Export(vec![
+                FunctionName::from_str("func1", 1),
+                FunctionName::from_str("func2", 2),
+            ]),
+        ));
+
+        // Add compile attribute
+        module.add_attribute(Attribute::new(
+            Atom::new("compile"),
+            AttributeValue::Compile(vec![CompileOption::ExportAll]),
+        ));
+
+        // Add a function
+        let mut func = Function::new(
+            FunctionName {
+                atom: Atom::new("func1"),
+                arity: 1,
+            },
+            vec![],
+        );
+
+        let clause = Clause::new(
+            vec![],
+            vec![],
+            vec![Expression::Literal(Literal::Atom(Atom::new("result")))],
+        );
+        func.clauses.push(clause);
+        module.functions.push(func);
+
+        let simplified = ast_formats::SimplifiedAST::from_module(&module);
+
+        assert_eq!(simplified.module, "complex_module");
+        assert_eq!(simplified.exports.len(), 2);
+        assert_eq!(simplified.exports[0], "func1/1");
+        assert_eq!(simplified.exports[1], "func2/2");
+        assert_eq!(simplified.functions.len(), 1);
+        assert_eq!(simplified.functions[0].name, "func1");
+    }
+
+    #[test]
+    fn test_binary_serialization_error_handling() {
+        // Test with invalid data for deserialization
+        let invalid_data = vec![1, 2, 3]; // Not valid bincode format
+
+        let result = binary::deserialize_compilation_output(&invalid_data);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Binary output deserialization failed"));
+    }
+
+    #[test]
+    fn test_simplified_ast_empty_module() {
+        let module = Module::new(Atom::new("empty_module"));
+
+        let simplified = ast_formats::SimplifiedAST::from_module(&module);
+
+        assert_eq!(simplified.module, "empty_module");
+        assert_eq!(simplified.exports.len(), 0);
+        assert_eq!(simplified.functions.len(), 0);
     }
 
 }

@@ -94,6 +94,61 @@ pub struct BeamFile {
     pub compile_info_data: Option<Vec<u8>>,
 }
 
+impl BeamFile {
+    /// Serialize the BeamFile to BEAM file format bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut chunks = Vec::new();
+
+        // Create AtU8 chunk (atom table)
+        let mut atom_chunk = Vec::new();
+        // Atom count (big-endian, positive for short format)
+        atom_chunk.extend_from_slice(&(self.atoms.len() as u32).to_be_bytes());
+        for atom in &self.atoms {
+            let bytes = atom.as_bytes();
+            atom_chunk.push(bytes.len() as u8);
+            atom_chunk.extend_from_slice(bytes);
+        }
+        chunks.push(("AtU8", atom_chunk));
+
+        // Create ExpT chunk (export table)
+        let mut export_chunk = Vec::new();
+        for (func_atom, arity, label) in &self.exports {
+            export_chunk.extend_from_slice(&(*func_atom as u32).to_be_bytes());
+            export_chunk.extend_from_slice(&(*arity as u32).to_be_bytes());
+            export_chunk.extend_from_slice(&(*label as u32).to_be_bytes());
+        }
+        chunks.push(("ExpT", export_chunk));
+
+        // Create Code chunk
+        chunks.push(("Code", self.code_data.clone()));
+
+        // Serialize chunks
+        let mut chunk_data = Vec::new();
+        for (chunk_id, data) in chunks {
+            chunk_data.extend_from_slice(chunk_id.as_bytes());
+            chunk_data.extend_from_slice(&(data.len() as u32).to_be_bytes());
+            chunk_data.extend_from_slice(&data);
+            // 4-byte alignment
+            while chunk_data.len() % 4 != 0 {
+                chunk_data.push(0);
+            }
+        }
+
+        // Create BEAM form
+        let mut beam_data = Vec::new();
+        beam_data.extend_from_slice(b"BEAM");
+        beam_data.extend_from_slice(&chunk_data);
+
+        // Create final IFF format
+        let mut data = Vec::new();
+        data.extend_from_slice(b"FOR1");
+        data.extend_from_slice(&(beam_data.len() as u32).to_le_bytes());
+        data.extend_from_slice(&beam_data);
+
+        data
+    }
+}
+
 /// Result of attempting a transformation
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransformationResult {

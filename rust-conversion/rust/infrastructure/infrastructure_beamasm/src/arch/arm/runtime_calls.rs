@@ -250,7 +250,7 @@ impl<'a> RuntimeCallBuilder<'a> {
     }
 
     /// Execute the runtime call
-    pub fn call(mut self) -> Result<(), BeamAssemblerError> {
+    pub fn call(self) -> Result<(), BeamAssemblerError> {
         let func = self.func.ok_or_else(|| {
             BeamAssemblerError::CodeGenerationFailed("No function specified for runtime call".to_string())
         })?;

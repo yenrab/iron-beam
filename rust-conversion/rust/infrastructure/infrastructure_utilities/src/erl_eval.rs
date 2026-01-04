@@ -237,6 +237,13 @@ pub fn jit_compile_module(
                 continue;
             }
 
+            // Register the export in the table first
+            let _export = export_table.put(
+                module_atom_index as u32,
+                func_atom_idx,
+                *arity
+            );
+
             // Update export with native code pointer
             eprintln!("[DEBUG] Updating export table for {}/{}:{} with atom indices ({}, {}, {})",
                      module_name, function_name, arity, module_atom_index, func_atom_idx, *arity);

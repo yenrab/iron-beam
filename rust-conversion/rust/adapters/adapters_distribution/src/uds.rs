@@ -477,7 +477,7 @@ mod tests {
             return false;
         }
 
-        let test_path = format!("/tmp/erlang_test_avail_{}", std::process::id());
+        let test_path = format!("/tmp/erlang_test_avail_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&test_path);
         let _ = fs::remove_file(&format!("{}.lock", test_path));
 
@@ -510,7 +510,7 @@ mod tests {
             return;
         }
 
-        let path = format!("/tmp/erlang_test_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path);
@@ -532,7 +532,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_uds_connect_fails_when_no_listener() {
-        let path = format!("/tmp/erlang_test_nonexistent_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_nonexistent_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let result = UdsDistribution::connect(&path);
         assert!(result.is_err());
     }
@@ -557,7 +557,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_roundtrip_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_roundtrip_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         // Create listener
@@ -618,7 +618,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_tick_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_tick_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = match UdsDistribution::listen(&path) {
@@ -695,7 +695,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_stats_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_stats_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -758,7 +758,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_mode_ops_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_mode_ops_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = match UdsDistribution::listen(&path) {
@@ -845,7 +845,7 @@ mod tests {
             return;
         }
 
-        let path = format!("/tmp/erlang_test_path_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_path_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -864,7 +864,7 @@ mod tests {
             return;
         }
 
-        let path = format!("/tmp/erlang_test_creation_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_creation_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -885,7 +885,7 @@ mod tests {
         }
 
         use std::path::Path;
-        let base_dir = format!("/tmp/erlang_test_dir_{}", std::process::id());
+        let base_dir = format!("/tmp/erlang_test_dir_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let path = format!("{}/nested/socket", base_dir);
         let _ = fs::remove_dir_all(&base_dir);
 
@@ -913,7 +913,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_multi_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_multi_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -977,7 +977,7 @@ mod tests {
         use std::time::Duration;
         use std::io::Write;
 
-        let path = format!("/tmp/erlang_test_partial_header_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_partial_header_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1053,7 +1053,7 @@ mod tests {
         use std::time::Duration;
         use std::io::Write;
 
-        let path = format!("/tmp/erlang_test_partial_packet_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_partial_packet_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1118,7 +1118,7 @@ mod tests {
         use std::time::Duration;
         use std::io::Write;
 
-        let path = format!("/tmp/erlang_test_header_buf_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_header_buf_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1177,7 +1177,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_large_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_large_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1296,7 +1296,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_close_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_close_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = match UdsDistribution::listen(&path) {
@@ -1371,7 +1371,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_stats_init_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_stats_init_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1417,7 +1417,7 @@ mod tests {
             return;
         }
 
-        let path = format!("/tmp/erlang_test_replace_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_replace_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         // Create a file at the path
         fs::write(&path, b"test").unwrap();
@@ -1472,7 +1472,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_buffer_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_buffer_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1562,7 +1562,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_partial_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_partial_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1624,7 +1624,7 @@ mod tests {
         use std::time::Duration;
         use std::sync::Arc;
 
-        let path = format!("/tmp/erlang_test_concurrent_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_concurrent_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = match UdsDistribution::listen(&path) {
@@ -1734,7 +1734,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_stats_overflow_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_stats_overflow_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
 
         let listener = UdsDistribution::listen(&path).unwrap();
@@ -1793,7 +1793,7 @@ mod tests {
         use std::thread;
         use std::time::Duration;
 
-        let path = format!("/tmp/erlang_test_tick_{}", std::process::id());
+        let path = format!("/tmp/erlang_test_tick_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(&format!("{}.lock", path));
 

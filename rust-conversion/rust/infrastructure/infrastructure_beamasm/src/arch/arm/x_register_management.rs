@@ -417,7 +417,7 @@ impl XRegisterManager {
     /// Result indicating success or failure
     pub fn store_xreg(
         assembler: &mut Assembler,
-        cpu_reg: u32,
+        _cpu_reg: u32,
         xreg_index: usize,
     ) -> Result<(), BeamAssemblerError> {
         if xreg_index >= x_registers::NUM_REGISTER_BACKED_XREGS {

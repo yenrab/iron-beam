@@ -160,6 +160,9 @@ pub struct Process {
     flags: u32,
     /// Number of reductions for this process
     reds: usize,
+    /// Reductions in (stored in def_arg_reg[5] in C version)
+    /// Tracks reductions used during execution
+    reds_in: usize,
     /// Number of reductions left to execute (function calls)
     fcalls: i32,
     /// Number of live argument registers
@@ -213,6 +216,7 @@ impl Process {
             stack_top_index: Mutex::new(None),  // No stack initially
             flags: 0,
             reds: 0,
+            reds_in: 0,
             fcalls: 0,
             arity: 0,
             catches: 0,
@@ -466,6 +470,19 @@ impl Process {
     /// Get function calls
     pub fn fcalls(&self) -> i32 {
         self.fcalls
+    }
+
+    /// Get reductions in (stored in def_arg_reg[5] in C version)
+    pub fn reds_in(&self) -> usize {
+        self.reds_in
+    }
+
+    /// Set reductions in (stored in def_arg_reg[5] in C version)
+    ///
+    /// # Arguments
+    /// * `reds_in` - Number of reductions used
+    pub fn set_reds_in(&mut self, reds_in: usize) {
+        self.reds_in = reds_in;
     }
 
     /// Set function calls (remaining reductions for process)
