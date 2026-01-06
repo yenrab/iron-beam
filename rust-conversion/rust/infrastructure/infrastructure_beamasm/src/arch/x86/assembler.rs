@@ -35,6 +35,7 @@ impl X86BeamAssembler {
         num_labels: usize,
         num_functions: usize,
         beam_file_data: &[u8],
+        _is_repl_module: bool,
     ) -> Result<Self, BeamAssemblerError> {
         // Parse BEAM file to extract code chunk
         let functions = if !beam_file_data.is_empty() {

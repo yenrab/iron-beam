@@ -619,13 +619,11 @@ fn setup_function_arguments(process: &mut entities_process::Process, args: &[Str
     let required_heap_size = heap_start + args.len();
     
     // Ensure heap is large enough
+    process.ensure_heap_size(required_heap_size);
+
+    // Encode each argument as an atom and store in heap
     {
         let mut heap_slice = process.heap_slice_mut();
-        if heap_slice.len() < required_heap_size {
-            heap_slice.resize(required_heap_size, 0);
-        }
-        
-        // Encode each argument as an atom and store in heap
         for (i, arg) in args.iter().enumerate() {
             let arg_atom_index = atom_table.put_index(
                 arg.as_bytes(),

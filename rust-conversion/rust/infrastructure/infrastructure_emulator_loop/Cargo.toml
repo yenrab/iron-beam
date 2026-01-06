@@ -14,6 +14,7 @@ infrastructure_beamasm = { path = "../infrastructure_beamasm" }
 infrastructure_utilities = { path = "../infrastructure_utilities" }
 code_management_code_loading = { path = "../../code_management/code_management_code_loading" }
 usecases_scheduling = { path = "../../usecases/usecases_scheduling" }
+libc = "0.2"
 
 [dev-dependencies]
 

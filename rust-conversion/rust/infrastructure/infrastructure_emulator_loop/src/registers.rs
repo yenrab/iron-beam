@@ -76,20 +76,18 @@ pub fn copy_in_registers(process: &Arc<Process>, reg_array: &mut [Eterm]) {
 /// # Safety
 /// This function is safe as it only copies data from the register array to the
 /// process heap. The process heap must be large enough to hold all registers.
-pub fn copy_out_registers(process: &Arc<Process>, reg_array: &[Eterm]) {
-    // Get mutable access to the process heap
-    let mut heap_data = process.heap_slice_mut();
-    let heap_start = process.heap_start_index();
-    
+pub fn copy_out_registers(process: &Process, reg_array: &[Eterm]) {
     // Copy X registers from register array back to process heap
     let arity = process.arity() as usize;
     let max_copy = arity.min(MAX_X_REGS).min(reg_array.len());
-    
+
     // Ensure heap is large enough
+    let heap_start = process.heap_start_index();
     let required_size = heap_start + max_copy;
-    if required_size > heap_data.len() {
-        heap_data.resize(required_size, 0);
-    }
+    process.ensure_heap_size(required_size);
+
+    // Get mutable access to the process heap
+    let heap_data = process.heap_slice_mut();
     
     // Copy argument registers from X registers back to process heap
     for i in 0..max_copy {
@@ -279,7 +277,7 @@ mod tests {
         let process = Arc::new(Process::new(1));
         let reg_array = vec![42u64; MAX_X_REGS];
         
-        copy_out_registers(&process, &reg_array);
+        copy_out_registers(&*process, &reg_array);
         
         // With arity=0, nothing should be copied
         let heap_data = process.heap_slice();
@@ -294,7 +292,7 @@ mod tests {
         let process = create_process_with_arity(1, 5);
         let reg_array: Vec<Eterm> = (1..=5).map(|i| i as u64 * 10).collect();
         
-        copy_out_registers(&process, &reg_array);
+        copy_out_registers(&*process, &reg_array);
         
         // Verify that registers were copied to process heap
         let heap_data = process.heap_slice();
@@ -315,7 +313,7 @@ mod tests {
         // Initial heap might be smaller than needed
         let initial_heap_size = process.heap_slice().len();
         
-        copy_out_registers(&process, &reg_array);
+        copy_out_registers(&*process, &reg_array);
         
         // Heap should be resized if needed
         let heap_data = process.heap_slice();
@@ -337,7 +335,7 @@ mod tests {
         let process = create_process_with_arity(1, 10);
         let reg_array = vec![42u64, 43u64, 44u64];
         
-        copy_out_registers(&process, &reg_array);
+        copy_out_registers(&*process, &reg_array);
         
         // Should only copy up to array length
         let heap_data = process.heap_slice();
@@ -355,7 +353,7 @@ mod tests {
         let process = create_process_with_arity(1, 255); // Max u8 value, larger than typical usage
         let reg_array: Vec<Eterm> = (0..MAX_X_REGS).map(|i| i as u64).collect();
         
-        copy_out_registers(&process, &reg_array);
+        copy_out_registers(&*process, &reg_array);
         
         // Should only copy arity registers (255), capped at MAX_X_REGS
         let heap_data = process.heap_slice();
@@ -490,7 +488,7 @@ mod tests {
         let process = create_process_with_arity(1, 255); // Max u8 value
         let reg_array: Vec<Eterm> = (0..MAX_X_REGS).map(|i| i as u64).collect();
         
-        copy_out_registers(&process, &reg_array);
+        copy_out_registers(&*process, &reg_array);
         
         // Should handle up to arity (255) registers, capped at MAX_X_REGS
         let heap_data = process.heap_slice();
@@ -569,7 +567,7 @@ mod tests {
         let process = Arc::new(Process::new(1));
         let reg_array = vec![42u64; 0];
         
-        copy_out_registers(&process, &reg_array);
+        copy_out_registers(&*process, &reg_array);
         
         // Should not panic with empty array
     }

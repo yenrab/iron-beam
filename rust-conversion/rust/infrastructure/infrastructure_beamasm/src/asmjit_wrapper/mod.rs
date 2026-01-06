@@ -481,7 +481,9 @@ impl CodeHolder {
     /// Protect JIT memory for read/write or read/execute access
     pub fn protect_jit_memory(&mut self, access: i32) -> Result<(), AsmjitError> {
         unsafe {
+            eprintln!("[DEBUG] Rust: About to call C++ asmjit_virtmem_protect_jit_memory({})", access);
             let err = asmjit_virtmem_protect_jit_memory(access);
+            eprintln!("[DEBUG] Rust: C++ function returned: {} (0=success)", err);
             if err != 0 {
                 return Err(AsmjitError::CodeGenerationFailed);
             }

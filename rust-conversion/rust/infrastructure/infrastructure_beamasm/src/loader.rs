@@ -37,6 +37,8 @@ pub struct LoaderState {
     pub coverage: Option<*mut u8>,
     /// Line coverage valid flags
     pub line_coverage_valid: Option<*mut u8>,
+    /// Whether this is REPL-generated code (affects X register management)
+    pub is_repl_module: bool,
     /// Location index to cover ID mapping
     pub loc_index_to_cover_id: Option<*mut u32>,
 }
@@ -77,9 +79,10 @@ impl BeamAsmLoader {
         num_labels: usize,
         num_functions: usize,
         beam_file: &[u8],
+        is_repl_module: bool,
     ) -> Result<LoaderState, LoaderError> {
         // Create assembler
-        let assembler = crate::beamasm_new_assembler(module, num_labels, num_functions, beam_file)
+        let assembler = crate::beamasm_new_assembler(module, num_labels, num_functions, beam_file, is_repl_module)
             .map_err(LoaderError::AssemblerError)?;
 
         // Initialize labels
@@ -102,6 +105,7 @@ impl BeamAsmLoader {
             coverage: None,
             line_coverage_valid: None,
             loc_index_to_cover_id: None,
+            is_repl_module,
         })
     }
 

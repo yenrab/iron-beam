@@ -118,6 +118,7 @@ pub fn beamasm_new_assembler(
     num_labels: usize,
     num_functions: usize,
     beam_file: &[u8], // BeamFile representation
+    is_repl_module: bool,
 ) -> Result<Box<dyn BeamAssembler>, BeamAssemblerError> {
     // Create architecture-specific assembler
     #[cfg(target_arch = "x86_64")]
@@ -128,6 +129,7 @@ pub fn beamasm_new_assembler(
             num_labels,
             num_functions,
             beam_file,
+            is_repl_module,
         )?))
     }
     
@@ -139,6 +141,7 @@ pub fn beamasm_new_assembler(
             num_labels,
             num_functions,
             beam_file,
+            is_repl_module,
         )?))
     }
     

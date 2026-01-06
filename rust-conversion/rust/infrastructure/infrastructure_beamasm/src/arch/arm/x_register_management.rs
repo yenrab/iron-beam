@@ -235,6 +235,27 @@ impl XRegisterManager {
         Ok(())
     }
 
+    /// Load zeros into all register-backed X registers
+    ///
+    /// For REPL modules with no arguments, initializes CPU registers to zero
+    /// instead of trying to load from uninitialized memory.
+    ///
+    /// # Arguments
+    /// * `assembler` - The ARM64 assembler
+    ///
+    /// # Returns
+    /// Result indicating success or failure
+    pub fn load_zeros_to_xregs(assembler: &mut Assembler) -> Result<(), BeamAssemblerError> {
+        eprintln!("[DEBUG] X Register: Loading zeros into register-backed X registers");
+
+        for &reg_num in x_registers::REGISTER_BACKED_XREGS.iter() {
+            // Load zero into each CPU register
+            a64::emit_mov_imm(assembler, reg_num, 0)?;
+        }
+
+        Ok(())
+    }
+
     /// Save a single X register to the backing store
     ///
     /// # Arguments

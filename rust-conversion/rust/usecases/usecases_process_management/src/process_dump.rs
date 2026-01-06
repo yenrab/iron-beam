@@ -59,7 +59,7 @@ impl ProcessDump {
         // Heap indices (safe index-based access)
         output.push_str(&format!("Heap Start Index: {}\n", process.heap_start_index()));
         output.push_str(&format!("Heap Top Index: {}\n", process.heap_top_index()));
-        output.push_str(&format!("Stack Top Index: {:?}\n", process.stack_top_index()));
+        output.push_str(&format!("Stack Top Index: {:?}\n", process.stack_top_index_compat()));
         output.push_str(&format!("Heap Data Length: {} words\n", process.heap_slice().len()));
         output.push_str(&format!("Program Counter: {:?}\n", process.i() as usize));
         

@@ -22,6 +22,8 @@ pub struct JitResult {
     pub label_mappings: Vec<(*const u8, usize)>,
     /// BEAM loader (leaked for lifetime management)
     pub loader: &'static mut infrastructure_beamasm::BeamAsmLoader,
+    /// Whether this is REPL-generated code (affects X register management)
+    pub is_repl_module: bool,
     /// Loader state (leaked for lifetime management)
     pub loader_state: &'static mut infrastructure_beamasm::LoaderState,
 }
@@ -55,6 +57,9 @@ pub fn jit_compile_module(
     module_atom_index: usize,
 ) -> Result<JitResult, String> {
     eprintln!("[JIT DEBUG] Starting JIT compilation for module: {}", module_name);
+    let is_repl_module = module_name == "repl_module";
+    eprintln!("[JIT DEBUG] Module type: {}", if is_repl_module { "REPL-generated" } else { "regular" });
+
     use entities_io_operations::export::get_global_export_table;
     use super::atom_table::get_global_atom_table;
     use entities_data_handling::AtomEncoding;
@@ -122,6 +127,7 @@ pub fn jit_compile_module(
         num_labels,
         num_functions,
         beam_data, // Pass entire BEAM file, assembler will parse it
+        is_repl_module,
     ).map_err(|e| format!("JIT prepare_emit failed for module {}: {:?}", module_name, e))?;
 
     // Generate code
@@ -293,6 +299,7 @@ pub fn jit_compile_module(
         code_size,
         label_mappings: extended_mappings,
         loader: loader_static,
+        is_repl_module,
         loader_state: state_static,
     };
 
@@ -1072,10 +1079,10 @@ fn execute_beam_function(
     
     // Ensure heap is large enough for arguments
     {
-        let mut heap_slice = temp_process.heap_slice_mut();
+        let heap_slice = temp_process.heap_full_slice_mut();
         let required_size = heap_start + eterm_args.len();
         if required_size > heap_slice.len() {
-            heap_slice.resize(required_size, 0);
+            temp_process.ensure_heap_size(required_size);
         }
         
         // Copy arguments to x registers (at heap_start_index)

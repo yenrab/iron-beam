@@ -336,7 +336,7 @@ pub fn check_continuation_pointers_in_module(
     mod_size: usize,
 ) -> bool {
     // Get stack boundaries
-    let stack_top = match process.stack_top_index() {
+    let stack_top = match process.stack_top_index_compat() {
         Some(stop) => stop,
         None => return false, // No stack
     };

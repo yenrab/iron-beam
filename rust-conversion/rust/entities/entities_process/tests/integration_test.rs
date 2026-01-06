@@ -50,8 +50,8 @@ fn test_process_heap_operations() {
     let heap_top = process.heap_top_index();
     assert!(heap_top >= heap_start);
     
-    // Test heap slice access
-    let heap_slice = process.heap_slice();
+    // Test heap slice access (full allocated capacity)
+    let heap_slice = process.heap_full_slice_mut();
     assert_eq!(heap_slice.len(), 333); // heap + stack allocation
     
     // Test heap allocation
@@ -66,7 +66,7 @@ fn test_process_stack_operations() {
     let process = Process::new(1);
     
     // Test stack top index (may be None initially)
-    let _stack_top = process.stack_top_index();
+    let _stack_top = process.stack_top_index_compat();
     // Stack top can be None or Some(index)
     
     // Test stack size calculation
@@ -254,9 +254,13 @@ fn test_process_multiple_heap_allocations() {
 #[test]
 fn test_process_heap_slice_mut() {
     let process = Process::new(1);
-    
+
+    // Allocate some heap space first
+    let allocated = process.allocate_heap_words(10);
+    assert!(allocated.is_some());
+
     // Test mutable heap slice access
-    let mut heap_slice = process.heap_slice_mut();
+    let heap_slice = process.heap_slice_mut();
     assert!(heap_slice.len() > 0);
     
     // Modify heap data

@@ -184,7 +184,7 @@ fn test_copy_out_registers() {
     let process = Arc::new(Process::new(2));
     let reg_array = vec![42u64, 43u64, 44u64];
     
-    copy_out_registers(&process, &reg_array);
+    copy_out_registers(&*process, &reg_array);
     // Should not panic
 }
 

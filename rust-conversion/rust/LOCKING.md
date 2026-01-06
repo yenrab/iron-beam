@@ -186,7 +186,7 @@ When acquiring multiple locks, add a comment indicating the lock order:
 
 ```rust
 // LOCK ORDER: heap_data -> heap_top_index -> stack_top_index (see LOCKING.md)
-let heap_data = self.heap_data.lock().unwrap();
+let heap_slice = self.heap_slice_mut();
 let heap_top = *self.heap_top_index.lock().unwrap();
 let stack_top = self.stack_top_index.lock().unwrap();
 ```

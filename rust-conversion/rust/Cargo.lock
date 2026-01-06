@@ -222,6 +222,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bumpalo"
+version = "3.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
+
+[[package]]
 name = "bytemuck"
 version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -414,6 +420,9 @@ dependencies = [
 [[package]]
 name = "entities_process"
 version = "0.1.0"
+dependencies = [
+ "bumpalo",
+]
 
 [[package]]
 name = "entities_system_integration_common"
@@ -639,6 +648,7 @@ dependencies = [
  "code_management_code_loading",
  "entities_io_operations",
  "infrastructure_beam_instructions",
+ "libc",
  "log",
  "memmap2",
  "region",
@@ -737,6 +747,7 @@ dependencies = [
  "infrastructure_beamasm",
  "infrastructure_bif_dispatcher",
  "infrastructure_utilities",
+ "libc",
  "usecases_scheduling",
 ]
 

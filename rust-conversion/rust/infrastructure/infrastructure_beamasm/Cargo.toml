@@ -15,6 +15,7 @@ path = "src/lib.rs"
 # Memory management for executable code
 memmap2 = "0.9"
 region = "3.0"
+libc = "0.2"
 
 # Utilities
 thiserror = "1.0"

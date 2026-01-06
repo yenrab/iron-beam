@@ -3,11 +3,12 @@
 //! Provides the Process struct and related types for the Erlang runtime system.
 //! Based on erts/emulator/beam/erl_process.h
 //!
-//! The heap is implemented using safe Rust (`Vec<Eterm>`) with index-based
-//! access instead of raw pointers for maximum safety.
+//! The heap is implemented using bumpalo for fast bump allocation,
+//! providing stable pointers that work with JIT-compiled code.
 
 use std::fmt;
 use std::sync::{Arc, Mutex};
+use bumpalo;
 
 /// Process ID type
 pub type ProcessId = u64;
@@ -131,8 +132,8 @@ impl ProcessState {
 ///
 /// Based on `struct process` in erts/emulator/beam/erl_process.h
 ///
-/// The heap is stored as a safe `Vec<Eterm>` with index-based access,
-/// eliminating the need for raw pointers and unsafe code.
+/// The heap uses bumpalo for fast bump allocation, providing stable pointers
+/// that work with JIT-compiled code and BEAM register conventions.
 pub struct Process {
     /// Process identifier
     id: ProcessId,
@@ -143,19 +144,19 @@ pub struct Process {
     /// Maximum heap size in words (0 = unlimited)
     max_heap_size: usize,
     /// Stack stop pointer (for JIT compatibility - must be at offset 0x20)
-    /// Points to the current stack position in heap_data
+    /// Points to the current stack position in heap
     /// Protected by Mutex for thread-safe access
     stop: Mutex<usize>,
-    /// Heap data storage (safe Rust Vec, protected by Mutex for concurrent access)
-    heap_data: Mutex<Vec<Eterm>>,
-    /// Heap start index (usually 0, but can be offset if needed)
-    heap_start_index: usize,
-    /// Heap top index (current position where new data is allocated, protected by Mutex)
-    heap_top_index: Mutex<usize>,
-    /// Stack top index (position of stack top in heap_data)
+    /// Heap allocator using bumpalo for fast, stable allocations
+    heap_allocator: Mutex<bumpalo::Bump>,
+    /// Heap start pointer (stable memory location for the heap)
+    heap_start_ptr: Mutex<*mut Eterm>,
+    /// Heap top pointer (current allocation position, protected by Mutex)
+    heap_top_ptr: Mutex<*mut Eterm>,
+    /// Stack top pointer (position of stack top in heap)
     /// In Erlang, stack and heap share the same memory block
     /// Protected by Mutex for thread-safe access
-    stack_top_index: Mutex<Option<usize>>,
+    stack_top_ptr: Mutex<Option<*mut Eterm>>,
     /// Process flags (ERTS_PSFLG_*)
     flags: u32,
     /// Number of reductions for this process
@@ -198,22 +199,27 @@ impl Process {
     /// # Returns
     /// A new Process instance with default values
     pub fn new(id: ProcessId) -> Self {
+        eprintln!("[DEBUG] Process::new({}) called", id);
         let initial_heap_size = 233; // Default minimum heap size (words)
         let stack_size = 100; // Additional space for stack
         let total_size = initial_heap_size + stack_size;
-        let mut heap_data = Vec::with_capacity(total_size);
-        heap_data.resize(total_size, 0);
+
+        eprintln!("[DEBUG] Process::new: allocating {} words total", total_size);
+        // Create bump allocator and pre-allocate heap space
+        let allocator = bumpalo::Bump::new();
+        let heap_start_ptr = allocator.alloc_slice_fill_copy(total_size, 0u64).as_mut_ptr();
+        eprintln!("[DEBUG] Process::new: allocation successful, heap_start_ptr={:p}", heap_start_ptr);
 
         Self {
             id,
-            heap_sz: initial_heap_size,
+            heap_sz: total_size,  // Total allocated heap capacity
             min_heap_size: initial_heap_size,
             max_heap_size: 0,    // 0 = unlimited
             stop: Mutex::new(0), // For JIT compatibility
-            heap_data: Mutex::new(heap_data),
-            heap_start_index: 0,
-            heap_top_index: Mutex::new(0),  // Start with empty heap
-            stack_top_index: Mutex::new(None),  // No stack initially
+            heap_allocator: Mutex::new(allocator),
+            heap_start_ptr: Mutex::new(heap_start_ptr),
+            heap_top_ptr: Mutex::new(heap_start_ptr),  // Start with empty heap
+            stack_top_ptr: Mutex::new(None),  // No stack initially
             flags: 0,
             reds: 0,
             reds_in: 0,
@@ -260,43 +266,82 @@ impl Process {
         self.max_heap_size
     }
 
-    /// Get stack top index
-    pub fn stack_top_index(&self) -> Option<usize> {
-        *self.stack_top_index.lock().unwrap()
+
+    /// Get heap start pointer (stable memory location)
+    pub fn heap_start_ptr(&self) -> *mut Eterm {
+        *self.heap_start_ptr.lock().unwrap()
     }
 
-    /// Get heap top index
+    /// Get heap top pointer (current allocation position)
+    pub fn heap_top_ptr(&self) -> *mut Eterm {
+        *self.heap_top_ptr.lock().unwrap()
+    }
+
+    /// Get stack top pointer
+    pub fn stack_top_ptr(&self) -> Option<*mut Eterm> {
+        *self.stack_top_ptr.lock().unwrap()
+    }
+
+    /// Get heap top index (for compatibility)
     pub fn heap_top_index(&self) -> usize {
-        *self.heap_top_index.lock().unwrap()
+        let start = self.heap_start_ptr();
+        let top = self.heap_top_ptr();
+        unsafe { top.offset_from(start) as usize }
     }
 
-    /// Get heap start index
+    /// Get stack top index (for compatibility)
+    pub fn stack_top_index_compat(&self) -> Option<usize> {
+        self.stack_top_ptr().map(|ptr| {
+            let start = self.heap_start_ptr();
+            unsafe { ptr.offset_from(start) as usize }
+        })
+    }
+
+    /// Get heap start index (for compatibility)
     pub fn heap_start_index(&self) -> usize {
-        self.heap_start_index
+        0 // Always starts at 0 in our bump allocator
     }
 
     /// Get heap data as a slice (safe access to heap contents)
     ///
-    /// Returns a cloned copy of the current heap data (may be larger than initial heap_sz).
-    /// For mutable access, use `heap_slice_mut()`.
-    pub fn heap_slice(&self) -> Vec<Eterm> {
-        let heap_data = self.heap_data.lock().unwrap();
-        heap_data[self.heap_start_index..].to_vec()
+    /// Returns the current heap data as a slice from start to top pointer.
+    pub fn heap_slice(&self) -> &[Eterm] {
+        let start = self.heap_start_ptr();
+        let top = self.heap_top_ptr();
+        let len = unsafe { top.offset_from(start) as usize };
+        unsafe { std::slice::from_raw_parts(start, len) }
     }
 
-    /// Get heap data as a mutable guard (for heap modifications)
-    /// 
-    /// Returns a `MutexGuard` that provides mutable access to the heap data.
-    /// The guard is automatically released when it goes out of scope.
-    pub fn heap_slice_mut(&self) -> std::sync::MutexGuard<'_, Vec<Eterm>> {
-        self.heap_data.lock().unwrap()
+    /// Get heap data as a mutable slice (for heap modifications)
+    pub fn heap_slice_mut(&self) -> &mut [Eterm] {
+        let start = self.heap_start_ptr();
+        let top = self.heap_top_ptr();
+        let len = unsafe { top.offset_from(start) as usize };
+        unsafe { std::slice::from_raw_parts_mut(start, len) }
+    }
+
+    /// Get the full allocated heap slice (including unused space)
+    pub fn heap_full_slice_mut(&self) -> &mut [Eterm] {
+        let start = self.heap_start_ptr();
+        unsafe { std::slice::from_raw_parts_mut(start, self.heap_sz) }
+    }
+
+    /// Ensure heap has at least the required size by updating top pointer
+    /// This conceptually "grows" the heap without actually reallocating
+    pub fn ensure_heap_size(&self, required_size: usize) {
+        let current_top_idx = self.heap_top_index();
+        if required_size > current_top_idx {
+            let start = self.heap_start_ptr();
+            let new_top = unsafe { start.add(required_size) };
+            *self.heap_top_ptr.lock().unwrap() = new_top;
+        }
     }
 
     /// Allocate words on the process heap
     ///
     /// Allocates `words` number of words on the process heap and returns
-    /// the index where the allocation starts. This method is thread-safe
-    /// and can be called concurrently.
+    /// the pointer where the allocation starts. This method uses bumpalo
+    /// for fast bump allocation.
     ///
     /// # Arguments
     /// * `words` - Number of words to allocate
@@ -311,26 +356,28 @@ impl Process {
     /// If the heap is full, it returns `None` and the caller should
     /// handle GC or heap growth separately.
     pub fn allocate_heap_words(&self, words: usize) -> Option<usize> {
-        // LOCK ORDER: heap_data -> heap_top_index (see LOCKING.md)
-        let heap_data = self.heap_data.lock().unwrap();
-        let mut heap_top = self.heap_top_index.lock().unwrap();
+        let current_top_idx = self.heap_top_index();
+        let new_top_idx = current_top_idx + words;
 
-        // Check if we have enough space in the heap area
-        if *heap_top + words > self.heap_sz {
+        // Check if we have enough space
+        if new_top_idx > self.heap_sz {
             return None; // Need GC or heap growth
         }
 
-        let start_index = *heap_top;
-        *heap_top += words;
-        Some(start_index)
+        // Update the top pointer
+        let start = self.heap_start_ptr();
+        let new_top_ptr = unsafe { start.add(new_top_idx) };
+        *self.heap_top_ptr.lock().unwrap() = new_top_ptr;
+
+        Some(current_top_idx)
     }
 
     /// Calculate stack size in words
     /// Returns None if stack_top_index is not set
     pub fn stack_size_words(&self) -> Option<usize> {
-        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
-        let heap_top = *self.heap_top_index.lock().unwrap();
-        self.stack_top_index.lock().unwrap().map(|stop| stop.saturating_sub(heap_top))
+        // LOCK ORDER: heap_top_ptr -> stack_top_ptr (see LOCKING.md)
+        let heap_top_idx = self.heap_top_index();
+        self.stack_top_index_compat().map(|stop| stop.saturating_sub(heap_top_idx))
     }
 
     /// Push a value onto the stack
@@ -345,49 +392,44 @@ impl Process {
     /// * `Ok(())` - Successfully pushed
     /// * `Err(String)` - Stack overflow or allocation error
     pub fn stack_push(&self, value: Eterm) -> Result<(), String> {
-        // LOCK ORDER: heap_data -> heap_top_index -> stack_top_index (see LOCKING.md)
-        let mut heap_data = self.heap_data.lock().unwrap();
-        let heap_top = *self.heap_top_index.lock().unwrap();
-        let mut stack_top_guard = self.stack_top_index.lock().unwrap();
-        
-        // Initialize stack_top_index if not set
-        let stack_top = if let Some(stop) = *stack_top_guard {
-            stop
+        // LOCK ORDER: heap_top_ptr -> stack_top_ptr
+        let heap_top_idx = self.heap_top_index();
+        let stack_top_ptr = self.stack_top_ptr();
+
+        // Initialize stack pointer if not set
+        let stack_top_idx = if let Some(ptr) = stack_top_ptr {
+            let start = self.heap_start_ptr();
+            unsafe { ptr.offset_from(start) as usize }
         } else {
-            // Initialize stack at the end of heap data (stack grows downward)
-            let initial_stop = heap_data.len();
-            *stack_top_guard = Some(initial_stop);
+            // Initialize stack at the end of heap (stack grows downward)
+            let heap_size = self.heap_sz;
+            let initial_stop = heap_size;
+            let start = self.heap_start_ptr();
+            let initial_ptr = unsafe { start.add(initial_stop) };
+            *self.stack_top_ptr.lock().unwrap() = Some(initial_ptr);
             initial_stop
         };
-        
+
         // Check for stack overflow (stack should not overlap with heap)
-        if stack_top <= heap_top {
-            return Err(format!("Stack overflow: stack_top={}, heap_top={}", stack_top, heap_top));
+        if stack_top_idx <= heap_top_idx {
+            return Err(format!("Stack overflow: stack_top={}, heap_top={}", stack_top_idx, heap_top_idx));
         }
-        
-        // Grow heap_data if needed to accommodate stack
-        if stack_top == 0 {
-            return Err("Stack overflow: cannot push when stack_top is 0".to_string());
-        }
-        
+
         // Decrement stack top (stack grows downward)
-        let new_stack_top = stack_top - 1;
-        
-        // Ensure heap_data is large enough
-        if new_stack_top >= heap_data.len() {
-            // Grow heap_data to accommodate stack
-            let new_size = (new_stack_top + 1).max(heap_data.len() * 2);
-            heap_data.resize(new_size, 0);
-            // Note: We can't update heap_sz here since it's not behind a Mutex
-            // This is a limitation of the current design
-        }
-        
+        let new_stack_top_idx = stack_top_idx - 1;
+
         // Store value at new stack top
-        heap_data[new_stack_top] = value;
-        *stack_top_guard = Some(new_stack_top);
+        let start = self.heap_start_ptr();
+        unsafe {
+            *start.add(new_stack_top_idx) = value;
+        }
+
+        // Update stack top pointer
+        let new_ptr = unsafe { start.add(new_stack_top_idx) };
+        *self.stack_top_ptr.lock().unwrap() = Some(new_ptr);
 
         // Update stop field for JIT compatibility
-        *self.stop.lock().unwrap() = new_stack_top;
+        *self.stop.lock().unwrap() = new_stack_top_idx;
 
         Ok(())
     }
@@ -401,35 +443,37 @@ impl Process {
     /// * `Some(Eterm)` - Popped value
     /// * `None` - Stack is empty
     pub fn stack_pop(&self) -> Option<Eterm> {
-        // LOCK ORDER: heap_data -> stack_top_index (see LOCKING.md)
-        let heap_data = self.heap_data.lock().unwrap();
-        let mut stack_top_guard = self.stack_top_index.lock().unwrap();
-        
-        let stack_top = match *stack_top_guard {
+        // LOCK ORDER: stack_top_ptr
+        let stack_top_ptr = self.stack_top_ptr();
+
+        let stack_ptr = match stack_top_ptr {
             Some(v) => v,
             None => return None,
         };
-        
-        // Check if stack is empty (stack_top >= heap_data.len() means no stack)
-        if stack_top >= heap_data.len() {
+
+        // Check if stack is empty (stack_ptr >= heap_end means no stack)
+        let heap_start = self.heap_start_ptr();
+        let heap_end = unsafe { heap_start.add(self.heap_sz) };
+        if stack_ptr >= heap_end {
             return None;
         }
-        
+
         // Get value from stack
-        let value = heap_data[stack_top];
-        
+        let value = unsafe { *stack_ptr };
+
         // Increment stack top (stack grows downward, so popping means moving up)
-        let new_stack_top = stack_top + 1;
-        
-        // If stack is now empty (reached end of heap_data), clear stack_top_index
-        if new_stack_top >= heap_data.len() {
-            *stack_top_guard = None;
+        let new_stack_ptr = unsafe { stack_ptr.add(1) };
+
+        // If stack is now empty (reached end of heap), clear stack_top_ptr
+        if new_stack_ptr >= heap_end {
+            *self.stack_top_ptr.lock().unwrap() = None;
             // Update stop field for JIT compatibility
-            *self.stop.lock().unwrap() = heap_data.len(); // Reset to end of heap
+            *self.stop.lock().unwrap() = self.heap_sz; // Reset to end of heap
         } else {
-            *stack_top_guard = Some(new_stack_top);
+            *self.stack_top_ptr.lock().unwrap() = Some(new_stack_ptr);
             // Update stop field for JIT compatibility
-            *self.stop.lock().unwrap() = new_stack_top;
+            let new_idx = unsafe { new_stack_ptr.offset_from(heap_start) as usize };
+            *self.stop.lock().unwrap() = new_idx;
         }
 
         Some(value)
@@ -441,20 +485,21 @@ impl Process {
     /// * `Some(Eterm)` - Top value on stack
     /// * `None` - Stack is empty
     pub fn stack_peek(&self) -> Option<Eterm> {
-        // LOCK ORDER: heap_data -> stack_top_index (see LOCKING.md)
-        let heap_data = self.heap_data.lock().unwrap();
-        let stack_top_guard = self.stack_top_index.lock().unwrap();
-        
-        let stack_top = match *stack_top_guard {
+        // LOCK ORDER: stack_top_ptr
+        let stack_top_ptr = self.stack_top_ptr();
+
+        let stack_ptr = match stack_top_ptr {
             Some(v) => v,
             None => return None,
         };
-        
-        if stack_top >= heap_data.len() {
+
+        // Check if stack is empty
+        let heap_end = unsafe { self.heap_start_ptr().add(self.heap_sz) };
+        if stack_ptr >= heap_end {
             return None;
         }
-        
-        Some(heap_data[stack_top])
+
+        Some(unsafe { *stack_ptr })
     }
 
     /// Get process flags
@@ -546,19 +591,19 @@ impl Process {
 
     // Legacy compatibility methods (for backward compatibility during migration)
     // These return None or 0 since we're using indices now
-    #[deprecated(note = "Use heap_start_index() and heap_slice() instead")]
+    #[deprecated(note = "Use heap_start_ptr() and heap_slice() instead")]
     pub fn heap(&self) -> Option<usize> {
-        Some(self.heap_start_index)
+        Some(self.heap_start_index())
     }
 
-    #[deprecated(note = "Use heap_top_index() instead")]
+    #[deprecated(note = "Use heap_top_ptr() instead")]
     pub fn htop(&self) -> Option<usize> {
-        Some(*self.heap_top_index.lock().unwrap())
+        Some(self.heap_top_index())
     }
 
     #[deprecated(note = "Use stack_top_index() instead")]
     pub fn stop(&self) -> Option<usize> {
-        self.stack_top_index()
+        self.stack_top_index_compat()
     }
 
     /// Add a NIF pointer to this process's tracking list
@@ -672,10 +717,9 @@ impl fmt::Debug for Process {
             .field("heap_sz", &self.heap_sz)
             .field("min_heap_size", &self.min_heap_size)
             .field("max_heap_size", &self.max_heap_size)
-            .field("heap_data_len", &self.heap_data.lock().unwrap().len())
-            .field("heap_start_index", &self.heap_start_index)
-            .field("heap_top_index", &*self.heap_top_index.lock().unwrap())
-            .field("stack_top_index", &self.stack_top_index)
+            .field("heap_start_ptr", &self.heap_start_ptr())
+            .field("heap_top_ptr", &self.heap_top_ptr())
+            .field("stack_top_ptr", &self.stack_top_ptr())
             .field("flags", &format!("0x{:x}", self.flags))
             .field("reds", &self.reds)
             .field("fcalls", &self.fcalls)
@@ -710,10 +754,10 @@ mod tests {
         let process = Process::new(123);
         assert_eq!(process.id(), 123);
         assert_eq!(process.get_id(), 123);
-        assert_eq!(process.heap_sz(), 233); // Heap is initialized with default min size
+        assert_eq!(process.heap_sz(), 333); // Total allocated heap capacity
         assert_eq!(process.min_heap_size(), 233);
         assert_eq!(process.max_heap_size(), 0);
-        assert_eq!(process.heap_slice().len(), 333); // Heap data is initialized (heap + stack)
+        assert_eq!(process.heap_slice().len(), 0); // Initially empty heap
     }
 
     #[test]
@@ -763,7 +807,7 @@ mod tests {
     fn test_process_getters() {
         let process = Process::new(789);
         assert_eq!(process.id(), 789);
-        assert_eq!(process.heap_sz(), 233);
+        assert_eq!(process.heap_sz(), 333); // Total allocated heap capacity
         assert_eq!(process.min_heap_size(), 233);
         assert_eq!(process.max_heap_size(), 0);
         assert_eq!(process.flags(), 0);
@@ -775,17 +819,17 @@ mod tests {
         assert_eq!(process.uniq(), 0);
         assert_eq!(process.schedule_count(), 0);
         assert_eq!(process.rcount(), 0);
-        assert_eq!(process.stack_top_index(), None);
+        assert_eq!(process.stack_top_index_compat(), None);
         assert_eq!(process.heap_top_index(), 0);
         assert_eq!(process.heap_start_index(), 0);
-        assert_eq!(process.heap_slice().len(), 333);
+        assert_eq!(process.heap_slice().len(), 0); // Initially empty heap
         assert_eq!(process.i(), std::ptr::null());
     }
 
     #[test]
     fn test_process_heap_access() {
         let process = Process::new(1);
-        let heap_slice = process.heap_slice();
+        let heap_slice = process.heap_full_slice_mut();
         assert_eq!(heap_slice.len(), 333);
         // All heap data should be initialized to 0
         assert!(heap_slice.iter().all(|&x| x == 0));
@@ -794,11 +838,15 @@ mod tests {
     #[test]
     fn test_process_stack_size_calculation() {
         let mut process = Process::new(1);
-        // Set stack top index
-        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
-        *process.heap_top_index.lock().unwrap() = 50;
-        *process.stack_top_index.lock().unwrap() = Some(100);
-        
+        // Set heap top to 50 and stack top to 100
+        process.ensure_heap_size(50);
+        // Push a value to set up stack at position 100
+        process.stack_push(42u64).unwrap();
+        // Manually set stack pointer to position 100 for test
+        let start = process.heap_start_ptr();
+        let stack_ptr = unsafe { start.add(100) };
+        *process.stack_top_ptr.lock().unwrap() = Some(stack_ptr);
+
         let stack_size = process.stack_size_words();
         assert_eq!(stack_size, Some(50));
     }
@@ -806,10 +854,14 @@ mod tests {
     #[test]
     fn test_process_heap_mutable_access() {
         let process = Process::new(1);
+        // Allocate some heap space first
+        let index = process.allocate_heap_words(1).unwrap();
+        assert_eq!(index, 0); // Should allocate at index 0
+
         let mut heap_slice = process.heap_slice_mut();
         // Can safely modify heap data
         heap_slice[0] = 42;
-        drop(heap_slice); // Release the lock
+        let _ = heap_slice; // Release the lock
         let heap_read = process.heap_slice();
         assert_eq!(heap_read[0], 42);
     }
@@ -935,12 +987,13 @@ mod tests {
     #[test]
     fn test_stack_size_words_some() {
         let mut process = Process::new(1);
-        
-        // Set stack top index
-        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
-        *process.heap_top_index.lock().unwrap() = 50;
-        *process.stack_top_index.lock().unwrap() = Some(100);
-        
+
+        // Set heap top to 50 and stack top to 100
+        process.ensure_heap_size(50);
+        let start = process.heap_start_ptr();
+        let stack_ptr = unsafe { start.add(100) };
+        *process.stack_top_ptr.lock().unwrap() = Some(stack_ptr);
+
         let stack_size = process.stack_size_words();
         assert_eq!(stack_size, Some(50));
     }
@@ -948,12 +1001,13 @@ mod tests {
     #[test]
     fn test_stack_size_words_saturating() {
         let mut process = Process::new(1);
-        
+
         // Test saturating_sub when stack_top < heap_top
-        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
-        *process.heap_top_index.lock().unwrap() = 100;
-        *process.stack_top_index.lock().unwrap() = Some(50);
-        
+        process.ensure_heap_size(100);
+        let start = process.heap_start_ptr();
+        let stack_ptr = unsafe { start.add(50) };
+        *process.stack_top_ptr.lock().unwrap() = Some(stack_ptr);
+
         let stack_size = process.stack_size_words();
         // saturating_sub(50, 100) = 0
         assert_eq!(stack_size, Some(0));
@@ -1205,7 +1259,9 @@ mod tests {
         
         // Test when Some
         let mut process2 = Process::new(2);
-        *process2.stack_top_index.lock().unwrap() = Some(100);
+        let start = process2.heap_start_ptr();
+        let stack_ptr = unsafe { start.add(100) };
+        *process2.stack_top_ptr.lock().unwrap() = Some(stack_ptr);
         let stop2 = process2.stop();
         assert_eq!(stop2, Some(100));
     }
@@ -1213,11 +1269,13 @@ mod tests {
     #[test]
     fn test_process_debug_all_fields() {
         let mut process = Process::new(999);
-        
+
         // Modify some fields to ensure they appear in debug output
-        *process.heap_top_index.lock().unwrap() = 50;
-        *process.stack_top_index.lock().unwrap() = Some(100);
-        
+        process.ensure_heap_size(50);
+        let start = process.heap_start_ptr();
+        let stack_ptr = unsafe { start.add(100) };
+        *process.stack_top_ptr.lock().unwrap() = Some(stack_ptr);
+
         let debug_str = format!("{:?}", process);
         
         // Check that all major fields appear in debug output
@@ -1225,10 +1283,9 @@ mod tests {
         assert!(debug_str.contains("heap_sz"));
         assert!(debug_str.contains("min_heap_size"));
         assert!(debug_str.contains("max_heap_size"));
-        assert!(debug_str.contains("heap_data_len"));
-        assert!(debug_str.contains("heap_start_index"));
-        assert!(debug_str.contains("heap_top_index"));
-        assert!(debug_str.contains("stack_top_index"));
+        assert!(debug_str.contains("heap_start_ptr"));
+        assert!(debug_str.contains("heap_top_ptr"));
+        assert!(debug_str.contains("stack_top_ptr"));
         assert!(debug_str.contains("flags"));
         assert!(debug_str.contains("reds"));
         assert!(debug_str.contains("fcalls"));
@@ -1284,17 +1341,20 @@ mod tests {
     #[test]
     fn test_process_heap_slice_mut_concurrent() {
         let process = Arc::new(Process::new(1));
-        
+
+        // Allocate some heap space first
+        process.allocate_heap_words(1).unwrap();
+
         // Test that heap_slice_mut properly locks
         let process_clone = process.clone();
-        
+
         std::thread::scope(|s| {
             s.spawn(move || {
                 let mut heap = process_clone.heap_slice_mut();
                 heap[0] = 100;
             });
         });
-        
+
         // Verify the write happened
         let heap = process.heap_slice();
         assert_eq!(heap[0], 100);
@@ -1357,17 +1417,19 @@ mod tests {
     #[test]
     fn test_process_stack_size_words_edge_cases() {
         let mut process = Process::new(1);
-        
+
         // Test with equal indices
-        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
-        *process.heap_top_index.lock().unwrap() = 50;
-        *process.stack_top_index.lock().unwrap() = Some(50);
+        process.ensure_heap_size(50);
+        let start = process.heap_start_ptr();
+        let stack_ptr = unsafe { start.add(50) };
+        *process.stack_top_ptr.lock().unwrap() = Some(stack_ptr);
         assert_eq!(process.stack_size_words(), Some(0));
-        
+
         // Test with stack_top < heap_top (saturating)
-        // LOCK ORDER: heap_top_index -> stack_top_index (see LOCKING.md)
-        *process.heap_top_index.lock().unwrap() = 50;
-        *process.stack_top_index.lock().unwrap() = Some(30);
+        process.ensure_heap_size(50);
+        let start = process.heap_start_ptr();
+        let stack_ptr = unsafe { start.add(30) };
+        *process.stack_top_ptr.lock().unwrap() = Some(stack_ptr);
         assert_eq!(process.stack_size_words(), Some(0));
     }
 }
